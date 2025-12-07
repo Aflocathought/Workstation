@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <link rel="icon" type="image/svg+xml" href="/src/assets/logo.svg" />
+    <title>Tauri + Solid + Typescript App</title>
+  <!-- Pico.css for nice default-styled form controls (no Material, no JS) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
+  <style>
+    /* Reset body and html for custom title bar */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-size: 14px;
+    }
+
+    #root { 
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+  </style>
+  </head>
+
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+
+    <script src="/src/index.tsx" type="module"></script>
+  </body>
+</html>

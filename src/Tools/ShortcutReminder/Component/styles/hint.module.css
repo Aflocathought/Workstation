@@ -1,0 +1,156 @@
+/* Floating hint and auxiliary overlays */
+
+.floatingHint {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  pointer-events: none;
+  z-index: 9999;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.hintBox {
+  background: rgba(30, 30, 30, 0.98);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+  padding: 14px 18px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(12px);
+  min-width: 280px;
+  max-width: 450px;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.hintTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--vscode-textLink-foreground);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hintModifier {
+  font-family: "Consolas", "Monaco", monospace;
+  padding: 2px 6px;
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+  border-radius: 2px;
+  font-size: 11px;
+}
+
+.hintItems {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hintItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--vscode-foreground);
+}
+
+.hintItemKey {
+  font-family: "Consolas", "Monaco", monospace;
+  min-width: 60px;
+  color: var(--vscode-textLink-foreground);
+  font-weight: 600;
+}
+
+.hintItemDesc {
+  flex: 1;
+  color: var(--vscode-descriptionForeground);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+.hintBox.hiding {
+  animation: fadeOut 0.2s ease-out;
+}
+
+.message {
+  padding: 12px 16px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.message.success {
+  background: var(--vscode-testing-iconPassed);
+  color: var(--vscode-editor-background);
+}
+
+.message.error {
+  background: var(--vscode-testing-iconFailed);
+  color: var(--vscode-editor-background);
+}
+
+.message.info {
+  background: var(--vscode-editorInfo-background);
+  color: var(--vscode-editorInfo-foreground);
+}
+
+.windowInfo {
+  padding: 10px;
+  background: rgba(50, 50, 50, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  margin-top: 12px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.windowInfoTitle {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 6px;
+  font-size: 11px;
+}
+
+.windowInfoItem {
+  display: flex;
+  gap: 8px;
+  margin: 4px 0;
+  line-height: 1.4;
+}
+
+.windowInfoLabel {
+  min-width: 45px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 10px;
+}
+
+.windowInfoValue {
+  flex: 1;
+  color: rgba(255, 255, 255, 0.8);
+  font-family: "Consolas", "Monaco", monospace;
+  font-size: 10px;
+  word-break: break-all;
+}

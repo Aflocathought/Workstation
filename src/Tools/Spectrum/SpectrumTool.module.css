@@ -1,0 +1,54 @@
+/* src/Tools/SpectrumTool.module.css */
+
+.spectrumTool {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.header {
+  flex-shrink: 0;
+  padding: 24px 24px 16px;
+  background: #ffffff;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.title {
+  margin: 0 0 8px;
+  font-size: 24px;
+  font-weight: 600;
+  color: #333;
+}
+
+.description {
+  margin: 0;
+  font-size: 14px;
+  color: #666;
+}
+
+.content {
+  flex: 1;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+/* 暗色模式 */
+@media (prefers-color-scheme: dark) {
+  .header {
+    background: #2d2d2d;
+    border-bottom-color: #3d3d3d;
+  }
+
+  .title {
+    color: #e0e0e0;
+  }
+
+  .description {
+    color: #aaa;
+  }
+
+  .content {
+    background: #1e1e1e;
+  }
+}

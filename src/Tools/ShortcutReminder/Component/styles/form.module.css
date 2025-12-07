@@ -1,0 +1,57 @@
+/* Shortcut form styles */
+
+.popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 10;
+  background-color: white;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 4px;
+  background: var(--vscode-input-background);
+  min-width: 320px;
+  max-width: 360px;
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.35);
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.formRow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.formLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--vscode-foreground);
+}
+
+.formInput {
+  padding: 6px 8px;
+  border: 1px solid var(--vscode-input-border);
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border-radius: 2px;
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.formInput:focus {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+}
+
+.formActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}

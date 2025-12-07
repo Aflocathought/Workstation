@@ -1,0 +1,219 @@
+/* src/components/TitleBar.module.css */
+
+.titleBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 32px;
+  background: linear-gradient(to bottom, #ffffff 0%, #f5f5f5 100%);
+  border-bottom: 1px solid #e0e0e0;
+  user-select: none;
+  -webkit-user-select: none;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1000;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+/* 窗口失焦状态 */
+.titleBar.unfocused {
+  background: linear-gradient(to bottom, #fafafa 0%, #f0f0f0 100%);
+  border-bottom-color: #e8e8e8;
+}
+
+.titleBar.unfocused .title {
+  color: #999;
+}
+
+.titleBar.unfocused .appIcon {
+  color: #999;
+}
+
+.titleBar.unfocused .actionButton {
+  color: #999;
+}
+
+.titleBar.unfocused .actionButton.active {
+  color: #1976d2;
+}
+
+.titleSection {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 12px;
+  height: 100%;
+}
+
+.appIcon {
+  display: flex;
+  align-items: center;
+  color: #1976d2;
+}
+
+/* 分隔线 */
+.divider {
+  width: 1px;
+  height: 20px;
+  background: rgba(0, 0, 0, 0.1);
+  margin: 0 8px;
+}
+
+/* 主要功能按钮区域 */
+.mainActions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 100%;
+  /* 移除 flex: 1，让按钮只占据需要的空间 */
+}
+
+/* 可拖动的空白区域 */
+.dragSpacer {
+  flex: 1;
+  height: 100%;
+  min-width: 40px; /* 确保有最小宽度可以拖动 */
+}
+
+.actionButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  height: 100%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  font-size: 12px;
+  color: #333;
+  font-weight: 400;
+  border-bottom: 2px solid transparent;
+}
+
+.actionButton:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+.actionButton.active {
+  background-color: rgba(25, 118, 210, 0.08);
+  color: #1976d2;
+  border-bottom-color: #1976d2;
+  font-weight: 500;
+}
+
+.actionIcon {
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+}
+
+.actionLabel {
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.title {
+  font-size: 13px;
+  font-weight: 500;
+  color: #333;
+  letter-spacing: 0.3px;
+}
+
+.windowControls {
+  display: flex;
+  height: 100%;
+}
+
+.controlButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 100%;
+  border: none;
+  background: transparent;
+  color: #333;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  padding: 0;
+  outline: none;
+}
+
+.controlButton:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.controlButton:active {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.closeButton:hover {
+  background-color: #e81123;
+  color: white;
+}
+
+.closeButton:active {
+  background-color: #c50d1c;
+  color: white;
+}
+
+.controlButton svg {
+  pointer-events: none;
+}
+
+/* 深色模式支持 */
+@media (prefers-color-scheme: dark) {
+  .titleBar {
+    background: linear-gradient(to bottom, #2d2d2d 0%, #252525 100%);
+    border-bottom-color: #1a1a1a;
+  }
+
+  .title {
+    color: #e0e0e0;
+  }
+
+  .appIcon {
+    color: #4da3ff;
+  }
+
+  .divider {
+    background: rgba(255, 255, 255, 0.15);
+  }
+
+  .actionButton {
+    color: #e0e0e0;
+  }
+
+  .actionButton:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .actionButton.active {
+    background-color: rgba(77, 163, 255, 0.15);
+    color: #4da3ff;
+    border-bottom-color: #4da3ff;
+  }
+
+  .controlButton {
+    color: #e0e0e0;
+  }
+
+  .controlButton:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .controlButton:active {
+    background-color: rgba(255, 255, 255, 0.15);
+  }
+
+  .closeButton:hover {
+    background-color: #e81123;
+    color: white;
+  }
+}
+
+/* 窗口最大化时的样式调整 */
+:global(body.maximized) .titleBar {
+  padding-right: 0;
+}

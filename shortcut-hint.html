@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Shortcut Hint</title>
+    <link rel="icon" href="data:," />
+    <script
+      type="module"
+      src="/src/tools/ShortcutReminder/hint/shortcut-hint.ts"
+    ></script>
+  </head>
+  <body>
+    <div id="hint-container">
+      <div class="profile-indicator" id="profile-indicator">
+        <span class="profile-label">作用范围</span>
+        <span class="profile-badge" id="profile-badge"></span>
+      </div>
+      <div class="hint-title">
+        <span class="hint-modifier blur" id="modifier-text">Ctrl</span>
+      </div>
+      <div class="hint-items" id="hint-items"></div>
+      <!-- <div class="window-info" id="window-info" style="display: none">
+        <div class="window-info-title">当前窗口</div>
+        <div class="window-info-item">
+          <span class="window-info-label">进程:</span>
+          <span class="window-info-value" id="process-name">-</span>
+        </div>
+        <div class="window-info-item">
+          <span class="window-info-label">标题:</span>
+          <span class="window-info-value" id="window-title">-</span>
+        </div>
+      </div> -->
+    </div>
+  </body>
+</html>

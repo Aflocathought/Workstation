@@ -1,0 +1,51 @@
+/* Modifier sidebar */
+
+.sidebar {
+  width: 200px;
+  border-right: 1px solid var(--vscode-panel-border);
+  display: flex;
+  flex-direction: column;
+  background: var(--vscode-sideBar-background);
+}
+
+.sidebarHeader {
+  padding: 12px 16px;
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--vscode-descriptionForeground);
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.tabList {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.tab {
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 13px;
+  border: none;
+  background: transparent;
+  color: var(--vscode-foreground);
+  text-align: left;
+  width: 100%;
+  transition: background-color 0.1s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tab:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.tabActive {
+  background: var(--vscode-list-activeSelectionBackground);
+  color: var(--vscode-list-activeSelectionForeground);
+}
+
+.tabIcon {
+  font-size: 14px;
+}

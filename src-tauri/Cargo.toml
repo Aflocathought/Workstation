@@ -1,0 +1,52 @@
+[package]
+name = "Workstation"
+version = "0.1.0"
+description = "A Tauri App"
+authors = ["you"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "workstation_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+tauri-plugin-autostart = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2.0.17"
+# --- 新增下面的依赖 ---
+# rusqlite 用于操作 SQLite 数据库
+# "bundled" 功能非常重要：它会将 SQLite 数据库引擎本身编译进我们的程序，
+# 这样我们的应用在任何电脑上都能运行，无需用户额外安装 SQLite。
+rusqlite = { version = "0.37.0", features = ["bundled"] }
+# chrono 是 Rust 中处理日期和时间的标准库
+chrono = { version = "0.4", features = ["serde"] }
+# once_cell 用于安全地初始化全局变量，比如我们的数据库连接
+once_cell = "1.19"
+fastrand = "2"
+rustfft = "6.4.0"
+window-vibrancy = "0.7.1"
+
+[features]
+default = []
+
+[dependencies.windows]
+version = "0.61.3" # 使用你看到的最新版本
+features = [
+    "Win32_Foundation",
+    "Win32_System_Threading",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_System_ProcessStatus",
+    "Win32_Media_Audio",
+    "Win32_System_Com",
+]

@@ -1,0 +1,211 @@
+/* 主题系统 - 自定义 CSS 变量 */
+
+/* ==================== 根元素 ==================== */
+:root {
+  /* 默认为浅色主题 */
+  --theme: 'light';
+}
+
+/* ==================== 浅色主题 ==================== */
+[data-theme='light'] {
+  /* 基础颜色 */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f5f5;
+  --bg-tertiary: #fafafa;
+  --bg-elevated: #ffffff;
+  
+  /* 文本颜色 */
+  --text-primary: #1a1a1a;
+  --text-secondary: #666666;
+  --text-tertiary: #999999;
+  --text-inverse: #ffffff;
+  
+  /* 边框颜色 */
+  --border-primary: #e0e0e0;
+  --border-secondary: #f0f0f0;
+  --border-focus: #0066cc;
+  
+  /* 交互颜色 */
+  --interactive-hover: #f0f0f0;
+  --interactive-active: #e8e8e8;
+  --interactive-disabled: #f5f5f5;
+  
+  /* 品牌色 */
+  --primary: #0066cc;
+  --primary-hover: #0052a3;
+  --primary-active: #003d7a;
+  
+  /* 语义颜色 */
+  --success: #28a745;
+  --success-bg: #d4edda;
+  --warning: #ffc107;
+  --warning-bg: #fff3cd;
+  --error: #dc3545;
+  --error-bg: #f8d7da;
+  --info: #17a2b8;
+  --info-bg: #d1ecf1;
+  
+  /* 阴影 */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.12);
+  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.16);
+  
+  /* 其他 */
+  --overlay: rgba(0, 0, 0, 0.3);
+  --backdrop-blur: 8px;
+}
+
+/* ==================== 深色主题 ==================== */
+[data-theme='dark'] {
+  /* 基础颜色 */
+  --bg-primary: #1e1e1e;
+  --bg-secondary: #252525;
+  --bg-tertiary: #2d2d2d;
+  --bg-elevated: #333333;
+  
+  /* 文本颜色 */
+  --text-primary: #e0e0e0;
+  --text-secondary: #b0b0b0;
+  --text-tertiary: #808080;
+  --text-inverse: #1a1a1a;
+  
+  /* 边框颜色 */
+  --border-primary: #404040;
+  --border-secondary: #353535;
+  --border-focus: #4da3ff;
+  
+  /* 交互颜色 */
+  --interactive-hover: #2d2d2d;
+  --interactive-active: #353535;
+  --interactive-disabled: #252525;
+  
+  /* 品牌色 - 深色模式下稍微亮一些 */
+  --primary: #4da3ff;
+  --primary-hover: #66b3ff;
+  --primary-active: #80c2ff;
+  
+  /* 语义颜色 */
+  --success: #3dd365;
+  --success-bg: #1a3a26;
+  --warning: #ffd54f;
+  --warning-bg: #3d3420;
+  --error: #ff5c5c;
+  --error-bg: #3d2020;
+  --info: #5dccdc;
+  --info-bg: #1f3942;
+  
+  /* 阴影 - 深色模式下更明显 */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.5);
+  
+  /* 其他 */
+  --overlay: rgba(0, 0, 0, 0.6);
+  --backdrop-blur: 12px;
+}
+
+/* ==================== 自动主题（跟随系统） ==================== */
+@media (prefers-color-scheme: dark) {
+  [data-theme='auto'] {
+    /* 基础颜色 */
+    --bg-primary: #1e1e1e;
+    --bg-secondary: #252525;
+    --bg-tertiary: #2d2d2d;
+    --bg-elevated: #333333;
+    
+    /* 文本颜色 */
+    --text-primary: #e0e0e0;
+    --text-secondary: #b0b0b0;
+    --text-tertiary: #808080;
+    --text-inverse: #1a1a1a;
+    
+    /* 边框颜色 */
+    --border-primary: #404040;
+    --border-secondary: #353535;
+    --border-focus: #4da3ff;
+    
+    /* 交互颜色 */
+    --interactive-hover: #2d2d2d;
+    --interactive-active: #353535;
+    --interactive-disabled: #252525;
+    
+    /* 品牌色 */
+    --primary: #4da3ff;
+    --primary-hover: #66b3ff;
+    --primary-active: #80c2ff;
+    
+    /* 语义颜色 */
+    --success: #3dd365;
+    --success-bg: #1a3a26;
+    --warning: #ffd54f;
+    --warning-bg: #3d3420;
+    --error: #ff5c5c;
+    --error-bg: #3d2020;
+    --info: #5dccdc;
+    --info-bg: #1f3942;
+    
+    /* 阴影 */
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.5);
+    
+    /* 其他 */
+    --overlay: rgba(0, 0, 0, 0.6);
+    --backdrop-blur: 12px;
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  [data-theme='auto'] {
+    /* 基础颜色 */
+    --bg-primary: #ffffff;
+    --bg-secondary: #f5f5f5;
+    --bg-tertiary: #fafafa;
+    --bg-elevated: #ffffff;
+    
+    /* 文本颜色 */
+    --text-primary: #1a1a1a;
+    --text-secondary: #666666;
+    --text-tertiary: #999999;
+    --text-inverse: #ffffff;
+    
+    /* 边框颜色 */
+    --border-primary: #e0e0e0;
+    --border-secondary: #f0f0f0;
+    --border-focus: #0066cc;
+    
+    /* 交互颜色 */
+    --interactive-hover: #f0f0f0;
+    --interactive-active: #e8e8e8;
+    --interactive-disabled: #f5f5f5;
+    
+    /* 品牌色 */
+    --primary: #0066cc;
+    --primary-hover: #0052a3;
+    --primary-active: #003d7a;
+    
+    /* 语义颜色 */
+    --success: #28a745;
+    --success-bg: #d4edda;
+    --warning: #ffc107;
+    --warning-bg: #fff3cd;
+    --error: #dc3545;
+    --error-bg: #f8d7da;
+    --info: #17a2b8;
+    --info-bg: #d1ecf1;
+    
+    /* 阴影 */
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+    --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.12);
+    --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.16);
+    
+    /* 其他 */
+    --overlay: rgba(0, 0, 0, 0.3);
+    --backdrop-blur: 8px;
+  }
+}
+
+/* ==================== 通用样式 ==================== */
+* {
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}

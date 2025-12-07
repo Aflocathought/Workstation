@@ -1,0 +1,280 @@
+/* src/Tools/CSVViewer/CSVViewer.module.css */
+
+.container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 16px;
+  padding: 20px 24px;
+  box-sizing: border-box;
+  background: var(--vscode-editor-background);
+  color: var(--vscode-foreground);
+  overflow: hidden;
+}
+
+.uploadArea {
+  background: var(--vscode-editorWidget-background);
+  border: 1px dashed var(--vscode-editorWidget-border);
+  border-radius: 8px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: border-color 0.2s ease;
+}
+
+.dropZone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 6px;
+  border: 3px dashed #aaa;
+  background: var(--vscode-editor-background);
+  text-align: center;
+  cursor: pointer;
+}
+
+.dropZone.dragOver {
+  border: 1px solid var(--vscode-focusBorder);
+  background: rgba(30, 144, 255, 0.08);
+}
+
+.dropZoneContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.icon {
+  font-size: 48px;
+}
+
+.fileInfo {
+  font-size: 13px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.controls {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.section {
+  background: var(--vscode-editorWidget-background);
+  border: 1px solid var(--vscode-editorWidget-border);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  /* 如果列非常多，限制高度让其内部滚动，不破坏整体布局 */
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.sectionTitle {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--vscode-foreground);
+}
+
+.inlineControls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.checkboxGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px 12px;
+  /* 确保复选框多的时候能滚 */
+  overflow-y: auto;
+}
+
+.checkboxItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--vscode-foreground);
+}
+
+.checkboxItem input {
+  accent-color: var(--vscode-focusBorder);
+}
+
+.sliderInput {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.sliderInput input[type="range"] {
+  flex: 1;
+}
+
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  font-size: 13px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.stats strong {
+  color: var(--vscode-foreground);
+}
+
+.error {
+  padding: 12px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--vscode-inputValidation-errorBorder);
+  background: rgba(255, 59, 48, 0.1);
+  color: var(--vscode-inputValidation-errorForeground);
+  font-size: 13px;
+}
+
+.message {
+  padding: 12px 16px;
+  border-radius: 6px;
+  background: var(--vscode-editorWidget-background);
+  border: 1px solid var(--vscode-editorWidget-border);
+  font-size: 13px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.chartWrapper {
+  min-height: 0; /* 关键：允许 flex 子项压缩，防止溢出 */
+  width: 100%;
+  background: var(--vscode-editorWidget-background);
+  border: 1px solid var(--vscode-editorWidget-border);
+  border-radius: 8px;
+  height: 900px;
+
+  /* 布局核心 */
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* 8. 图表容器：绝对定位填满外框 */
+.chartContainer {
+  position: absolute; /* 脱离文档流，完全依赖父容器尺寸 */
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.xHeader {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.dragOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.9);
+  z-index: 999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  backdrop-filter: blur(4px);
+}
+
+.overlayContent {
+  width: 80%;
+  max-width: 600px;
+  animation: popIn 0.2s ease-out;
+}
+
+.overlayMode {
+  border: 3px dashed #2196f3;
+  background: #e3f2fd;
+  pointer-events: none;
+}
+
+.dashboardContent {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 16px;
+  overflow: hidden; /* 防止内部元素溢出导致父级滚动 */
+}
+
+.rangeModify {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  height: 50px;
+}
+
+.rangeInputFont {
+  font-size: 20px;
+  color: var(--vscode-foreground);
+}
+
+.rangeInput {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 4px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font-size: 14px;
+  max-width: 100px;
+}
+
+.rangeHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  color: var(--vscode-foreground);
+}
+
+@keyframes popIn {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@media (min-width: 1000px) {
+  .controls {
+    /* 左侧列选择占 2份，右侧设置占 1份 */
+    grid-template-columns: 2fr 1fr;
+    align-items: start;
+  }
+}
+@media (max-width: 1500px) {
+  .dropZone {
+    padding: 12px;
+  }
+}

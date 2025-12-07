@@ -1,0 +1,31 @@
+{
+  "Create SolidJS Component with Props Interface": {
+    "prefix": "sgc",
+    "body": [
+      "",
+      "export class ${1:${TM_FILENAME_BASE}}{",
+      "  private static instance: ${1:${TM_FILENAME_BASE}} | null = null;",
+	  "",
+      "  private constructor() {",
+      "",
+      "  }",
+      "",
+      "  static getInstance(): ${1:${TM_FILENAME_BASE}} {",
+      "    if (!this.instance) {",
+      "       this.instance = new ${1:${TM_FILENAME_BASE}}();",
+      "    }",
+      "    return this.instance ;",
+      "  }",
+      "}",
+      "export const ${2:${TM_FILENAME_BASE}}_ = ({}) => {",
+      "",
+      "  return (",
+      "    <div>",
+      "    </div>",
+      "  );",
+      "};",
+      ""
+    ],
+    "description": "Create a SolidJS functional component with a single instance class"
+  }
+}

@@ -1,0 +1,110 @@
+/* src/components/NotificationContainer.module.css */
+.container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.notification {
+  padding: 12px 16px;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  animation: slideInRight 0.3s ease-out;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border: 1px solid;
+  font-size: 14px;
+}
+
+.error {
+  background-color: #fee;
+  border-color: #fcc;
+  color: #c00;
+}
+
+.warning {
+  background-color: #fff4e6;
+  border-color: #ffd699;
+  color: #cc7a00;
+}
+
+.info {
+  background-color: #e6f3ff;
+  border-color: #99d6ff;
+  color: #0066cc;
+}
+
+.success {
+  background-color: #e6f7e6;
+  border-color: #99d699;
+  color: #060;
+}
+
+.content {
+  flex: 1;
+}
+
+.title {
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+.message {
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.actionButton {
+  margin-top: 8px;
+  padding: 4px 8px;
+  font-size: 12px;
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  color: inherit;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.actionButton:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.closeButton {
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  color: inherit;
+  margin-left: 12px;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  transition: background-color 0.2s;
+}
+
+.closeButton:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}

@@ -1,0 +1,273 @@
+/* src/Tools/Calendar/CalendarTool.module.css */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px;
+  height: 100%;
+  overflow-y: auto;
+  background: var(--vscode-editor-background);
+}
+
+/* 标题栏 */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  flex-wrap: wrap;
+}
+
+/* 大屏幕：标题栏不换行 */
+@media (min-width: 1024px) {
+  .header {
+    flex-wrap: nowrap;
+  }
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--vscode-foreground);
+}
+
+.description {
+  font-size: 14px;
+  color: var(--vscode-descriptionForeground);
+  margin: 4px 0 0 0;
+}
+
+.headerActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* 大屏幕：操作按钮不换行 */
+@media (min-width: 1024px) {
+  .headerActions {
+    flex-wrap: nowrap;
+  }
+}
+
+/* Google 登录按钮 */
+.googleSignInButton {
+  background-color: #ffffff;
+  color: #333;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 0 12px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: "Roboto", sans-serif;
+  cursor: pointer;
+  transition: background-color 0.2s, box-shadow 0.2s;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.googleSignInButton:hover:not(:disabled) {
+  background-color: #f5f5f5;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+}
+
+.googleSignInButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.googleIcon {
+  width: 18px;
+  height: 18px;
+  margin-right: 12px;
+}
+
+.buttonText {
+  line-height: 1;
+}
+
+/* 按钮样式 */
+.authorizeButton,
+.signOutButton,
+.addButton,
+.refreshButton,
+.submitButton,
+.cancelButton,
+.deleteButton {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  min-height: 32px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.authorizeButton {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+.authorizeButton:hover:not(:disabled) {
+  background: var(--vscode-button-hoverBackground);
+}
+
+.signOutButton {
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  border: 1px solid var(--vscode-button-secondaryBorder, transparent);
+}
+
+.signOutButton:hover:not(:disabled) {
+  background: var(--vscode-button-secondaryHoverBackground);
+}
+
+.addButton,
+.submitButton {
+  background: #28a745;
+  color: white;
+}
+
+.addButton:hover:not(:disabled),
+.submitButton:hover:not(:disabled) {
+  background: #218838;
+}
+
+.refreshButton,
+.cancelButton {
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+}
+
+.refreshButton:hover:not(:disabled),
+.cancelButton:hover:not(:disabled) {
+  background: var(--vscode-button-secondaryHoverBackground);
+}
+
+.deleteButton {
+  background: transparent;
+  color: #dc3545;
+  padding: 0.25rem 0.5rem;
+  font-size: 1.2rem;
+  min-width: auto;
+}
+
+.deleteButton:hover:not(:disabled) {
+  background: rgba(220, 53, 69, 0.1);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 错误提示 */
+.errorBox {
+  padding: 16px;
+  background: var(--vscode-inputValidation-errorBackground);
+  border: 1px solid var(--vscode-inputValidation-errorBorder);
+  border-radius: 6px;
+  color: var(--vscode-inputValidation-errorForeground);
+  font-size: 14px;
+}
+
+/* 欢迎界面 */
+.welcomeBox {
+  padding: 32px;
+  background: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+  text-align: center;
+}
+
+.welcomeBox h3 {
+  margin: 0 0 16px 0;
+  color: var(--vscode-foreground);
+  font-size: 18px;
+}
+
+.welcomeBox p {
+  margin: 8px 0;
+  color: var(--vscode-descriptionForeground);
+  line-height: 1.6;
+  font-size: 14px;
+}
+
+.welcomeBox pre {
+  background: var(--vscode-textCodeBlock-background);
+  padding: 16px;
+  border-radius: 4px;
+  text-align: left;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  margin-top: 16px;
+  font-size: 13px;
+}
+
+.hint {
+  margin-top: 16px;
+  padding: 16px;
+  background: var(--vscode-textBlockQuote-background);
+  border-left: 3px solid var(--vscode-textBlockQuote-border);
+  font-size: 13px;
+  text-align: left;
+}
+
+.hint code {
+  background: var(--vscode-textCodeBlock-background);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: "Consolas", "Monaco", monospace;
+  font-size: 12px;
+}
+
+/* 工具栏 */
+.toolbar {
+  display: flex;
+  gap: 8px;
+  padding: 16px;
+  background: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+  flex-wrap: wrap;
+}
+
+/* 大屏幕优化：工具栏按钮不换行 */
+@media (min-width: 1024px) {
+  .toolbar {
+    flex-wrap: nowrap;
+  }
+}
+
+/* 加载状态 */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading {
+  animation: spin 1s linear infinite;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

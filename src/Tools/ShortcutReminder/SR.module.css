@@ -1,0 +1,519 @@
+/* src/Tools/ShortcutReminder/SR.module.css */
+
+.windowInfoValue {
+  flex: 1;
+  color: rgba(255, 255, 255, 0.8);
+  font-family: "Consolas", "Monaco", monospace;
+  font-size: 10px;
+  word-break: break-all;
+}
+/* Styles moved to Component/styles/*.module.css */
+/* src/Tools/ShortcutReminder/SR.module.css */
+
+.container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--vscode-editor-background);
+  color: var(--vscode-editor-foreground);
+}
+
+.header {
+  padding: 20px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  color: var(--vscode-editor-foreground);
+}
+
+.description {
+  font-size: 14px;
+  color: var(--vscode-descriptionForeground);
+  margin: 0;
+}
+
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* 侧边栏 */
+.sidebar {
+  width: 200px;
+  border-right: 1px solid var(--vscode-panel-border);
+  display: flex;
+  flex-direction: column;
+  background: var(--vscode-sideBar-background);
+}
+
+.sidebarHeader {
+  padding: 12px 16px;
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--vscode-descriptionForeground);
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.tabList {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.tab {
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 13px;
+  border: none;
+  background: transparent;
+  color: var(--vscode-foreground);
+  text-align: left;
+  width: 100%;
+  transition: background-color 0.1s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tab:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.tab.active {
+  background: var(--vscode-list-activeSelectionBackground);
+  color: var(--vscode-list-activeSelectionForeground);
+}
+
+.tabIcon {
+  font-size: 14px;
+}
+
+/* 主内容区 */
+
+.workspace {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.mainArea {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--vscode-editor-background);
+}
+
+.toolbar {
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  background: var(--vscode-editor-background);
+}
+
+.scopeControls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.scopeLabel {
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.scopeSelect {
+  padding: 6px 8px;
+  border: 1px solid var(--vscode-input-border);
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border-radius: 2px;
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.scopeSelect:focus {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+}
+
+.toolContentArea {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.actionsBar {
+  padding: 16px 20px 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  background: var(--vscode-editor-background);
+}
+
+.button {
+  padding: 6px 12px;
+  border: 1px solid var(--vscode-button-border);
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  border-radius: 2px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background-color 0.1s;
+}
+
+.button:hover {
+  background: var(--vscode-button-hoverBackground);
+}
+
+.button.secondary {
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+}
+
+.button.secondary:hover {
+  background: var(--vscode-button-secondaryHoverBackground);
+}
+
+.button.danger {
+  background: var(--vscode-inputValidation-errorBackground, #aa2d2f);
+  color: var(--vscode-inputValidation-errorForeground, #ffffff);
+  border-color: transparent;
+}
+
+.button.danger:hover {
+  background: #c23a3f;
+  color: #ffffff;
+}
+
+.mainScroll {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 0 20px 20px 20px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.shortcutsList {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.shortcutItem {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 16px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 4px;
+  margin-bottom: 8px;
+  background: var(--vscode-editor-background);
+}
+
+.shortcutKey {
+  min-width: 100px;
+  font-family: "Consolas", "Monaco", monospace;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--vscode-textLink-foreground);
+}
+
+.shortcutDescription {
+  flex: 1;
+  font-size: 13px;
+  color: var(--vscode-foreground);
+}
+
+.shortcutActions {
+  display: flex;
+  gap: 8px;
+}
+
+.iconButton {
+  padding: 4px 8px;
+  border: none;
+  background: transparent;
+  color: var(--vscode-foreground);
+  cursor: pointer;
+  border-radius: 2px;
+  font-size: 14px;
+  transition: background-color 0.1s;
+}
+
+.iconButton:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.emptyState {
+  padding: 40px;
+  text-align: center;
+  color: var(--vscode-descriptionForeground);
+}
+
+.emptyState p {
+  margin: 8px 0;
+  font-size: 14px;
+}
+
+@media (min-width: 1280px) {
+  .shortcutsList {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+  }
+
+  .shortcutItem {
+    margin-bottom: 0;
+  }
+}
+
+.profileBanner {
+  padding: 12px 20px 8px 20px;
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+}
+
+/* 添加/编辑表单 */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 4px;
+  background: var(--vscode-input-background);
+}
+
+.formRow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.formLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--vscode-foreground);
+}
+
+.formInput {
+  padding: 6px 8px;
+  border: 1px solid var(--vscode-input-border);
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border-radius: 2px;
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.formInput:focus {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+}
+
+.formActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* 悬浮提示框 */
+.floatingHint {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  pointer-events: none;
+  z-index: 9999;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.hintBox {
+  background: rgba(30, 30, 30, 0.98);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+  padding: 14px 18px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(12px);
+  min-width: 280px;
+  max-width: 450px;
+}
+
+.hintTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--vscode-textLink-foreground);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hintModifier {
+  font-family: "Consolas", "Monaco", monospace;
+  padding: 2px 6px;
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+  border-radius: 2px;
+  font-size: 11px;
+}
+
+.hintItems {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hintItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--vscode-foreground);
+}
+
+.hintItemKey {
+  font-family: "Consolas", "Monaco", monospace;
+  min-width: 60px;
+  color: var(--vscode-textLink-foreground);
+  font-weight: 600;
+}
+
+.hintItemDesc {
+  flex: 1;
+  color: var(--vscode-descriptionForeground);
+}
+
+/* 动画 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+.hintBox {
+  animation: fadeIn 0.2s ease-out;
+}
+
+.hintBox.hiding {
+  animation: fadeOut 0.2s ease-out;
+}
+
+/* 导入/导出提示 */
+.message {
+  padding: 12px 16px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.message.success {
+  background: var(--vscode-testing-iconPassed);
+  color: var(--vscode-editor-background);
+}
+
+.message.error {
+  background: var(--vscode-testing-iconFailed);
+  color: var(--vscode-editor-background);
+}
+
+.message.info {
+  background: var(--vscode-editorInfo-background);
+  color: var(--vscode-editorInfo-foreground);
+}
+
+/* 开关控件 */
+.switchLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.switchInput {
+  cursor: pointer;
+}
+
+.switchText {
+  font-size: 13px;
+  color: var(--vscode-foreground);
+  font-weight: 500;
+}
+
+/* 窗口信息显示 */
+.windowInfo {
+  padding: 10px;
+  background: rgba(50, 50, 50, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  margin-top: 12px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.windowInfoTitle {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 6px;
+  font-size: 11px;
+}
+
+.windowInfoItem {
+  display: flex;
+  gap: 8px;
+  margin: 4px 0;
+  line-height: 1.4;
+}
+
+.windowInfoLabel {
+  min-width: 45px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 10px;
+}
+
+.windowInfoValue {
+  flex: 1;
+  color: rgba(255, 255, 255, 0.8);
+  font-family: "Consolas", "Monaco", monospace;
+  font-size: 10px;
+  word-break: break-all;
+}

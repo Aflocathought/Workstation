@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Tauri Interactive Test</title>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        font-family: system-ui, sans-serif;
+        background: #1e1e2f;
+        color: #f7f7ff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .card {
+        background: rgba(255, 255, 255, 0.08);
+        padding: 24px 32px;
+        border-radius: 16px;
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+        min-width: 320px;
+        text-align: center;
+      }
+      button {
+        background: #6c63ff;
+        color: white;
+        border: none;
+        border-radius: 999px;
+        padding: 10px 24px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+      }
+      button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 24px rgba(108, 99, 255, 0.3);
+      }
+      button:active {
+        transform: translateY(0);
+        box-shadow: none;
+      }
+      #counter {
+        font-size: 48px;
+        margin: 24px 0;
+      }
+      input {
+        width: 100%;
+        padding: 8px 12px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: rgba(0, 0, 0, 0.2);
+        color: inherit;
+        margin-top: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Interactive Test Window</h1>
+      <p>Use this window to verify async creation and event handling.</p>
+      <div id="counter">0</div>
+      <button id="increment">Increment</button>
+      <input id="echo" placeholder="Type to echo below" />
+      <p id="echo-output" aria-live="polite"></p>
+    </div>
+    <script>
+      const counter = document.getElementById("counter");
+      const incrementBtn = document.getElementById("increment");
+      const echoInput = document.getElementById("echo");
+      const echoOutput = document.getElementById("echo-output");
+
+      let value = 0;
+      incrementBtn.addEventListener("click", () => {
+        value += 1;
+        counter.textContent = String(value);
+      });
+
+      echoInput.addEventListener("input", () => {
+        echoOutput.textContent = echoInput.value.trim() ? `Echo: ${echoInput.value}` : "";
+      });
+    </script>
+  </body>
+</html>

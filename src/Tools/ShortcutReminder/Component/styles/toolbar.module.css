@@ -1,0 +1,109 @@
+/* Toolbar and action controls */
+
+.toolbar {
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  background: var(--vscode-editor-background);
+}
+
+.scopeControls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.scopeLabel {
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.scopeSelect {
+  padding: 6px 8px;
+  border: 1px solid var(--vscode-input-border);
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border-radius: 2px;
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.scopeSelect:focus {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+}
+
+.actionsBar {
+  padding: 16px 20px 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  background: var(--vscode-editor-background);
+}
+
+.addButtonWrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.button {
+  padding: 6px 12px;
+  border: 1px solid var(--vscode-button-border);
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  border-radius: 2px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background-color 0.1s;
+}
+
+.button:hover {
+  background: var(--vscode-button-hoverBackground);
+}
+
+.buttonSecondary {
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+}
+
+.buttonSecondary:hover {
+  background: var(--vscode-button-secondaryHoverBackground);
+}
+
+.buttonDanger {
+  background: var(--vscode-inputValidation-errorBackground, #aa2d2f);
+  color: var(--vscode-inputValidation-errorForeground, #ffffff);
+  border-color: transparent;
+}
+
+.buttonDanger:hover {
+  background: #c23a3f;
+  color: #ffffff;
+}
+
+.switchLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.switchInput {
+  cursor: pointer;
+}
+
+.switchText {
+  font-size: 13px;
+  color: var(--vscode-foreground);
+  font-weight: 500;
+}

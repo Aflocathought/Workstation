@@ -1,0 +1,59 @@
+/* ThemeToggle 组件样式 */
+
+.themeToggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.themeToggle:hover {
+  background: var(--interactive-hover);
+  border-color: var(--border-focus);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.themeToggle:active {
+  transform: translateY(0);
+  background: var(--interactive-active);
+}
+
+.themeToggle:focus-visible {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.2);
+}
+
+.icon {
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.label {
+  color: var(--text-secondary);
+  user-select: none;
+}
+
+/* 小屏幕只显示图标 */
+@media (max-width: 768px) {
+  .label {
+    display: none;
+  }
+  
+  .themeToggle {
+    padding: 8px 12px;
+    min-width: 44px;
+    justify-content: center;
+  }
+}

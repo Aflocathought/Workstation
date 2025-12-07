@@ -1,0 +1,209 @@
+/* src/components/Layout/Navigation/NavBar.module.css */
+
+/* 导航栏容器 */
+.navBar {
+  display: flex;
+  align-items: stretch;
+}
+
+.navItems {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+}
+
+/* 方向 */
+.horizontal .navItems {
+  flex-direction: row;
+  gap: 0;
+}
+
+.vertical .navItems {
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* 导航按钮基础样式 */
+.navButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-size: 12px;
+  color: #333;
+  font-weight: 400;
+  white-space: nowrap;
+  position: relative;
+}
+
+.navButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* 水平布局按钮 */
+.horizontal .navButton {
+  height: 100%;
+  border-bottom: 2px solid transparent;
+}
+
+/* 垂直布局按钮 */
+.vertical .navButton {
+  width: 100%;
+  padding: 12px 16px;
+  justify-content: flex-start;
+  border-left: 3px solid transparent;
+}
+
+/* 图标和标签 */
+.icon {
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+}
+
+.label {
+  font-size: 12px;
+}
+
+.badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  background: #f44336;
+  color: white;
+  border-radius: 9px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+/* ============ 样式变体 ============ */
+
+/* Tabs 样式（标签页） */
+.tabs .navButton:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+.tabs.horizontal .navButton.active {
+  background-color: #fff;
+  color: #1976d2;
+  border-bottom-color: #1976d2;
+  font-weight: 500;
+}
+
+.tabs.vertical .navButton.active {
+  background-color: #fff;
+  color: #1976d2;
+  border-left-color: #1976d2;
+  font-weight: 500;
+}
+
+/* Pills 样式（胶囊） */
+.pills .navButton {
+  border-radius: 6px;
+  margin: 2px;
+}
+
+.pills .navButton:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+.pills .navButton.active {
+  background-color: #1976d2;
+  color: white;
+  font-weight: 500;
+}
+
+/* Minimal 样式（极简） */
+.minimal .navButton {
+  padding: 8px 12px;
+}
+
+.minimal .navButton:hover {
+  color: #1976d2;
+}
+
+.minimal .navButton.active {
+  color: #1976d2;
+  font-weight: 500;
+}
+
+.minimal.horizontal .navButton.active::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80%;
+  height: 2px;
+  background: #1976d2;
+}
+
+.minimal.vertical .navButton.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 80%;
+  background: #1976d2;
+}
+
+/* 禁用状态 */
+.navButton.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.navButton.disabled:hover {
+  background-color: transparent;
+}
+
+/* ============ 深色模式 ============ */
+@media (prefers-color-scheme: dark) {
+  .navButton {
+    color: #e0e0e0;
+  }
+
+  .tabs .navButton:hover,
+  .pills .navButton:hover,
+  .minimal .navButton:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .tabs.horizontal .navButton.active {
+    background-color: rgba(25, 118, 210, 0.15);
+    color: #4da3ff;
+    border-bottom-color: #4da3ff;
+  }
+
+  .tabs.vertical .navButton.active {
+    background-color: rgba(25, 118, 210, 0.15);
+    color: #4da3ff;
+    border-left-color: #4da3ff;
+  }
+
+  .pills .navButton.active {
+    background-color: #1976d2;
+    color: white;
+  }
+
+  .minimal .navButton.active {
+    color: #4da3ff;
+  }
+
+  .minimal.horizontal .navButton.active::after,
+  .minimal.vertical .navButton.active::before {
+    background: #4da3ff;
+  }
+}

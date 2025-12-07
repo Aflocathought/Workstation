@@ -1,0 +1,394 @@
+/* src/Tools/Python/PythonTool.module.css */
+
+.container {
+  padding: 24px;
+  height: 100%;
+  overflow-y: auto;
+  background: #fafafa;
+}
+
+.header {
+  margin-bottom: 24px;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 8px 0;
+}
+
+.description {
+  font-size: 14px;
+  color: #666;
+  margin: 0;
+}
+
+/* Python 环境信息卡片 */
+.infoCard {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 24px;
+}
+
+.infoRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.infoLabel {
+  font-weight: 500;
+  color: #666;
+  min-width: 100px;
+}
+
+.infoValue {
+  color: #1a1a1a;
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+
+.statusAvailable {
+  color: #4caf50;
+  font-weight: 600;
+}
+
+.statusUnavailable {
+  color: #f44336;
+  font-weight: 600;
+}
+
+/* 错误提示 */
+.errorBox {
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 24px;
+  color: #856404;
+}
+
+/* 执行区域 */
+.executionSection {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.sectionTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 16px 0;
+}
+
+.formGroup {
+  margin-bottom: 16px;
+}
+
+.label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.select,
+.input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color 0.2s;
+}
+
+.select:focus,
+.input:focus {
+  outline: none;
+  border-color: #2196f3;
+}
+
+.input {
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+
+.executeButton {
+  width: 100%;
+  padding: 12px 24px;
+  background: #2196f3;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.executeButton:hover:not(:disabled) {
+  background: #1976d2;
+}
+
+.executeButton:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+/* 快速测试 */
+.quickTestSection {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+}
+
+.quickTestTitle {
+  font-size: 14px;
+  font-weight: 500;
+  color: #666;
+  margin: 0 0 12px 0;
+}
+
+.quickTestButtons {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.quickTestButton {
+  padding: 8px 16px;
+  background: #f5f5f5;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.quickTestButton:hover:not(:disabled) {
+  background: #e0e0e0;
+  border-color: #bbb;
+}
+
+.quickTestButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 结果区域 */
+.resultSection {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.resultHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.resultSuccess {
+  color: #4caf50;
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.resultError {
+  color: #f44336;
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.resultInfo {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 16px;
+  padding: 12px;
+  background: #f5f5f5;
+  border-radius: 6px;
+}
+
+.resultLabel {
+  font-size: 13px;
+  color: #666;
+  font-weight: 500;
+}
+
+.resultValue {
+  font-size: 13px;
+  color: #1a1a1a;
+  font-weight: 600;
+}
+
+.outputBox {
+  margin-bottom: 16px;
+}
+
+.outputTitle {
+  font-size: 14px;
+  font-weight: 500;
+  color: #666;
+  margin: 0 0 8px 0;
+}
+
+.outputContent,
+.outputError {
+  background: #1e1e1e;
+  color: #d4d4d4;
+  padding: 16px;
+  border-radius: 6px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-x: auto;
+  max-height: 400px;
+  overflow-y: auto;
+  margin: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.outputError {
+  background: #2d1e1e;
+  color: #f48771;
+}
+
+/* 脚本列表 */
+.scriptsSection {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.scriptsList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.scriptCard {
+  padding: 12px;
+  background: #f9f9f9;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.scriptCard:hover {
+  background: #f0f0f0;
+  border-color: #ccc;
+}
+
+.scriptName {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1a1a1a;
+  margin-bottom: 8px;
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+
+.scriptInfo {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #999;
+}
+
+.scriptSize,
+.scriptDate {
+  font-size: 11px;
+}
+
+/* 深色模式 */
+@media (prefers-color-scheme: dark) {
+  .container {
+    background: #1a1a1a;
+  }
+
+  .title {
+    color: #e0e0e0;
+  }
+
+  .description {
+    color: #999;
+  }
+
+  .infoCard,
+  .executionSection,
+  .resultSection,
+  .scriptsSection {
+    background: #2a2a2a;
+    border-color: #3a3a3a;
+  }
+
+  .infoLabel,
+  .label,
+  .quickTestTitle,
+  .outputTitle {
+    color: #b0b0b0;
+  }
+
+  .infoValue {
+    color: #e0e0e0;
+  }
+
+  .sectionTitle {
+    color: #e0e0e0;
+  }
+
+  .select,
+  .input {
+    background: #333;
+    border-color: #444;
+    color: #e0e0e0;
+  }
+
+  .quickTestButton {
+    background: #333;
+    border-color: #444;
+    color: #e0e0e0;
+  }
+
+  .quickTestButton:hover:not(:disabled) {
+    background: #3a3a3a;
+    border-color: #555;
+  }
+
+  .resultInfo {
+    background: #333;
+  }
+
+  .resultLabel {
+    color: #999;
+  }
+
+  .resultValue {
+    color: #e0e0e0;
+  }
+
+  .scriptCard {
+    background: #333;
+    border-color: #444;
+  }
+
+  .scriptCard:hover {
+    background: #3a3a3a;
+    border-color: #555;
+  }
+
+  .scriptName {
+    color: #e0e0e0;
+  }
+}

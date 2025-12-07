@@ -1,0 +1,223 @@
+/* src/Tools/ToolsSidebar.module.css */
+
+.sidebar {
+  width: 250px;
+  height: 100%;
+  background: var(--vscode-sideBar-background);
+  border-right: 1px solid var(--vscode-sideBar-border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--vscode-sideBar-border);
+  background: var(--vscode-sideBarSectionHeader-background);
+}
+
+.header h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--vscode-sideBarTitle-foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* 工具头部栏 */
+.toolHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--vscode-editorGroupHeader-tabsBackground);
+  border-bottom: 1px solid var(--vscode-sideBar-border);
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.toolInfo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0; /* 允许内容缩小 */
+}
+
+.toolHeaderIcon {
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.toolHeaderContent {
+  flex: 1;
+  min-width: 0; /* 允许文本截断 */
+}
+
+.toolHeaderTitle {
+  margin: 0 0 2px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--vscode-foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.toolHeaderDescription {
+  margin: 0;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  opacity: 0.8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.closeButton {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--vscode-icon-foreground);
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s;
+  flex-shrink: 0;
+}
+
+.closeButton:hover {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.closeButton:active {
+  background: var(--vscode-toolbar-activeBackground);
+}
+
+.categories {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* 分类 */
+.category {
+  margin-bottom: 0;
+}
+
+.categoryHeader {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  cursor: pointer;
+  user-select: none;
+  background: var(--vscode-sideBarSectionHeader-background);
+  border-bottom: 1px solid var(--vscode-sideBar-border);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--vscode-sideBarSectionHeader-foreground);
+  transition: background-color 0.15s;
+}
+
+.categoryHeader:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.categoryIcon {
+  margin-right: 6px;
+  font-size: 10px;
+  transition: transform 0.2s;
+  color: var(--vscode-icon-foreground);
+}
+
+.categoryEmoji {
+  margin-right: 8px;
+  font-size: 14px;
+}
+
+.categoryName {
+  flex: 1;
+}
+
+.categoryCount {
+  opacity: 0.6;
+  font-size: 11px;
+  font-weight: normal;
+}
+
+/* 工具列表 */
+.toolsList {
+  background: var(--vscode-sideBar-background);
+}
+
+.toolItem {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px 8px 36px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 13px;
+  color: var(--vscode-foreground);
+  transition: background-color 0.15s;
+  position: relative;
+}
+
+.toolItem:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.toolItem.active {
+  background: var(--vscode-list-activeSelectionBackground);
+  color: var(--vscode-list-activeSelectionForeground);
+}
+
+.toolItem.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--vscode-activityBarBadge-background);
+}
+
+.toolIcon {
+  margin-right: 8px;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toolName {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 滚动条样式 */
+.categories::-webkit-scrollbar {
+  width: 10px;
+}
+
+.categories::-webkit-scrollbar-track {
+  background: var(--vscode-scrollbarSlider-background);
+}
+
+.categories::-webkit-scrollbar-thumb {
+  background: var(--vscode-scrollbarSlider-background);
+  border-radius: 5px;
+}
+
+.categories::-webkit-scrollbar-thumb:hover {
+  background: var(--vscode-scrollbarSlider-hoverBackground);
+}

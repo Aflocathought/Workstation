@@ -1,0 +1,255 @@
+/* AddEventForm 组件样式 */
+
+/* 模态框遮罩层 */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
+  padding: 20px;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* 模态框容器 */
+.modalContainer {
+  background-color: #1e1e1e; /* 深色主题回退色 */
+  background: var(--vscode-editor-background, #1e1e1e);
+  border: 1px solid var(--vscode-panel-border, #3c3c3c);
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+  width: 600px;
+  max-width: 100%;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  animation: slideIn 0.3s ease-out;
+}
+
+/* 为浅色主题提供额外支持 */
+@media (prefers-color-scheme: light) {
+  .modalContainer {
+    background-color: #ffffff;
+    background: var(--vscode-editor-background, #ffffff);
+    border: 1px solid var(--vscode-panel-border, #e0e0e0);
+  }
+}
+
+/* 自定义滚动条 */
+.modalContainer::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modalContainer::-webkit-scrollbar-track {
+  background: var(--vscode-scrollbarSlider-background);
+  border-radius: 4px;
+}
+
+.modalContainer::-webkit-scrollbar-thumb {
+  background: var(--vscode-scrollbarSlider-hoverBackground);
+  border-radius: 4px;
+}
+
+.modalContainer::-webkit-scrollbar-thumb:hover {
+  background: var(--vscode-scrollbarSlider-activeBackground);
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-30px) scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+/* 模态框内容 */
+.modalContent {
+  padding: 24px;
+  background: inherit; /* 继承容器背景 */
+}
+
+.formTitle {
+  margin: 0 0 24px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--vscode-foreground);
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+/* 大屏幕优化：允许更多列 */
+@media (min-width: 1200px) {
+  .formRow {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+
+  /* 标题和地点可以各占一半 */
+  .formRow:has(.formGroup:nth-child(2)) {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* 超大屏幕：日期和时间可以排在同一行 */
+@media (min-width: 1400px) {
+  .formRow {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+}
+
+.label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--vscode-foreground);
+}
+
+.input,
+.textarea {
+  padding: 8px 12px;
+  background-color: #2d2d2d; /* 深色主题回退色 */
+  background: var(--vscode-input-background, #2d2d2d);
+  color: var(--vscode-input-foreground, #cccccc);
+  border: 1px solid var(--vscode-input-border, #3c3c3c);
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: inherit;
+  min-height: 32px;
+}
+
+/* 浅色主题支持 */
+@media (prefers-color-scheme: light) {
+  .input,
+  .textarea {
+    background-color: #ffffff;
+    background: var(--vscode-input-background, #ffffff);
+    color: var(--vscode-input-foreground, #000000);
+    border: 1px solid var(--vscode-input-border, #cccccc);
+  }
+}
+
+.input:focus,
+.textarea:focus {
+  outline: none;
+  border-color: var(--vscode-focusBorder);
+}
+
+.textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--vscode-foreground);
+  cursor: pointer;
+  padding: 8px 0;
+}
+
+.checkboxLabel input[type="checkbox"] {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+}
+
+.formActions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 24px;
+  flex-wrap: wrap;
+}
+
+/* 大屏幕：表单按钮不换行 */
+@media (min-width: 768px) {
+  .formActions {
+    flex-wrap: nowrap;
+  }
+}
+
+/* 按钮样式 */
+.cancelButton,
+.submitButton {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  min-height: 32px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.cancelButton {
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+}
+
+.cancelButton:hover:not(:disabled) {
+  background: var(--vscode-button-secondaryHoverBackground);
+}
+
+.submitButton {
+  background: #28a745;
+  color: white;
+}
+
+.submitButton:hover:not(:disabled) {
+  background: #218838;
+}
+
+.cancelButton:disabled,
+.submitButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 小屏幕响应式 */
+@media (max-width: 768px) {
+  .formRow {
+    grid-template-columns: 1fr;
+  }
+  
+  .modalContainer {
+    width: 100%;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+  
+  .modalOverlay {
+    padding: 0;
+  }
+}

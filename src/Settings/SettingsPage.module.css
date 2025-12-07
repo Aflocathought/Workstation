@@ -1,0 +1,274 @@
+/* SettingsPage 样式 */
+
+.settingsPage {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  background: var(--bg-tertiary);
+}
+
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 32px 24px;
+}
+
+/* 标题 */
+.title {
+  margin: 0 0 8px 0;
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.subtitle {
+  margin: 0 0 32px 0;
+  font-size: 16px;
+  color: var(--text-secondary);
+}
+
+/* 区块 */
+.section {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow-sm);
+}
+
+.sectionTitle {
+  margin: 0 0 20px 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-secondary);
+}
+
+/* 设置项 */
+.settingItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 0;
+  gap: 24px;
+}
+
+.settingItem:not(:last-child) {
+  border-bottom: 1px solid var(--border-secondary);
+}
+
+.settingLabel {
+  flex: 1;
+  min-width: 0;
+}
+
+.settingLabel label {
+  display: block;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+  cursor: pointer;
+}
+
+.settingDescription {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.settingControl {
+  flex-shrink: 0;
+}
+
+/* 主题按钮 */
+.themeButtons {
+  display: flex;
+  gap: 8px;
+}
+
+.themeButton {
+  padding: 8px 16px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.themeButton:hover {
+  background: var(--interactive-hover);
+  border-color: var(--border-focus);
+}
+
+.themeButton.active {
+  background: var(--primary);
+  color: var(--text-inverse);
+  border-color: var(--primary);
+}
+
+/* 下拉选择框 */
+.select {
+  min-width: 200px;
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.select:hover {
+  border-color: var(--border-focus);
+}
+
+.select:focus {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+}
+
+/* 开关按钮 */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 28px;
+  cursor: pointer;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 14px;
+  transition: all 0.2s ease;
+}
+
+.slider:before {
+  position: absolute;
+  content: '';
+  height: 20px;
+  width: 20px;
+  left: 3px;
+  bottom: 3px;
+  background: var(--text-inverse);
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.switch input:checked + .slider {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.switch input:checked + .slider:before {
+  transform: translateX(20px);
+}
+
+.switch:hover .slider {
+  border-color: var(--border-focus);
+}
+
+/* 数据库大小显示 */
+.dbSize {
+  padding: 8px 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  font-size: 14px;
+  min-width: 120px;
+  text-align: center;
+}
+
+.dbSize strong {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.loading {
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+/* 关于 */
+.about {
+  text-align: center;
+  padding: 24px;
+}
+
+.appName {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 8px 0;
+}
+
+.version {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin: 0 0 16px 0;
+}
+
+.copyright {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin: 0;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .container {
+    padding: 24px 16px;
+  }
+
+  .title {
+    font-size: 28px;
+  }
+
+  .section {
+    padding: 20px 16px;
+  }
+
+  .settingItem {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .settingControl {
+    width: 100%;
+  }
+
+  .select {
+    width: 100%;
+  }
+
+  .themeButtons {
+    width: 100%;
+  }
+
+  .themeButton {
+    flex: 1;
+  }
+}

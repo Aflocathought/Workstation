@@ -1,0 +1,96 @@
+/* EventCard 组件样式 */
+
+/* 事件卡片 */
+.eventCard {
+  padding: 20px;
+  background: #fff;
+  border: 1px solid #aaa;
+   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.eventCard:hover {
+  border-color: var(--vscode-focusBorder);
+ 
+}
+
+/* 事件头部 */
+.eventHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+/* 大屏幕：事件头部不换行 */
+@media (min-width: 768px) {
+  .eventHeader {
+    flex-wrap: nowrap;
+  }
+}
+
+.eventTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--vscode-foreground);
+  flex: 1;
+}
+
+/* 事件详情 */
+.eventTime,
+.eventLocation,
+.eventDescription {
+  font-size: 14px;
+  color: var(--vscode-descriptionForeground);
+  margin-bottom: 8px;
+}
+
+.eventDescription {
+  padding-top: 12px;
+  border-top: 1px solid var(--vscode-panel-border);
+  color: var(--vscode-foreground);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+/* 删除按钮 */
+.deleteButton {
+  background: transparent;
+  color: #dc3545;
+  padding: 4px 8px;
+  font-size: 18px;
+  min-width: auto;
+  min-height: auto;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.deleteButton:hover:not(:disabled) {
+  background: rgba(220, 53, 69, 0.1);
+}
+
+.deleteButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 小屏幕响应式 */
+@media (max-width: 768px) {
+  .eventCard {
+    padding: 16px;
+  }
+  
+  .eventTitle {
+    font-size: 15px;
+  }
+}
