@@ -1,7 +1,53 @@
-# Tauri + Solid + Typescript
+# Workstation
 
-This template should help get you started developing with Tauri, Solid and Typescript in Vite.
+基于Tauri+rust+solidjs...的框架，集成了一个简单的框架和一大堆没用的小垃圾。
 
-## Recommended IDE Setup
+⚠️ 免责声明 / Disclaimer
+实验性项目：本项目代码主要由 AI 辅助生成，代码仍未经过整理。主要用于作者个人学习、测试以及与 AI 进行代码分析探讨。
+无担保 (As-Is)：代码按“原样”提供，作者不保证代码的正确性、安全性或功能性。作者未对代码进行详尽的审计。
+风险自负：任何个人或组织在使用本仓库代码时，需自行承担由此产生的一切后果（包括但不限于数据丢失、隐私泄露或系统故障）。作者不承担任何法律责任。
+版权事宜：本项目无意侵犯任何人的知识产权。若您认为代码内容侵犯了您的权益或创意，请提交 Issue 或联系作者，我们将及时处理。
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+
+# 小玩具
+## Timetracker
+权限：在本地获取电脑前台软件（被聚焦的窗口）的进程名字和应用标题，使用数据库进行记录，⚠数据库没有加密⚠，没有任何的上传行为。请勿把软件的数据库发给任何人。
+
+有简单的ui版面呈现出这些被记录的信息。以达到事件追踪的功能。
+
+## Tools
+请仅加载你信任的插件或本项目提供的标准插件。运行来源不明的插件可能会带来安全风险（类似于并在浏览器中安装未知扩展）。
+（未完成）热插拔插件框架，提供了基本的插件框架，以供运行一些符合框架标准的插件。
+未来将会完善热插拔功能。以达到只用下载插件并粘贴到插件的位置就能由Tools读取。
+
+### Spectrum 
+需要访问系统音频输出流
+一个实时读取电脑音频→FFT→由字符串构成的频谱的插件。
+
+### Python 
+安全提示：允许直接运行 Python 脚本。请确保你清楚脚本的内容，作者不对脚本运行产生的副作用负责
+（未完成）提供运行python脚本的功能。
+
+### ShortcutReminder 
+需要键盘监听权限。随时读取按键，不会记录任何信息。
+（未完成）通过进程和规则在某些位置展现出被添加的快捷键。
+
+### CSVViewer 
+在您添加的文件或者文件夹范围内访问您的文件
+（未完成）读取CSV文件，并用echart库展现出来。
+
+### PDFLibrary
+在您添加的文件或者文件夹范围内访问您的文件
+（下个开发）就像那些分类论文的软件一样，对pdf进行分类，额外添加了给pdf打上tag等的功能。
+
+### Calendar
+本模块旨在实现对 Google Calendar 的一站式管理（查看、添加、修改、删除日程）。
+⚠️ 鉴权说明：由于 Google API 的安全限制以及本项目尚未进行 Google 官方应用验证（Verification），仓库中不包含任何 API 凭证。
+如何使用：目前该组件默认处于禁用状态。如果您具有开发能力，可以自行在 Google Cloud Platform 申请 OAuth Client ID，并将凭证文件的API key复制到根目录的.env即可激活。
+隐私与风险：
+本模块运行在 Google API 的安全框架内。
+数据风险：代码具有删除和修改日程的权限。由于代码主要由 AI 生成且处于测试阶段，强烈建议不要在您的主账号/工作账号上进行测试，以免误删重要日程。
+未验证警告：如果您自行配置运行，Google 可能会弹出“此应用未经 Google 验证”的安全警告，这是预期行为。
+
+### Template
+（计划）填入信息即可生成一个插件文件模板。
