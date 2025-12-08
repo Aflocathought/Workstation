@@ -43,6 +43,7 @@
     "core:event:allow-listen",
     "core:event:allow-unlisten",
     "core:event:default",
+    "dialog:default",
     "autostart:allow-enable",
     "autostart:allow-disable",
     "autostart:allow-is-enabled"

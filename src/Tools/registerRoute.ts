@@ -8,6 +8,7 @@ import { pythonToolConfig } from './Python';
 import { calendarToolConfig } from './Calendar';
 import { shortcutReminderConfig } from './ShortcutReminder';
 import { csvViewerToolConfig } from './CSVViewer';
+import pdfLibraryToolConfig from './PDFLibrary';
 
 /**
  * 所有工具配置集合
@@ -19,6 +20,7 @@ export const allToolConfigs: ToolConfig[] = [
   calendarToolConfig,
   shortcutReminderConfig,
   csvViewerToolConfig,
+  pdfLibraryToolConfig,
   // 未来新增工具配置添加在这里...
 ];
 

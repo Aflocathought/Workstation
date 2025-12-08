@@ -1,6 +1,7 @@
 use std::sync::{Arc, atomic::{AtomicBool, AtomicUsize, Ordering}};
 use tauri::{Emitter, Manager};
-use windows::{ Win32::Media::Audio::*, Win32::System::Com::* };
+use windows::Win32::Media::Audio::*;
+use windows::Win32::System::Com::*;
 
 pub struct SpectrumStop { pub stop: Arc<AtomicBool> }
 pub struct SpectrumConfig { pub fft_size: AtomicUsize, pub columns: AtomicUsize }

@@ -1,5 +1,11 @@
 # PDFLibrary
 
+## 文件范式
+将PDFL所用到的函数全部提取到PDFL.ts中。
+渲染层放在PDFLRender.tsx里。
+如果渲染层中的组件可以复用/抽象/已经在别的地方有这样的组件，建议复用和抽象成component，不然会很难维护。
+rust源码可以先放到src-tauri\src
+
 ## 主要功能与特点
 ### 1. 核心引擎：PDF 处理
 
@@ -271,15 +277,6 @@ CREATE TABLE book_tags (book_id INTEGER, tag_id INTEGER);
 5. **结果**：用户点击左侧“电车”分类能看到它，点击“BMS”也能看到它。物理文件安安静静躺在 `2024/12` 里。
 
 ---
-
-### 进阶建议：如果不想要“时间”归档，想要“语义”归档？
-
-如果你坚持希望物理文件夹也有一定的语义（比如看起来像 Zotero），可以采用 **“元数据重命名”** 策略，但这是有风险的。
-
-**策略**：`Workspace / 作者名 / 标题.pdf`
-
-* **难点**：PDF 里的元数据通常是乱的。你需要解析 PDF 内容，甚至去联网（豆瓣/Google Scholar API）刮削数据。
-* **缺点**：如果提取失败，文件会被归类到 `Unknown` 文件夹，还是很乱。
 
 ### 总结建议
 
@@ -859,19 +856,6 @@ fn init_db() -> Connection {
 
 ---
 
-### 1. 为什么“只索引，不复制，不软链”？
-
-#### ❌ 方案 A：强行复制 (Copy)
-
-* **后果**：用户电脑里有一份 `D:\Zotero\Paper.pdf`，你的库里又有一份 `C:\MyLibrary\2025\Paper.pdf`。
-* **用户痛点**：硬盘空间浪费；笔记不同步（我在 Zotero 里高亮了，你的软件里还是旧的）。
-* **结论**：除了用户明确表示“我要导入（搬家）”之外，**不要自动复制**。
-
-#### ❌ 方案 B：软链接 (Symlinks / Shortcuts)
-
-* **后果**：你在 Workspace 里创建了一个指向外部文件的快捷方式。
-* **工程坑**：Windows 的软链接（Symlink）需要管理员权限（或开发者模式），普通快捷方式（.lnk）处理起来很麻烦。而且一旦用户在外部移动了源文件，链接直接失效，你也无法追踪。
-* **结论**：技术上太脆弱，维护成本高。
 
 #### ✅ 方案 C：原地索引 (Index in Place) —— 推荐
 
@@ -976,3 +960,6 @@ CREATE TABLE books (
 * **Workspace 只有一个**：这是你的大本营，保持整洁有序（时间流归档）。
 * **Source 可以有多个**：这是“挂载”进来的，只做**数据库层面的映射**。
 * **核心原则**：**Never touch user's external files.** （不要碰用户外部的文件）。如果用户要把其他软件（如 Zotero）的库加进来，你一旦改了文件名，Zotero 就炸了。所以，对于 External Source，**只读、只引、不改名**。
+
+
+物理位置： C:\Users\<你的用户名>\AppData\Roaming\com.tauri-app.Workstation\pdf_library.db

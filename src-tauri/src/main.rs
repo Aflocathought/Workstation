@@ -31,6 +31,7 @@ use shortcut::{ForegroundWindowInfo, ModifierState, ShortcutService};
 
 mod app_paths;
 mod db;
+mod pdf_library;
 mod python;
 mod shortcut;
 mod spectrum;
@@ -45,6 +46,9 @@ static PYTHON_SERVICE: OnceCell<Mutex<PythonService>> = OnceCell::new();
 // 我们将把数据库连接句柄放在一个全局、线程安全的状态中
 // Mutex 确保了在任何时候只有一个线程可以访问数据库连接，防止数据损坏
 pub use db::DbState;
+
+// PDF Library 状态
+use pdf_library::PdfLibraryState;
 
 // ============ 快捷键提示窗口 ============
 
@@ -417,6 +421,7 @@ pub use tracker::ActiveWindowInfo;
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .plugin(AutostartBuilder::new().build())
         .setup(|app| {
             // 初始化所有应用目录（包括 Python 目录和示例脚本）
@@ -440,6 +445,11 @@ fn main() {
             app.manage(DbState {
                 db: Mutex::new(conn),
             });
+
+            // 初始化 PDF Library 数据库路径
+            let pdf_db_path = app_data_dir.join("pdf_library.db");
+            let pdf_state = Mutex::new(PdfLibraryState::new(pdf_db_path));
+            app.manage(pdf_state);
 
             // 管理追踪器停止标志
             let tracker_stop = Arc::new(AtomicBool::new(false));
@@ -520,6 +530,29 @@ fn main() {
             get_foreground_window,
             is_key_pressed,
             move_shortcut_hint_window,
+            // PDF Library 命令
+            pdf_library::commands::pdflibrary_init_db,
+            pdf_library::commands::pdflibrary_backup_db,
+            pdf_library::commands::pdflibrary_get_books,
+            pdf_library::commands::pdflibrary_get_book,
+            pdf_library::commands::pdflibrary_add_book,
+            pdf_library::commands::pdflibrary_update_title,
+            pdf_library::commands::pdflibrary_rename_book,
+            pdf_library::commands::pdflibrary_delete_book,
+            pdf_library::commands::pdflibrary_get_tags,
+            pdf_library::commands::pdflibrary_create_tag,
+            pdf_library::commands::pdflibrary_get_book_tags,
+            pdf_library::commands::pdflibrary_add_book_tag,
+            pdf_library::commands::pdflibrary_remove_book_tag,
+            pdf_library::commands::pdflibrary_get_directories,
+            pdf_library::commands::pdflibrary_add_directory,
+            pdf_library::commands::pdflibrary_extract_metadata,
+            pdf_library::commands::pdflibrary_extract_cover,
+            pdf_library::commands::pdflibrary_get_file_identity,
+            pdf_library::commands::pdflibrary_show_in_folder,
+            pdf_library::commands::pdflibrary_open_file,
+            pdf_library::commands::pdflibrary_copy_file_to_clipboard,
+            pdf_library::commands::pdflibrary_set_workspace_path,
         ])
         .run(tauri::generate_context!())
         .expect("运行Tauri应用程序时出错");
