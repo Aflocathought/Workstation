@@ -29,6 +29,8 @@ const PDFLibrary: Component = () => {
   
   // UI 状态
   const [isLoading, setIsLoading] = createSignal(true);
+  const [isRefreshingMetadata, setIsRefreshingMetadata] = createSignal(false);
+  const [isRescanning, setIsRescanning] = createSignal(false);
   const [editingTitle, setEditingTitle] = createSignal(false);
   const [newTitle, setNewTitle] = createSignal('');
   const [tagInputValue, setTagInputValue] = createSignal('');
@@ -170,7 +172,41 @@ const PDFLibrary: Component = () => {
   const handleOpenFile = async () => {
     const book = selectedBook();
     if (!book) return;
+    if (book.isMissing) {
+      alert('文件缺失，无法打开');
+      return;
+    }
     
+    try {
+      await pdfLibraryService.openFile(book.filepath);
+    } catch (error) {
+      console.error('打开文件失败:', error);
+      alert('无法打开文件');
+    }
+  };
+
+  const handleRemoveMissing = async () => {
+    // 双重确认，避免误删
+    const first = window.confirm('将移除所有“文件不存在”的记录，文件本身不会被删除。继续吗？');
+    if (!first) return;
+    const second = window.confirm('再次确认：立即清理缺失文件记录？');
+    if (!second) return;
+
+    try {
+      const result = await pdfLibraryService.removeMissingFiles();
+      await loadData();
+      alert(`已移除 ${result.removed} 条缺失文件记录`);
+    } catch (error) {
+      console.error('清理缺失文件失败:', error);
+      alert('清理失败');
+    }
+  };
+
+  const handleOpenBook = async (book: Book) => {
+    if (book.isMissing) {
+      alert('文件缺失，无法打开');
+      return;
+    }
     try {
       await pdfLibraryService.openFile(book.filepath);
     } catch (error) {
@@ -309,6 +345,92 @@ const PDFLibrary: Component = () => {
     }
   };
 
+  const handleRefreshAllMetadata = async () => {
+    try {
+      setIsRefreshingMetadata(true);
+      const selectedId = selectedBook()?.id;
+      const stats = await pdfLibraryService.refreshAllMetadata();
+      await loadData();
+      if (selectedId) {
+        const refreshed = books().find(b => b.id === selectedId) || null;
+        setSelectedBook(refreshed);
+      }
+      alert(`重新提取完成：成功 ${stats.refreshed}，缺失 ${stats.missing}，失败 ${stats.failed}`);
+    } catch (error) {
+      console.error('重新提取元数据失败:', error);
+      alert('重新提取失败，请查看控制台日志');
+    } finally {
+      setIsRefreshingMetadata(false);
+    }
+  };
+
+  const handleRescanAll = async () => {
+    if (isRescanning()) return;
+    const confirm = window.confirm('将重新检查 Inbox 及所有记录文件的存在状态，继续吗？');
+    if (!confirm) return;
+    setIsRescanning(true);
+    try {
+      const stats = await pdfLibraryService.rescanFiles();
+      await loadData();
+      alert(`检查完成：正常 ${stats.ok}，缺失 ${stats.missing}`);
+    } catch (error) {
+      console.error('重新检查文件失败:', error);
+      alert('检查失败，请查看控制台日志');
+    } finally {
+      setIsRescanning(false);
+    }
+  };
+
+  const handleRelink = async () => {
+    const book = selectedBook();
+    if (!book) return;
+
+    const picked = await open({
+      multiple: false,
+      filters: [{ name: 'PDF', extensions: ['pdf'] }],
+      title: '选择要重新关联的 PDF 文件',
+    });
+
+    if (!picked || typeof picked !== 'string') return;
+
+    const attempt = async (force: boolean) => {
+      const result = await pdfLibraryService.relinkBook(book.id, picked, force);
+      if (result.updated) {
+        await loadData();
+        const refreshed = books().find(b => b.id === book.id) || null;
+        setSelectedBook(refreshed);
+
+        if (result.suggestMove) {
+          const move = window.confirm('文件已重新关联，但不在 Workspace。是否将文件移动到 Workspace?');
+          if (move) {
+            await pdfLibraryService.moveBookToWorkspace(book.id);
+            await loadData();
+          }
+        }
+
+        alert('重新关联成功');
+        return true;
+      }
+
+      if (result.needsConfirmation) {
+        const forceConfirm = window.confirm('未找到唯一标识，仅匹配名称/大小。是否强制关联？');
+        if (forceConfirm) {
+          return attempt(true);
+        }
+      } else {
+        alert('未能关联，请选择正确的文件');
+      }
+      return false;
+    };
+
+    try {
+      await attempt(false);
+    } catch (error) {
+      console.error('重新关联失败:', error);
+      alert('重新关联失败');
+    }
+  };
+
   // ==================== 渲染 ====================
   
   return (
@@ -379,6 +501,16 @@ const PDFLibrary: Component = () => {
             <span class={styles.navIcon}>⚙️</span>
             <span class={styles.navLabel}>设置 Workspace</span>
           </div>
+          <div class={styles.navItem} onClick={handleRemoveMissing}>
+            <span class={styles.navIcon}>🧹</span>
+            <span class={styles.navLabel}>清理缺失文件</span>
+          </div>
+          <div class={styles.navItem} onClick={handleRescanAll}>
+            <span class={styles.navIcon}>🔄</span>
+            <span class={styles.navLabel}>
+              {isRescanning() ? '检查中...' : '刷新并标记缺失'}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -393,6 +525,15 @@ const PDFLibrary: Component = () => {
             value={searchText()}
             onInput={(e) => setSearchText(e.currentTarget.value)}
           />
+
+          <button
+            class={styles.toolbarButton}
+            onClick={handleRefreshAllMetadata}
+            disabled={isRefreshingMetadata() || isLoading()}
+            title="重新提取所有 PDF 元数据"
+          >
+            {isRefreshingMetadata() ? '重新提取中...' : '重新提取信息'}
+          </button>
           
           <div class={styles.viewToggle}>
             <button
@@ -435,10 +576,14 @@ const PDFLibrary: Component = () => {
                     {(book) => (
                       <div
                         class={styles.bookCard}
-                        classList={{ [styles.selected]: selectedBook()?.id === book.id }}
+                        classList={{ [styles.selected]: selectedBook()?.id === book.id, [styles.missing]: book.isMissing }}
                         onClick={() => handleSelectBook(book)}
+                        onDblClick={() => handleOpenBook(book)}
                       >
                         <div class={styles.bookCover}>
+                          <Show when={book.isMissing}>
+                            <span class={styles.missingBadge}>缺失</span>
+                          </Show>
                           <Show
                             when={book.coverImage}
                             fallback={<span>📄</span>}
@@ -465,10 +610,14 @@ const PDFLibrary: Component = () => {
                     {(book) => (
                       <div
                         class={styles.bookRow}
-                        classList={{ [styles.selected]: selectedBook()?.id === book.id }}
+                        classList={{ [styles.selected]: selectedBook()?.id === book.id, [styles.missing]: book.isMissing }}
                         onClick={() => handleSelectBook(book)}
+                        onDblClick={() => handleOpenBook(book)}
                       >
                         <div class={styles.rowCover}>
+                          <Show when={book.isMissing}>
+                            <span class={styles.missingBadge}>缺失</span>
+                          </Show>
                           <Show
                             when={book.coverImage}
                             fallback={<span>📄</span>}
@@ -625,6 +774,20 @@ const PDFLibrary: Component = () => {
                       </div>
                     </div>
                   </div>
+
+                  <Show when={book().isMissing}>
+                    <div class={styles.inspectorField}>
+                      <div class={styles.fieldLabel}>状态</div>
+                      <div class={styles.fieldValue} style={{ color: 'var(--vscode-statusBarItem-errorForeground)' }}>
+                        文件缺失，无法打开。
+                      </div>
+                      <div class={styles.actionButtons}>
+                        <button class={`${styles.actionButton} ${styles.primary}`} onClick={handleRelink}>
+                          🔗 重新关联文件
+                        </button>
+                      </div>
+                    </div>
+                  </Show>
 
                   {/* 操作按钮 */}
                   <div class={styles.actionButtons}>

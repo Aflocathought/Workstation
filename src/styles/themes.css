@@ -6,6 +6,14 @@
   --theme: 'light';
 }
 
+/* 全局布局约束，防止外层产生滚动条 */
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
 /* ==================== 浅色主题 ==================== */
 [data-theme='light'] {
   /* 基础颜色 */

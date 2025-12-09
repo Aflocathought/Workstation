@@ -552,7 +552,12 @@ fn main() {
             pdf_library::commands::pdflibrary_show_in_folder,
             pdf_library::commands::pdflibrary_open_file,
             pdf_library::commands::pdflibrary_copy_file_to_clipboard,
+            pdf_library::commands::pdflibrary_remove_missing_files,
+            pdf_library::commands::pdflibrary_rescan_files,
+            pdf_library::commands::pdflibrary_relink_book,
+            pdf_library::commands::pdflibrary_move_book_to_workspace,
             pdf_library::commands::pdflibrary_set_workspace_path,
+            pdf_library::commands::pdflibrary_refresh_all_metadata,
         ])
         .run(tauri::generate_context!())
         .expect("运行Tauri应用程序时出错");

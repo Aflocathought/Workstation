@@ -34,6 +34,7 @@ export interface Book {
   filepath: string;        // 完整路径
   directoryId: number;     // 所属目录 ID
   isManaged: boolean;      // 是否为主库文件 (可重命名)
+  isMissing: boolean;      // 文件是否缺失
   
   // 文件身份
   volumeId: number;
@@ -130,4 +131,12 @@ export interface FileLocateResult {
   found: boolean;
   path?: string;
   needsUpdate: boolean;    // 是否需要更新数据库路径
+}
+
+export interface RelinkResult {
+  updated: boolean;
+  confidence: string;        // id | name_size | mismatch | force_replace
+  needsConfirmation: boolean;
+  suggestMove: boolean;
+  newPath?: string;
 }

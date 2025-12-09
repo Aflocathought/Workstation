@@ -45,6 +45,7 @@ pub struct Book {
     pub filepath: String,
     pub directory_id: i32,
     pub is_managed: bool,
+    pub is_missing: bool,
     
     // 文件身份
     pub volume_id: u64,
@@ -107,4 +108,15 @@ pub struct FileLocateResult {
     pub found: bool,
     pub path: Option<String>,
     pub needs_update: bool,
+}
+
+/// 重新关联结果
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RelinkResult {
+    pub updated: bool,
+    pub confidence: String,
+    pub needs_confirmation: bool,
+    pub suggest_move: bool,
+    pub new_path: Option<String>,
 }

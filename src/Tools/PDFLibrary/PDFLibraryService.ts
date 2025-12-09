@@ -13,6 +13,7 @@ import type {
   SortOrder,
 } from './types';
 
+import type { RelinkResult } from './types';
 /**
  * PDF 图书馆服务
  * 负责与 Rust 后端通信
@@ -230,10 +231,45 @@ class PDFLibraryService {
   }
 
   /**
+   * 重新提取所有 PDF 的元数据
+   */
+  async refreshAllMetadata(): Promise<{ refreshed: number; missing: number; failed: number; finishedAt: string; }> {
+    return invoke('pdflibrary_refresh_all_metadata');
+  }
+
+  /**
+   * 移除所有找不到文件的记录
+   */
+  async removeMissingFiles(): Promise<{ removed: number; }> {
+    return invoke('pdflibrary_remove_missing_files');
+  }
+
+  /**
    * 用默认程序打开文件
    */
   async openFile(filepath: string): Promise<void> {
     return invoke('pdflibrary_open_file', { filepath });
+  }
+
+  /**
+   * 重新检查所有文件，标记缺失
+   */
+  async rescanFiles(): Promise<{ ok: number; missing: number; }> {
+    return invoke('pdflibrary_rescan_files');
+  }
+
+  /**
+   * 重新关联缺失文件
+   */
+  async relinkBook(bookId: number, newPath: string, force = false): Promise<RelinkResult> {
+    return invoke('pdflibrary_relink_book', { bookId, newPath, force });
+  }
+
+  /**
+   * 将文件移动到 Workspace
+   */
+  async moveBookToWorkspace(bookId: number): Promise<string> {
+    return invoke('pdflibrary_move_book_to_workspace', { bookId });
   }
 
   // ==================== Inbox 监控 ====================

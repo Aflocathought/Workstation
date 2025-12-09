@@ -66,14 +66,22 @@ fn create_tables(conn: &Connection) -> Result<()> {
             author TEXT,
             page_count INTEGER NOT NULL DEFAULT 0,
             cover_image TEXT,
-            
+
             import_date TEXT NOT NULL,
             modified_date TEXT NOT NULL,
-            
+
+            is_missing INTEGER NOT NULL DEFAULT 0,
+
             FOREIGN KEY(directory_id) REFERENCES directories(id) ON DELETE CASCADE
         )",
         [],
     )?;
+
+    // 迁移：为旧表补充 is_missing 列（如果不存在）。忽略已存在时报错。
+    let _ = conn.execute(
+        "ALTER TABLE books ADD COLUMN is_missing INTEGER NOT NULL DEFAULT 0",
+        [],
+    );
     
     // 索引
     conn.execute(
@@ -179,9 +187,9 @@ pub fn insert_book(
 pub fn get_all_books(conn: &Connection) -> Result<Vec<Book>> {
     let mut stmt = conn.prepare(
         "SELECT id, title, filename, filepath, directory_id, is_managed,
-                volume_id, file_index, file_size,
-                author, page_count, cover_image,
-                import_date, modified_date
+            volume_id, file_index, file_size,
+            author, page_count, cover_image,
+            import_date, modified_date, is_missing
          FROM books
          ORDER BY import_date DESC"
     )?;
@@ -203,6 +211,7 @@ pub fn get_all_books(conn: &Connection) -> Result<Vec<Book>> {
             import_date: row.get(12)?,
             modified_date: row.get(13)?,
             tags: None,
+            is_missing: row.get::<_, i32>(14)? != 0,
         })
     })?
     .collect::<Result<Vec<_>>>()?;
@@ -224,8 +233,106 @@ pub fn update_book_title(conn: &Connection, id: i32, title: &str) -> Result<()> 
 pub fn update_book_path(conn: &Connection, id: i32, filepath: &str) -> Result<()> {
     let now = Utc::now().to_rfc3339();
     conn.execute(
-        "UPDATE books SET filepath = ?1, modified_date = ?2 WHERE id = ?3",
+        "UPDATE books SET filepath = ?1, modified_date = ?2, is_missing = 0 WHERE id = ?3",
         params![filepath, now, id],
+    )?;
+    Ok(())
+}
+
+/// 更新书籍路径与文件身份信息
+pub fn update_book_path_and_identity(
+    conn: &Connection,
+    id: i32,
+    filepath: &str,
+    volume_id: u64,
+    file_index: u64,
+    file_size: u64,
+) -> Result<()> {
+    let now = Utc::now().to_rfc3339();
+    let filename = Path::new(filepath)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("");
+
+    conn.execute(
+        "UPDATE books SET filepath = ?1, filename = ?2, volume_id = ?3, file_index = ?4, file_size = ?5, modified_date = ?6, is_missing = 0 WHERE id = ?7",
+        params![
+            filepath,
+            filename,
+            volume_id as i64,
+            file_index as i64,
+            file_size as i64,
+            now,
+            id,
+        ],
+    )?;
+    Ok(())
+}
+
+/// 标记书籍是否缺失
+pub fn update_book_missing(conn: &Connection, id: i32, is_missing: bool) -> Result<()> {
+    conn.execute(
+        "UPDATE books SET is_missing = ?1 WHERE id = ?2",
+        params![is_missing as i32, id],
+    )?;
+    Ok(())
+}
+
+/// 按 ID 获取书籍
+pub fn get_book_by_id(conn: &Connection, id: i32) -> Result<Option<Book>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, title, filename, filepath, directory_id, is_managed,
+                volume_id, file_index, file_size,
+                author, page_count, cover_image,
+                import_date, modified_date, is_missing
+         FROM books WHERE id = ?1"
+    )?;
+
+    let mut rows = stmt.query(params![id])?;
+    if let Some(row) = rows.next()? {
+        Ok(Some(Book {
+            id: row.get(0)?,
+            title: row.get(1)?,
+            filename: row.get(2)?,
+            filepath: row.get(3)?,
+            directory_id: row.get(4)?,
+            is_managed: row.get::<_, i32>(5)? != 0,
+            volume_id: row.get::<_, i64>(6)? as u64,
+            file_index: row.get::<_, i64>(7)? as u64,
+            file_size: row.get::<_, i64>(8)? as u64,
+            author: row.get(9)?,
+            page_count: row.get(10)?,
+            cover_image: row.get(11)?,
+            import_date: row.get(12)?,
+            modified_date: row.get(13)?,
+            tags: None,
+            is_missing: row.get::<_, i32>(14)? != 0,
+        }))
+    } else {
+        Ok(None)
+    }
+}
+
+/// 更新书籍的元数据字段（作者、页数）
+pub fn update_book_metadata(
+    conn: &Connection,
+    id: i32,
+    author: Option<&str>,
+    page_count: i32,
+) -> Result<()> {
+    let now = Utc::now().to_rfc3339();
+    conn.execute(
+        "UPDATE books SET author = ?1, page_count = ?2, modified_date = ?3 WHERE id = ?4",
+        params![author, page_count, now, id],
+    )?;
+    Ok(())
+}
+
+/// 更新书籍目录归属
+pub fn update_book_directory(conn: &Connection, id: i32, directory_id: i32) -> Result<()> {
+    conn.execute(
+        "UPDATE books SET directory_id = ?1 WHERE id = ?2",
+        params![directory_id, id],
     )?;
     Ok(())
 }

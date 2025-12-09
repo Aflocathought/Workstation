@@ -8,7 +8,8 @@ use super::database;
 use super::file_ops;
 use super::metadata;
 use super::watcher::InboxWatcher;
-use super::{Book, Tag, Directory, PDFMetadata, FileIdentity, RenameResult};
+use super::{Book, Tag, Directory, PDFMetadata, FileIdentity, RenameResult, RelinkResult};
+use chrono::Utc;
 
 /// PDF Library 状态
 pub struct PdfLibraryState {
@@ -378,6 +379,278 @@ pub fn pdflibrary_open_file(filepath: String) -> Result<(), String> {
 pub fn pdflibrary_copy_file_to_clipboard(filepath: String) -> Result<(), String> {
     let path = Path::new(&filepath);
     file_ops::copy_file_to_clipboard(path)
+}
+
+// ==================== 批量刷新元数据 ====================
+
+#[tauri::command]
+pub fn pdflibrary_refresh_all_metadata(
+    state: State<Mutex<PdfLibraryState>>,
+) -> Result<serde_json::Value, String> {
+    let state_guard = state.lock().unwrap();
+    let conn = state_guard.get_connection()?;
+
+    let books = database::get_all_books(&conn).map_err(|e| e.to_string())?;
+    let mut refreshed = 0usize;
+    let mut missing = 0usize;
+    let mut failed = 0usize;
+
+    for book in books {
+        let path = Path::new(&book.filepath);
+        if !path.exists() {
+            missing += 1;
+            continue;
+        }
+
+        match metadata::extract_metadata(path) {
+            Ok(meta) => {
+                if let Err(e) = database::update_book_metadata(
+                    &conn,
+                    book.id,
+                    meta.author.as_deref(),
+                    meta.page_count,
+                ) {
+                    eprintln!("[PDFLibrary] 更新元数据失败 (id={}): {}", book.id, e);
+                    failed += 1;
+                } else {
+                    refreshed += 1;
+                }
+            }
+            Err(e) => {
+                eprintln!("[PDFLibrary] 提取元数据失败 (id={}): {}", book.id, e);
+                failed += 1;
+            }
+        }
+    }
+
+    let now = Utc::now().to_rfc3339();
+    Ok(serde_json::json!({
+        "refreshed": refreshed,
+        "missing": missing,
+        "failed": failed,
+        "finishedAt": now,
+    }))
+}
+
+fn get_workspace_directory(conn: &rusqlite::Connection) -> Option<Directory> {
+    database::get_all_directories(conn)
+        .ok()
+        .and_then(|dirs| dirs.into_iter().find(|d| d.dir_type == "workspace"))
+}
+
+/// 重新检查所有文件是否存在，并标记缺失
+#[tauri::command]
+pub fn pdflibrary_rescan_files(
+    state: State<Mutex<PdfLibraryState>>,
+) -> Result<serde_json::Value, String> {
+    let state_guard = state.lock().unwrap();
+    let conn = state_guard.get_connection()?;
+
+    let books = database::get_all_books(&conn).map_err(|e| e.to_string())?;
+    let mut missing = 0usize;
+    let mut ok = 0usize;
+
+    for book in books {
+        let path = Path::new(&book.filepath);
+        let exists = path.exists();
+        database::update_book_missing(&conn, book.id, !exists).map_err(|e| e.to_string())?;
+        if exists {
+            ok += 1;
+        } else {
+            missing += 1;
+        }
+    }
+
+    Ok(serde_json::json!({
+        "ok": ok,
+        "missing": missing,
+    }))
+}
+
+/// 尝试重新关联缺失文件
+#[tauri::command]
+pub fn pdflibrary_relink_book(
+    state: State<Mutex<PdfLibraryState>>,
+    book_id: i32,
+    new_path: String,
+    force: Option<bool>,
+) -> Result<RelinkResult, String> {
+    let force = force.unwrap_or(false);
+    let state_guard = state.lock().unwrap();
+    let conn = state_guard.get_connection()?;
+
+    let book = database::get_book_by_id(&conn, book_id)
+        .map_err(|e| e.to_string())?
+        .ok_or("书籍不存在")?;
+
+    let candidate = Path::new(&new_path);
+    if !candidate.exists() {
+        return Err("选定的文件不存在".to_string());
+    }
+
+    let identity = file_ops::get_file_identity(candidate)?;
+    let filename_matches = candidate
+        .file_name()
+        .and_then(|s| s.to_str())
+        .map(|s| s.eq_ignore_ascii_case(&book.filename))
+        .unwrap_or(false);
+    let size_matches = identity.file_size == book.file_size;
+    let id_matches = identity.volume_id == book.volume_id && identity.file_index == book.file_index;
+
+    let mut confidence = "mismatch".to_string();
+    let mut needs_confirmation = false;
+    let mut updated = false;
+    let mut suggest_move = false;
+
+    if id_matches && size_matches {
+        confidence = "id".to_string();
+        updated = true;
+    } else if filename_matches && size_matches {
+        confidence = "name_size".to_string();
+        if force {
+            updated = true;
+        } else {
+            needs_confirmation = true;
+        }
+    } else {
+        confidence = "mismatch".to_string();
+        if force {
+            updated = true;
+        } else {
+            needs_confirmation = true;
+        }
+    }
+
+    if updated {
+        database::update_book_path_and_identity(
+            &conn,
+            book_id,
+            &new_path,
+            identity.volume_id,
+            identity.file_index,
+            identity.file_size,
+        ).map_err(|e| e.to_string())?;
+
+        // 如果新路径不在 workspace 中，且书籍是托管文件，提示可移动回库
+        if let Some(ws) = get_workspace_directory(&conn) {
+            let in_workspace = Path::new(&new_path).starts_with(Path::new(&ws.path));
+            if !in_workspace && book.is_managed {
+                suggest_move = true;
+            } else if in_workspace {
+                let _ = database::update_book_directory(&conn, book_id, ws.id);
+            }
+        }
+
+        return Ok(RelinkResult {
+            updated: true,
+            confidence,
+            needs_confirmation: false,
+            suggest_move,
+            new_path: Some(new_path),
+        });
+    }
+
+    Ok(RelinkResult {
+        updated: false,
+        confidence,
+        needs_confirmation,
+        suggest_move,
+        new_path: None,
+    })
+}
+
+/// 将文件移动/复制到 Workspace 并更新路径
+#[tauri::command]
+pub fn pdflibrary_move_book_to_workspace(
+    state: State<Mutex<PdfLibraryState>>,
+    book_id: i32,
+) -> Result<String, String> {
+    use std::fs;
+
+    let state_guard = state.lock().unwrap();
+    let conn = state_guard.get_connection()?;
+    let book = database::get_book_by_id(&conn, book_id)
+        .map_err(|e| e.to_string())?
+        .ok_or("书籍不存在")?;
+
+    let ws = get_workspace_directory(&conn).ok_or("未配置 Workspace 目录")?;
+    let filename = Path::new(&book.filepath)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .ok_or("无法获取文件名")?;
+
+    let mut target = PathBuf::from(&ws.path).join(filename);
+    // 冲突时追加序号
+    if target.exists() {
+        let stem = Path::new(filename)
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or(filename);
+        let ext = Path::new(filename)
+            .extension()
+            .and_then(|s| s.to_str())
+            .unwrap_or("pdf");
+        let mut counter = 1;
+        while target.exists() {
+            let new_name = format!("{}_{}.{}", stem, counter, ext);
+            target = PathBuf::from(&ws.path).join(new_name);
+            counter += 1;
+        }
+    }
+
+    fs::create_dir_all(target.parent().ok_or("无效的 Workspace 路径")?)
+        .map_err(|e| e.to_string())?;
+
+    // 尝试重命名，失败则复制
+    if let Err(rename_err) = fs::rename(&book.filepath, &target) {
+        fs::copy(&book.filepath, &target)
+            .map_err(|e| format!("复制失败: {}", e))?;
+        fs::remove_file(&book.filepath)
+            .map_err(|e| format!("删除源文件失败: {}", e))?;
+        println!("[PDFLibrary] rename 失败，已使用复制: {}", rename_err);
+    }
+
+    let identity = file_ops::get_file_identity(&target)?;
+
+    database::update_book_directory(&conn, book_id, ws.id).map_err(|e| e.to_string())?;
+    database::update_book_path_and_identity(
+        &conn,
+        book_id,
+        target.to_string_lossy().as_ref(),
+        identity.volume_id,
+        identity.file_index,
+        identity.file_size,
+    ).map_err(|e| e.to_string())?;
+
+    Ok(target.to_string_lossy().to_string())
+}
+
+/// 移除数据库中所有已丢失的文件记录（文件不存在）
+#[tauri::command]
+pub fn pdflibrary_remove_missing_files(
+    state: State<Mutex<PdfLibraryState>>,
+) -> Result<serde_json::Value, String> {
+    let state_guard = state.lock().unwrap();
+    let conn = state_guard.get_connection()?;
+
+    let books = database::get_all_books(&conn).map_err(|e| e.to_string())?;
+    let mut removed = 0usize;
+
+    for book in books {
+        let path = Path::new(&book.filepath);
+        if !path.exists() {
+            // 仅移除记录，不尝试删除文件
+            if let Err(e) = database::delete_book(&conn, book.id) {
+                eprintln!("[PDFLibrary] 删除缺失记录失败 (id={}): {}", book.id, e);
+            } else {
+                removed += 1;
+            }
+        }
+    }
+
+    Ok(serde_json::json!({
+        "removed": removed,
+    }))
 }
 
 // ==================== Inbox 监控命令 ====================
