@@ -1,4 +1,4 @@
-// TODO: 可能会需要把逻辑层和渲染成分离一下
+// CSV Viewer - 使用 Tauri 后端处理
 import {
   batch,
   Component,
@@ -7,12 +7,14 @@ import {
   createSignal,
   For,
   Show,
+  onMount,
+  onCleanup,
 } from "solid-js";
+import { open } from "@tauri-apps/plugin-dialog";
+import { listen } from "@tauri-apps/api/event";
 import ChartRender from "./ChartRender";
 import styles from "./CSVViewer.module.css";
 import {
-  detectDelimiter,
-  parseCSV,
   determineAxisType,
   buildColumnMeta,
   buildChartData,
@@ -21,14 +23,11 @@ import {
   axisTypeLabel,
 } from "./csvUtils";
 import {
-  calculatePagination,
-  parseCSVPage,
-  quickCountRows,
-  sampleForThumbnail,
-  ROWS_PER_PAGE,
-  type PaginationState,
-  type StreamParseResult,
-} from "./csvPagination";
+  CsvBackendService,
+  type PaginationState as BackendPaginationState,
+  type ParsedPage,
+  type ThumbnailData as BackendThumbnailData,
+} from "./csvBackend";
 import ThumbnailGrid, { type ThumbnailData } from "./ThumbnailGrid";
 import ProgressBar from "./ProgressBar";
 import type { CSVRecord, AxisType } from "./types";
@@ -47,6 +46,7 @@ export const DEFAULT_MAX_POINTS = 4000;
 export const MIN_POINTS = 200;
 export const MAX_POINTS = 20000;
 export const ROW_INDEX_KEY = "__auto_sequence__";
+const ROWS_PER_PAGE = 200000;
 
 const CSVV: Component = () => {
   const [headers, setHeaders] = createSignal<string[]>([]);
@@ -60,27 +60,70 @@ const CSVV: Component = () => {
   const [maxPoints, setMaxPoints] = createSignal<number>(DEFAULT_MAX_POINTS);
   const [autoDownsample, setAutoDownsample] = createSignal<boolean>(false);
   const [delimiter, setDelimiter] = createSignal<string>(",");
-  const [rawContent, setRawContent] = createSignal<string>("");
   const [skippedRows, setSkippedRows] = createSignal<number>(0);
-  const [dragOver, setDragOver] = createSignal<boolean>(false);
   const csvExists = createMemo(() => rows().length > 0);
-  const [isSmooth, setIsSmooth] = createSignal<boolean>(false); // 默认 false
+  const [isSmooth] = createSignal<boolean>(false);
   const [enableXRange, setEnableXRange] = createSignal<boolean>(true);
-  const [xRange, setXRange] = createSignal<[number, number] | null>([0, 50000]); //默认50000，否则会很卡
+  const [xRange, setXRange] = createSignal<[number, number] | null>([0, 50000]);
 
   // 分页相关状态
-  const [pagination, setPagination] = createSignal<PaginationState | null>(null);
+  const [pagination, setPagination] = createSignal<BackendPaginationState | null>(null);
   const [thumbnails, setThumbnails] = createSignal<ThumbnailData[]>([]);
   const [loadingProgress, setLoadingProgress] = createSignal({ current: 0, total: 0 });
   const [progressMessage, setProgressMessage] = createSignal("");
   const [isPageLoading, setIsPageLoading] = createSignal(false);
-  
-  // 缓存：预加载当前页和下一页
-  const [cachedPages, setCachedPages] = createSignal<Map<number, CSVRecord[]>>(new Map());
+  const [currentFilePath, setCurrentFilePath] = createSignal<string>("");
+  const [dragOver, setDragOver] = createSignal<boolean>(false);
 
   let fileInputRef: HTMLInputElement | undefined;
   let dragCounter = 0;
+  let unlistenFileDrop: (() => void) | undefined;
 
+  // 监听 Tauri v2 的拖拽事件 tauri://drag-drop，直接获取本地路径
+  onMount(async () => {
+    try {
+      unlistenFileDrop = await listen<any>("tauri://drag-drop", async (event) => {
+        console.log("[tauri://drag-drop] raw payload:", event.payload);
+        const payload: any = event.payload;
+
+        // DragDropEvent 通常形如 { type: 'drop' | 'hovered' | 'cancelled', paths: string[] }
+        const kind = (payload && (payload.type || payload.event || payload.kind)) as
+          | string
+          | undefined;
+
+        // 只在真正放下(dropped)时处理，悬停/取消忽略
+        if (kind && !["drop", "dropped", "Drop", "Dropped"].includes(kind)) {
+          return;
+        }
+
+        let paths: string[] | undefined;
+        if (Array.isArray(payload?.paths)) {
+          paths = payload.paths as string[];
+        } else if (Array.isArray(payload)) {
+          paths = payload as string[];
+        } else if (typeof payload === "string") {
+          paths = [payload];
+        }
+
+        const firstPath = paths && paths[0];
+        if (firstPath && typeof firstPath === "string") {
+          console.log("📂 [tauri://drag-drop] 路径:", firstPath);
+          await handleFileSelection(firstPath);
+        }
+      });
+    } catch (err) {
+      console.error("监听 tauri://drag-drop 失败", err);
+    }
+  });
+
+  onCleanup(() => {
+    if (unlistenFileDrop) {
+      unlistenFileDrop();
+      unlistenFileDrop = undefined;
+    }
+  });
+
+  // 拖拽事件处理
   const handleGlobalDragEnter = (e: DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -106,316 +149,7 @@ const CSVV: Component = () => {
     handleDrop(e);
   };
 
-  const columnMeta = createMemo(() => buildColumnMeta(rows(), headers()));
-
-  const numericColumns = createMemo(() =>
-    columnMeta()
-      .filter((meta) => meta.isNumeric)
-      .map((meta) => meta.name)
-  );
-
-  const axisType = createMemo<AxisType>(() => {
-    if (xColumn() === ROW_INDEX_KEY) return "value"; // 强制为数值轴
-    return determineAxisType(columnMeta(), xColumn());
-  });
-
-  createEffect(() => {
-    if (valueColumns().length > 0) return;
-    const numeric = numericColumns();
-    if (numeric.length) {
-      setValueColumns([numeric[0]]);
-    }
-  });
-
-  createEffect(() => {
-    const availableHeaders = headers();
-    const currentX = xColumn();
-
-    if (!availableHeaders.length) {
-      setXColumn("");
-    } else if (
-      currentX !== ROW_INDEX_KEY &&
-      !availableHeaders.includes(currentX)
-    ) {
-      // 修改判断条件：如果是 ROW_INDEX_KEY 则不重置，否则才重置为第一列
-      setXColumn(availableHeaders[0]);
-    }
-  });
-
-  const chartData = createMemo<ChartComputationResult | null>(() => {
-    const dataRows = rows();
-    const xCol = xColumn();
-    const selected = valueColumns();
-    if (!dataRows.length || !xCol || selected.length === 0) {
-      return null;
-    }
-
-    return buildChartData({
-      rows: dataRows,
-      xColumn: xCol,
-      yColumns: selected,
-      axisType: axisType(),
-      autoDownsample: autoDownsample(),
-      maxPoints: clampPoints(maxPoints()),
-    });
-  });
-
-  const handleFileSelection = async (file: File) => {
-    setIsLoading(true);
-    setErrorMessage("");
-    setStatus("读取文件中...");
-
-    const reader = new FileReader();
-    
-    reader.onload = async () => {
-      try {
-        const content =
-          typeof reader.result === "string"
-            ? reader.result
-            : new TextDecoder().decode(reader.result as ArrayBuffer);
-        
-        const detected = detectDelimiter(content);
-        setRawContent(content);
-        setDelimiter(detected);
-        setFileName(file.name);
-
-        // 快速统计总行数
-        setStatus("正在统计数据行数...");
-        const totalRows = quickCountRows(content);
-
-        // 判断是否需要分页
-        if (totalRows > ROWS_PER_PAGE) {
-          // 大文件，使用分页模式
-          await handleLargeFile(content, detected, totalRows);
-        } else {
-          // 小文件，直接全部加载
-          await handleSmallFile(content, detected);
-        }
-
-      } catch (err) {
-        setRows([]);
-        setHeaders([]);
-        setFileName("");
-        setPagination(null);
-        setThumbnails([]);
-        setErrorMessage((err as Error).message || "解析 CSV 失败");
-        setStatus("");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    reader.onerror = () => {
-      setRows([]);
-      setHeaders([]);
-      setFileName("");
-      setPagination(null);
-      setThumbnails([]);
-      setErrorMessage("读取文件失败");
-      setStatus("");
-      setIsLoading(false);
-    };
-
-    reader.readAsText(file);
-  };
-
-  // 处理小文件（直接全部加载）
-  const handleSmallFile = async (content: string, detected: string) => {
-    const parsed = parseCSV(content, detected);
-
-    batch(() => {
-      setSkippedRows(parsed.skippedRows);
-      setValueColumns([]);
-      setMaxPoints(DEFAULT_MAX_POINTS);
-      setHeaders(parsed.headers);
-      setRows(parsed.rows);
-      setXColumn(ROW_INDEX_KEY);
-      setPagination(null); // 清空分页状态
-      setThumbnails([]);
-      setCachedPages(new Map());
-      setStatus(
-        `已解析 ${parsed.rows.length.toLocaleString()} 行, ${
-          parsed.headers.length
-        } 列`
-      );
-      setErrorMessage("");
-    });
-  };
-
-  // 处理大文件（分页加载）
-  const handleLargeFile = async (content: string, detected: string, totalRows: number) => {
-    const paginationState = calculatePagination(totalRows);
-    setPagination(paginationState);
-
-    // 初始化缩略图数据
-    const initialThumbnails: ThumbnailData[] = paginationState.pages.map((page) => ({
-      pageIndex: page.pageIndex,
-      points: [],
-      isLoaded: false,
-    }));
-    setThumbnails(initialThumbnails);
-
-    // 加载第一页数据
-    await loadPage(0, content, detected);
-
-    // 后台生成所有缩略图
-    setTimeout(() => {
-      generateAllThumbnails(content, detected, paginationState);
-    }, 100);
-  };
-
-  // 加载指定页的数据
-  const loadPage = async (
-    pageIndex: number,
-    content?: string,
-    delim?: string
-  ) => {
-    const pg = pagination();
-    if (!pg || pageIndex < 0 || pageIndex >= pg.totalPages) return;
-
-    const pageInfo = pg.pages[pageIndex];
-    const csvContent = content || rawContent();
-    const csvDelimiter = delim || delimiter();
-
-    if (!csvContent) return;
-
-    // 检查缓存
-    const cache = cachedPages();
-    if (cache.has(pageIndex)) {
-      const cachedRows = cache.get(pageIndex)!;
-      batch(() => {
-        setRows(cachedRows);
-        setPagination({ ...pg, currentPage: pageIndex });
-        setStatus(
-          `第 ${pageIndex + 1}/${pg.totalPages} 页 · ${pageInfo.startRow.toLocaleString()} - ${pageInfo.endRow.toLocaleString()} 行`
-        );
-      });
-      return;
-    }
-
-    setIsPageLoading(true);
-    setProgressMessage(`正在加载第 ${pageIndex + 1} 页...`);
-    setLoadingProgress({ current: 0, total: pageInfo.rowCount });
-
-    try {
-      const parsed = await new Promise<StreamParseResult>(
-        (resolve) => {
-          setTimeout(() => {
-            const result = parseCSVPage({
-              content: csvContent,
-              delimiter: csvDelimiter,
-              startRow: pageInfo.startRow,
-              endRow: pageInfo.endRow,
-              onProgress: (current, total) => {
-                setLoadingProgress({ current, total });
-              },
-            });
-            resolve(result);
-          }, 0);
-        }
-      );
-
-      batch(() => {
-        setHeaders(parsed.headers);
-        setRows(parsed.rows);
-        setSkippedRows(parsed.skippedRows);
-        setValueColumns([]);
-        setXColumn(ROW_INDEX_KEY);
-        setPagination({ ...pg, currentPage: pageIndex });
-        setStatus(
-          `第 ${pageIndex + 1}/${pg.totalPages} 页 · ${pageInfo.startRow.toLocaleString()} - ${pageInfo.endRow.toLocaleString()} 行`
-        );
-
-        // 缓存当前页
-        const newCache = new Map(cache);
-        newCache.set(pageIndex, parsed.rows);
-        setCachedPages(newCache);
-      });
-
-      // 预加载下一页
-      if (pageIndex + 1 < pg.totalPages && !cache.has(pageIndex + 1)) {
-        preloadPage(pageIndex + 1, csvContent, csvDelimiter);
-      }
-
-    } catch (err) {
-      setErrorMessage(`加载第 ${pageIndex + 1} 页失败: ${(err as Error).message}`);
-    } finally {
-      setIsPageLoading(false);
-    }
-  };
-
-  // 预加载页面（后台静默加载）
-  const preloadPage = async (
-    pageIndex: number,
-    content: string,
-    delim: string
-  ) => {
-    const pg = pagination();
-    if (!pg || pageIndex < 0 || pageIndex >= pg.totalPages) return;
-
-    const pageInfo = pg.pages[pageIndex];
-    const cache = cachedPages();
-    if (cache.has(pageIndex)) return;
-
-    try {
-      const parsed = parseCSVPage({
-        content,
-        delimiter: delim,
-        startRow: pageInfo.startRow,
-        endRow: pageInfo.endRow,
-      });
-
-      const newCache = new Map(cache);
-      newCache.set(pageIndex, parsed.rows);
-      setCachedPages(newCache);
-    } catch (err) {
-      console.warn(`预加载第 ${pageIndex + 1} 页失败:`, err);
-    }
-  };
-
-  // 生成所有缩略图（后台任务）
-  const generateAllThumbnails = async (
-    content: string,
-    delim: string,
-    pg: PaginationState
-  ) => {
-    for (let i = 0; i < pg.pages.length; i++) {
-      try {
-        const points = sampleForThumbnail(content, delim, pg.pages[i]);
-        
-        setThumbnails((prev) =>
-          prev.map((thumb) =>
-            thumb.pageIndex === i
-              ? { ...thumb, points, isLoaded: true }
-              : thumb
-          )
-        );
-
-        // 避免阻塞 UI
-        if (i % 5 === 0) {
-          await new Promise((resolve) => setTimeout(resolve, 0));
-        }
-      } catch (err) {
-        console.warn(`生成第 ${i + 1} 页缩略图失败:`, err);
-      }
-    }
-  };
-
-  // 处理页面切换
-  const handlePageClick = (pageIndex: number) => {
-    loadPage(pageIndex);
-  };
-
-  const handleInputChange = (event: Event) => {
-    const input = event.currentTarget as HTMLInputElement;
-    const file = input.files?.[0];
-    if (file) {
-      handleFileSelection(file);
-    }
-    input.value = "";
-  };
-
-  const handleDrop = (event: DragEvent) => {
+  const handleDrop = async (event: DragEvent) => {
     event.preventDefault();
     event.stopPropagation();
     setDragOver(false);
@@ -438,42 +172,316 @@ const CSVV: Component = () => {
         .find((candidate): candidate is File => Boolean(candidate));
 
     if (primaryFile) {
-      handleFileSelection(primaryFile);
+      // Tauri / WebView 环境下，尝试从 File 对象读取本地路径
+      console.log("📂 拖拽文件:", primaryFile.name, "大小:", primaryFile.size);
+
+      const anyFile = primaryFile as any;
+      const filePath: string | undefined = anyFile?.path;
+
+      if (filePath && typeof filePath === "string") {
+        // 直接复用现有的文件加载流程
+        await handleFileSelection(filePath);
+        return;
+      }
+      // 在 Tauri 环境下，真实路径会通过 tauri://file-drop 事件提供
+      // 这里不再报错，交给全局事件处理
       return;
     }
 
     setErrorMessage("拖拽内容不是有效的文件");
   };
 
+  const columnMeta = createMemo(() => buildColumnMeta(rows(), headers()));
+
+  const numericColumns = createMemo(() =>
+    columnMeta()
+      .filter((meta) => meta.isNumeric)
+      .map((meta) => meta.name)
+  );
+
+  const axisType = createMemo<AxisType>(() => {
+    if (xColumn() === ROW_INDEX_KEY) return "value";
+    return determineAxisType(columnMeta(), xColumn());
+  });
+
+  createEffect(() => {
+    if (valueColumns().length > 0) return;
+    const numeric = numericColumns();
+    if (numeric.length) {
+      setValueColumns([numeric[0]]);
+    }
+  });
+
+  createEffect(() => {
+    const availableHeaders = headers();
+    const currentX = xColumn();
+
+    if (!availableHeaders.length) {
+      setXColumn("");
+    } else if (
+      currentX !== ROW_INDEX_KEY &&
+      !availableHeaders.includes(currentX)
+    ) {
+      setXColumn(availableHeaders[0]);
+    }
+  });
+
+  const chartData = createMemo<ChartComputationResult | null>(() => {
+    const dataRows = rows();
+    const xCol = xColumn();
+    const selected = valueColumns();
+    if (!dataRows.length || !xCol || selected.length === 0) {
+      return null;
+    }
+
+    return buildChartData({
+      rows: dataRows,
+      xColumn: xCol,
+      yColumns: selected,
+      axisType: axisType(),
+      autoDownsample: autoDownsample(),
+      maxPoints: clampPoints(maxPoints()),
+    });
+  });
+
+  // 使用对话框选择文件
+  const handleSelectFile = async () => {
+    try {
+      const selected = await open({
+        multiple: false,
+        filters: [
+          {
+            name: "CSV Files",
+            extensions: ["csv"],
+          },
+        ],
+      });
+
+      if (selected && typeof selected === "string") {
+        await handleFileSelection(selected);
+      }
+    } catch (err) {
+      setErrorMessage(`选择文件失败: ${(err as Error).message}`);
+    }
+  };
+
+  const handleFileSelection = async (filePath: string) => {
+    console.log("🚀 开始加载文件:", filePath);
+    setIsLoading(true);
+    setErrorMessage("");
+    setStatus("正在加载文件...");
+    setCurrentFilePath(filePath);
+
+    try {
+      // 调用后端加载文件
+      console.log("📡 调用后端 csv_load_file...");
+      const [path, totalRows, delim] = await CsvBackendService.loadFile(filePath);
+      
+      console.log("✅ 后端返回:", { path, totalRows, delim });
+
+      setFileName(path.split(/[/\\]/).pop() || path);
+      setDelimiter(delim);
+
+      // 判断是否需要分页
+      if (totalRows > ROWS_PER_PAGE) {
+        console.log(`📄 大文件模式: ${totalRows} 行, 需要分页`);
+        await handleLargeFile(totalRows);
+      } else {
+        console.log(`📄 小文件模式: ${totalRows} 行, 直接加载`);
+        await handleSmallFile(totalRows);
+      }
+      
+      console.log("✅ 文件加载完成");
+    } catch (err) {
+      console.error("❌ 加载失败:", err);
+      console.error("错误详情:", {
+        message: (err as Error).message,
+        stack: (err as Error).stack,
+      });
+      
+      setRows([]);
+      setHeaders([]);
+      setFileName("");
+      setPagination(null);
+      setThumbnails([]);
+      setErrorMessage(`加载失败: ${(err as Error).message}`);
+      setStatus("");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 处理小文件
+  const handleSmallFile = async (totalRows: number) => {
+    console.log("📦 处理小文件, 总行数:", totalRows);
+    setProgressMessage("加载数据中...");
+    setIsPageLoading(true);
+
+    try {
+      console.log("📡 获取分页信息...");
+      const paginationState = await CsvBackendService.getPagination(totalRows);
+      console.log("✅ 分页信息:", paginationState);
+      
+      const pageInfo = paginationState.pages[0];
+      console.log("📡 加载第一页数据...", pageInfo);
+
+      const parsed = await CsvBackendService.loadPage(0, pageInfo);
+      console.log("✅ 数据解析完成:", {
+        headers: parsed.headers.length,
+        rows: parsed.rows.length,
+        skipped: parsed.skipped_rows,
+      });
+
+      batch(() => {
+        setHeaders(parsed.headers);
+        setRows(parsed.rows);
+        setSkippedRows(parsed.skipped_rows);
+        setValueColumns([]);
+        setXColumn(ROW_INDEX_KEY);
+        setPagination(null);
+        setThumbnails([]);
+        setStatus(
+          `已加载 ${parsed.rows.length.toLocaleString()} 行, ${
+            parsed.headers.length
+          } 列`
+        );
+        setErrorMessage("");
+      });
+      
+      console.log("✅ 小文件处理完成");
+    } catch (err) {
+      console.error("❌ 小文件处理失败:", err);
+      throw new Error(`加载数据失败: ${(err as Error).message}`);
+    } finally {
+      setIsPageLoading(false);
+    }
+  };
+
+  // 处理大文件
+  const handleLargeFile = async (totalRows: number) => {
+    console.log("📚 处理大文件, 总行数:", totalRows);
+    
+    console.log("📡 获取分页信息...");
+    const paginationState = await CsvBackendService.getPagination(totalRows);
+    console.log("✅ 分页信息:", paginationState);
+    setPagination(paginationState);
+
+    // 初始化缩略图数据
+    const initialThumbnails: ThumbnailData[] = paginationState.pages.map((page) => ({
+      pageIndex: page.page_index,
+      points: [],
+      isLoaded: false,
+    }));
+    setThumbnails(initialThumbnails);
+    console.log(`📊 初始化 ${initialThumbnails.length} 个缩略图占位符`);
+
+    // 加载第一页数据
+    console.log("📡 加载第一页...");
+    await loadPage(0);
+
+    // 后台生成所有缩略图
+    console.log("🎨 启动后台缩略图生成...");
+    setTimeout(() => {
+      generateAllThumbnails(paginationState);
+    }, 100);
+  };
+
+  // 加载指定页
+  const loadPage = async (pageIndex: number) => {
+    const pg = pagination();
+    if (!pg || pageIndex < 0 || pageIndex >= pg.total_pages) return;
+
+    const pageInfo = pg.pages[pageIndex];
+
+    setIsPageLoading(true);
+    setProgressMessage(`正在加载第 ${pageIndex + 1} 页...`);
+    setLoadingProgress({ current: 0, total: pageInfo.row_count });
+
+    try {
+      const parsed = await CsvBackendService.loadPage(pageIndex, pageInfo);
+
+      batch(() => {
+        setHeaders(parsed.headers);
+        setRows(parsed.rows);
+        setSkippedRows(parsed.skipped_rows);
+        setValueColumns([]);
+        setXColumn(ROW_INDEX_KEY);
+        setPagination({ ...pg, current_page: pageIndex });
+        setStatus(
+          `第 ${pageIndex + 1}/${pg.total_pages} 页 · ${pageInfo.start_row.toLocaleString()} - ${pageInfo.end_row.toLocaleString()} 行`
+        );
+        setLoadingProgress({ current: pageInfo.row_count, total: pageInfo.row_count });
+      });
+
+      // 预加载下一页
+      if (pageIndex + 1 < pg.total_pages) {
+        const nextPageInfo = pg.pages[pageIndex + 1];
+        CsvBackendService.loadPage(pageIndex + 1, nextPageInfo).catch(console.warn);
+      }
+    } catch (err) {
+      setErrorMessage(`加载第 ${pageIndex + 1} 页失败: ${(err as Error).message}`);
+    } finally {
+      setIsPageLoading(false);
+    }
+  };
+
+  // 生成所有缩略图
+  const generateAllThumbnails = async (pg: BackendPaginationState) => {
+    for (let i = 0; i < pg.pages.length; i++) {
+      try {
+        const thumbData = await CsvBackendService.generateThumbnail(i, pg.pages[i]);
+
+        setThumbnails((prev) =>
+          prev.map((thumb) =>
+            thumb.pageIndex === i
+              ? {
+                  ...thumb,
+                  points: thumbData.points.map((p) => [p.x, p.y] as [number, number]),
+                  isLoaded: true,
+                }
+              : thumb
+          )
+        );
+
+        // 避免阻塞 UI
+        if (i % 5 === 0) {
+          await new Promise((resolve) => setTimeout(resolve, 0));
+        }
+      } catch (err) {
+        console.warn(`生成第 ${i + 1} 页缩略图失败:`, err);
+      }
+    }
+  };
+
+  // 处理页面切换
+  const handlePageClick = (pageIndex: number) => {
+    loadPage(pageIndex);
+  };
+
   const handleDelimiterChange = async (event: Event) => {
     const next = (event.currentTarget as HTMLSelectElement).value;
     if (!next || next === delimiter()) return;
-    setDelimiter(next);
 
-    const content = rawContent();
-    if (!content) return;
+    if (!currentFilePath()) {
+      setErrorMessage("没有加载的文件");
+      return;
+    }
 
     try {
       setIsLoading(true);
       setStatus("重新解析文件...");
+      setDelimiter(next);
 
-      // 重新统计行数
-      const totalRows = quickCountRows(content);
-
-      // 清空缓存
-      setCachedPages(new Map());
+      // 调用后端更改分隔符
+      const totalRows = await CsvBackendService.changeDelimiter(next);
 
       if (totalRows > ROWS_PER_PAGE) {
-        // 大文件
-        await handleLargeFile(content, next, totalRows);
+        await handleLargeFile(totalRows);
       } else {
-        // 小文件
-        await handleSmallFile(content, next);
+        await handleSmallFile(totalRows);
       }
     } catch (err) {
-      setErrorMessage(
-        `使用分隔符 "${next}" 解析失败: ${(err as Error).message}`
-      );
+      setErrorMessage(`使用分隔符 "${next}" 解析失败: ${(err as Error).message}`);
     } finally {
       setIsLoading(false);
     }
@@ -492,14 +500,13 @@ const CSVV: Component = () => {
   const handleRangeInput = (val: string) => {
     const input = val.trim();
 
-    // 空值恢复默认
     if (input === "") {
       setXRange([0, 50000]);
       return;
     }
 
-    const parts = input.split(/[,，]/); // 支持中英文逗号
-    if (parts.length !== 2) return; // 格式不对不更新
+    const parts = input.split(/[,，]/);
+    if (parts.length !== 2) return;
 
     const min = parseFloat(parts[0]);
     const max = parseFloat(parts[1]);
@@ -582,14 +589,24 @@ const CSVV: Component = () => {
         when={csvExists()}
         fallback={
           <div class={styles.uploadArea}>
-            <UploadSection
-              isLoading={isLoading}
-              setRef={(el) => (fileInputRef = el)}
-              handleInputChange={handleInputChange}
-              errorMessage={errorMessage}
-              isDragOver={dragOver()}
-              onClickUpload={() => fileInputRef?.click()}
-            />
+            <section 
+              class={`${styles.dropZone} ${dragOver() ? styles.dragOver : ""}`}
+              onClick={handleSelectFile}
+            >
+              <div class={styles.dropZoneContent}>
+                <div class={styles.icon}>📂</div>
+                <strong>
+                  {isLoading() 
+                    ? "读取中..." 
+                    : dragOver() 
+                    ? "释放鼠标以选择文件（或点击）" 
+                    : "点击选择 CSV 文件或拖拽文件到此处"}
+                </strong>
+              </div>
+              {errorMessage() && (
+                <div class={styles.error}>{errorMessage()}</div>
+              )}
+            </section>
             <Show when={fileName()}>
               <div class={styles.fileInfo}>
                 当前文件: <strong>{fileName()}</strong>
@@ -753,10 +770,15 @@ const CSVV: Component = () => {
           <Show when={pagination()}>
             <ThumbnailGrid
               thumbnails={thumbnails()}
-              currentPage={pagination()?.currentPage || 0}
-              totalPages={pagination()?.totalPages || 0}
+              currentPage={pagination()?.current_page || 0}
+              totalPages={pagination()?.total_pages || 0}
               onPageClick={handlePageClick}
-              pageInfo={pagination()?.pages || []}
+              pageInfo={pagination()?.pages.map(p => ({
+                pageIndex: p.page_index,
+                startRow: p.start_row,
+                endRow: p.end_row,
+                rowCount: p.row_count,
+              })) || []}
             />
           </Show>
 
@@ -767,59 +789,10 @@ const CSVV: Component = () => {
             message={progressMessage()}
             visible={isPageLoading()}
           />
-
-          <Show when={dragOver()}>
-            <div class={styles.dragOverlay}>
-              <div class={styles.overlayContent}>
-                <UploadSection
-                  isLoading={isLoading}
-                  setRef={(el) => (fileInputRef = el)}
-                  handleInputChange={handleInputChange}
-                  errorMessage={null}
-                  isOverlay={true}
-                  onClickUpload={() => fileInputRef?.click()}
-                />
-              </div>
-            </div>
-          </Show>
         </div>
       </Show>
     </div>
   );
 };
-
-const UploadSection: Component<{
-  isLoading: () => boolean;
-  setRef: (el: HTMLInputElement) => void;
-  handleInputChange: (event: Event) => void;
-  errorMessage: (() => string) | null;
-  isOverlay?: boolean;
-  isDragOver?: boolean;
-  onClickUpload: () => void;
-}> = (props) => (
-  <section
-    class={`${styles.dropZone} ${props.isOverlay ? styles.overlayMode : ""} ${
-      props.isDragOver ? styles.dragOver : ""
-    }`}
-    onClick={props.onClickUpload}
-  >
-    <div class={styles.dropZoneContent}>
-      <div class={styles.icon}>📂</div>
-      <strong>{props.isLoading() ? "读取中..." : "释放鼠标以更新文件"}</strong>
-      {!props.isOverlay && <span>或点击选择新文件</span>}
-
-      <input
-        ref={props.setRef}
-        type="file"
-        accept=".csv,text/csv"
-        style={{ display: "none" }}
-        onChange={props.handleInputChange}
-      />
-    </div>
-    {props.errorMessage && (
-      <div class={styles.error}>{props.errorMessage()}</div>
-    )}
-  </section>
-);
 
 export default CSVV;

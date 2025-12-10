@@ -5,11 +5,12 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  gap: 16px;
-  padding: 20px 24px;
+  gap: 8px;
+  padding: 12px 16px;
   box-sizing: border-box;
   background: var(--vscode-editor-background);
   color: var(--vscode-foreground);
+  /* 由内部内容区负责滚动，这里只裁剪溢出 */
   overflow: hidden;
 }
 
@@ -17,10 +18,10 @@
   background: var(--vscode-editorWidget-background);
   border: 1px dashed var(--vscode-editorWidget-border);
   border-radius: 8px;
-  padding: 20px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   transition: border-color 0.2s ease;
 }
 
@@ -63,7 +64,7 @@
 .controls {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 16px;
+  gap: 8px;
   flex-shrink: 0;
 }
 
@@ -71,13 +72,29 @@
   background: var(--vscode-editorWidget-background);
   border: 1px solid var(--vscode-editorWidget-border);
   border-radius: 8px;
-  padding: 16px;
+  padding: 10px 12px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  /* 如果列非常多，限制高度让其内部滚动，不破坏整体布局 */
-  max-height: 400px;
-  overflow-y: auto;
+  gap: 8px;
+  /* max-width: 500px; */
+}
+
+.section select,
+.section input[type="text"],
+.section input[type="number"] {
+  padding: 2px 6px;
+  font-size: 12px;
+  height: 26px;
+  border: 1px solid var(--vscode-input-border);
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border-radius: 4px;
+}
+
+.section select:focus,
+.section input:focus {
+  outline: 1px solid var(--vscode-focusBorder);
+  border-color: var(--vscode-focusBorder);
 }
 
 .sectionTitle {
@@ -128,8 +145,8 @@
 .stats {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px 20px;
-  font-size: 13px;
+  gap: 4px 12px;
+  font-size: 12px;
   color: var(--vscode-descriptionForeground);
 }
 
@@ -138,30 +155,30 @@
 }
 
 .error {
-  padding: 12px 16px;
+  padding: 6px 10px;
   border-radius: 6px;
   border: 1px solid var(--vscode-inputValidation-errorBorder);
   background: rgba(255, 59, 48, 0.1);
   color: var(--vscode-inputValidation-errorForeground);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .message {
-  padding: 12px 16px;
+  padding: 6px 10px;
   border-radius: 6px;
   background: var(--vscode-editorWidget-background);
   border: 1px solid var(--vscode-editorWidget-border);
-  font-size: 13px;
+  font-size: 12px;
   color: var(--vscode-descriptionForeground);
 }
 
 .chartWrapper {
-  min-height: 0; /* 关键：允许 flex 子项压缩，防止溢出 */
+  flex-shrink: 0; /* 防止被压缩 */
   width: 100%;
   background: var(--vscode-editorWidget-background);
   border: 1px solid var(--vscode-editorWidget-border);
   border-radius: 8px;
-  height: 900px;
+  height: 800px; /* 至少展示 800px 高度的图表区域 */
 
   /* 布局核心 */
   position: relative;
@@ -216,9 +233,12 @@
 .dashboardContent {
   display: flex;
   flex-direction: column;
-  height: 100%;
-  gap: 16px;
-  overflow: hidden; /* 防止内部元素溢出导致父级滚动 */
+  /* 允许作为滚动容器，填满父级剩余空间 */
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 8px;
+  /* 允许内容溢出，不再在内部产生滚动条 */
+  overflow-y: auto;
 }
 
 .rangeModify {
@@ -268,9 +288,9 @@
 
 @media (min-width: 1000px) {
   .controls {
-    /* 左侧列选择占 2份，右侧设置占 1份 */
-    grid-template-columns: 2fr 1fr;
-    align-items: start;
+    /* 默认两列布局：左侧列选择占 2份，右侧设置占 1份 */
+    grid-template-columns: 1fr 1fr;
+    align-items: stretch;
   }
 }
 @media (max-width: 1500px) {
@@ -278,3 +298,9 @@
     padding: 12px;
   }
 }
+/* @media (min-width: 1921px) { 
+  .controls {
+    grid-template-columns: auto auto; 
+    justify-content: center; 
+  }
+} */

@@ -6,8 +6,8 @@ export const csvViewerToolConfig: ToolConfig = {
   id: "tools-csv-viewer",
   name: "CSV 可视化",
   icon: "📈",
-  description: "面向大数据量的 CSV 可视化与下采样",
+  description: "面向大数据量的 CSV 可视化与下采样（后端加速）",
   category: ToolCategory.PRODUCTIVITY,
-  component: () => import("./CSVV"),
+  component: () => import("./CSVVBackend"),
   saveState: false,
 };

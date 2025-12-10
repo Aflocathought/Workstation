@@ -11,6 +11,18 @@ use python::{PythonService, PythonResult, ScriptInfo, PythonInfo};
 mod shortcut;
 use shortcut::{ShortcutService, ModifierState, ForegroundWindowInfo};
 
+// 引入 CSV 处理模块
+mod csv_handler;
+use csv_handler::{
+    CsvCacheManager,
+    csv_load_file,
+    csv_get_pagination,
+    csv_load_page,
+    csv_generate_thumbnail,
+    csv_change_delimiter,
+    csv_clear_cache,
+};
+
 use once_cell::sync::OnceCell;
 use std::sync::Mutex;
 
@@ -130,6 +142,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .manage(CsvCacheManager::default())
         .invoke_handler(tauri::generate_handler![
             greet,
             execute_python_script,
@@ -141,6 +154,12 @@ pub fn run() {
             get_modifier_state,
             get_foreground_window,
             is_key_pressed,
+            csv_load_file,
+            csv_get_pagination,
+            csv_load_page,
+            csv_generate_thumbnail,
+            csv_change_delimiter,
+            csv_clear_cache,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

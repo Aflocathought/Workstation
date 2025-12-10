@@ -36,6 +36,7 @@ mod python;
 mod shortcut;
 mod spectrum;
 mod tracker;
+mod csv_handler;
 
 // 全局快捷键服务实例
 static SHORTCUT_SERVICE: OnceCell<Mutex<ShortcutService>> = OnceCell::new();
@@ -415,6 +416,15 @@ pub struct TrackerStop {
 pub use spectrum::{SpectrumConfig, SpectrumRuntime, SpectrumStop};
 
 use db::{ActivityLog, TimelineActivity};
+use csv_handler::{
+    CsvCacheManager,
+    csv_load_file,
+    csv_get_pagination,
+    csv_load_page,
+    csv_generate_thumbnail,
+    csv_change_delimiter,
+    csv_clear_cache,
+};
 
 // 这个结构体用于前端请求时返回当前活动窗口信息
 pub use tracker::ActiveWindowInfo;
@@ -470,6 +480,9 @@ fn main() {
             app.manage(SpectrumRuntime {
                 running: Arc::new(AtomicBool::new(false)),
             });
+
+            // 管理 CSV 缓存状态（供 CSV Viewer 后端使用）
+            app.manage(CsvCacheManager::default());
 
             // 在一个新的线程中启动我们的后台追踪器
             let app_handle = app.handle().clone();
@@ -534,6 +547,13 @@ fn main() {
             get_foreground_window,
             is_key_pressed,
             move_shortcut_hint_window,
+            // CSV Viewer 后端命令
+            csv_load_file,
+            csv_get_pagination,
+            csv_load_page,
+            csv_generate_thumbnail,
+            csv_change_delimiter,
+            csv_clear_cache,
             // PDF Library 命令
             pdf_library::commands::pdflibrary_init_db,
             pdf_library::commands::pdflibrary_backup_db,
