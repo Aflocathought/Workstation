@@ -8,7 +8,7 @@ use super::database;
 use super::file_ops;
 use super::metadata;
 use super::watcher::InboxWatcher;
-use super::{Book, Tag, Directory, PDFMetadata, FileIdentity, RenameResult, RelinkResult};
+use super::{Book, Tag, Directory, Category, PDFMetadata, FileIdentity, RenameResult, RelinkResult};
 use chrono::Utc;
 
 /// PDF Library 状态
@@ -100,7 +100,17 @@ pub fn pdflibrary_get_books(
     let state = state.lock().unwrap();
     let conn = state.get_connection()?;
     
-    database::get_all_books(&conn).map_err(|e| e.to_string())
+    let mut books = database::get_all_books(&conn).map_err(|e| e.to_string())?;
+    
+    // 为每本书加载标签
+    for book in &mut books {
+        match database::get_book_tags(&conn, book.id) {
+            Ok(tags) => book.tags = Some(tags),
+            Err(e) => eprintln!("[PDFLibrary] 加载书籍标签失败 (id={}): {}", book.id, e),
+        }
+    }
+    
+    Ok(books)
 }
 
 #[tauri::command]
@@ -133,6 +143,18 @@ pub fn pdflibrary_add_book(
     // 提取元数据
     let metadata = metadata::extract_metadata(path)?;
     
+    // 提取封面（失败不影响添加书籍）
+    let cover_image = match metadata::extract_cover(path) {
+        Ok(cover) => {
+            println!("[PDFLibrary] 成功提取封面: {}", filepath);
+            Some(cover)
+        },
+        Err(e) => {
+            println!("[PDFLibrary] 提取封面失败 ({}): {}", filepath, e);
+            None
+        }
+    };
+    
     // 获取文件名
     let filename = path
         .file_name()
@@ -158,7 +180,7 @@ pub fn pdflibrary_add_book(
         identity.file_size,
         metadata.author.as_deref(),
         metadata.page_count,
-        None, // cover_image 后续实现
+        cover_image.as_deref(),
     ).map_err(|e| e.to_string())?;
     
     // 返回新创建的书籍
@@ -258,11 +280,12 @@ pub fn pdflibrary_create_tag(
     name: String,
     color: Option<String>,
     parent_id: Option<i32>,
+    aliases: Option<String>,
 ) -> Result<Tag, String> {
     let state_guard = state.lock().unwrap();
     let conn = state_guard.get_connection()?;
     
-    let tag_id = database::create_tag(&conn, &name, color.as_deref(), parent_id)
+    let tag_id = database::create_tag(&conn, &name, color.as_deref(), parent_id, aliases.as_deref())
         .map_err(|e| e.to_string())?;
     
     Ok(Tag {
@@ -270,6 +293,7 @@ pub fn pdflibrary_create_tag(
         name,
         color,
         parent_id,
+        aliases,
         book_count: Some(0),
     })
 }
@@ -309,7 +333,112 @@ pub fn pdflibrary_remove_book_tag(
     database::remove_book_tag(&conn, book_id, tag_id).map_err(|e| e.to_string())
 }
 
-// ==================== 目录命令 ====================
+#[tauri::command]
+pub fn pdflibrary_update_tag(
+    state: State<Mutex<PdfLibraryState>>,
+    tag_id: i32,
+    name: Option<String>,
+    color: Option<String>,
+    parent_id: Option<Option<i32>>,
+    aliases: Option<Option<String>>,
+) -> Result<(), String> {
+    let state = state.lock().unwrap();
+    let conn = state.get_connection()?;
+    
+    database::update_tag(
+        &conn, 
+        tag_id, 
+        name.as_deref(), 
+        color.as_deref(), 
+        parent_id,
+        aliases.as_ref().map(|a| a.as_deref())
+    ).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn pdflibrary_delete_tag(
+    state: State<Mutex<PdfLibraryState>>,
+    tag_id: i32,
+) -> Result<(), String> {
+    let state = state.lock().unwrap();
+    let conn = state.get_connection()?;
+    
+    database::delete_tag(&conn, tag_id).map_err(|e| e.to_string())
+}
+
+// ==================== 分类管理 ====================
+
+#[tauri::command]
+pub fn pdflibrary_get_categories(
+    state: State<Mutex<PdfLibraryState>>,
+) -> Result<Vec<Category>, String> {
+    let state = state.lock().unwrap();
+    let conn = state.get_connection()?;
+    
+    database::get_all_categories(&conn).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn pdflibrary_create_category(
+    state: State<Mutex<PdfLibraryState>>,
+    name: String,
+    icon: Option<String>,
+    color: Option<String>,
+) -> Result<Category, String> {
+    let state = state.lock().unwrap();
+    let conn = state.get_connection()?;
+    
+    let id = database::create_category(&conn, &name, icon.as_deref(), color.as_deref())
+        .map_err(|e| e.to_string())?;
+    
+    Ok(Category {
+        id,
+        name,
+        icon,
+        color,
+        display_order: 0, // 将被数据库设置
+    })
+}
+
+#[tauri::command]
+pub fn pdflibrary_update_category(
+    state: State<Mutex<PdfLibraryState>>,
+    id: i32,
+    name: Option<String>,
+    icon: Option<String>,
+    color: Option<String>,
+) -> Result<(), String> {
+    let state = state.lock().unwrap();
+    let conn = state.get_connection()?;
+    
+    database::update_category(&conn, id, name.as_deref(), icon.as_deref(), color.as_deref())
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn pdflibrary_delete_category(
+    state: State<Mutex<PdfLibraryState>>,
+    id: i32,
+) -> Result<(), String> {
+    let state = state.lock().unwrap();
+    let conn = state.get_connection()?;
+    
+    database::delete_category(&conn, id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn pdflibrary_update_book_category(
+    state: State<Mutex<PdfLibraryState>>,
+    book_id: i32,
+    category_id: Option<i32>,
+) -> Result<(), String> {
+    let state = state.lock().unwrap();
+    let conn = state.get_connection()?;
+    
+    database::update_book_category(&conn, book_id, category_id).map_err(|e| e.to_string())
+}
+
+// ==================== 文件操作 ====================
 
 #[tauri::command]
 pub fn pdflibrary_get_directories(state: State<Mutex<PdfLibraryState>>) -> Result<Vec<Directory>, String> {
@@ -353,6 +482,36 @@ pub fn pdflibrary_extract_metadata(filepath: String) -> Result<PDFMetadata, Stri
 pub fn pdflibrary_extract_cover(filepath: String) -> Result<String, String> {
     let path = Path::new(&filepath);
     metadata::extract_cover(path)
+}
+
+/// 更新书籍封面（提取并保存到数据库）
+#[tauri::command]
+pub fn pdflibrary_update_book_cover(
+    state: State<Mutex<PdfLibraryState>>,
+    book_id: i32,
+) -> Result<String, String> {
+    let state_guard = state.lock().unwrap();
+    let conn = state_guard.get_connection()?;
+    
+    // 获取书籍信息
+    let books = database::get_all_books(&conn).map_err(|e| e.to_string())?;
+    let book = books.into_iter()
+        .find(|b| b.id == book_id)
+        .ok_or("书籍不存在")?;
+    
+    let path = Path::new(&book.filepath);
+    if !path.exists() {
+        return Err("文件不存在".to_string());
+    }
+    
+    // 提取封面
+    let cover_image = metadata::extract_cover(path)?;
+    
+    // 保存到数据库
+    database::update_book_cover(&conn, book_id, Some(&cover_image))
+        .map_err(|e| e.to_string())?;
+    
+    Ok(cover_image)
 }
 
 #[tauri::command]
@@ -404,11 +563,21 @@ pub fn pdflibrary_refresh_all_metadata(
 
         match metadata::extract_metadata(path) {
             Ok(meta) => {
-                if let Err(e) = database::update_book_metadata(
+                // 尝试提取封面（失败不影响元数据更新）
+                let cover_image = match metadata::extract_cover(path) {
+                    Ok(cover) => Some(cover),
+                    Err(e) => {
+                        eprintln!("[PDFLibrary] 提取封面失败 (id={}): {}", book.id, e);
+                        None
+                    }
+                };
+                
+                if let Err(e) = database::update_book_metadata_and_cover(
                     &conn,
                     book.id,
                     meta.author.as_deref(),
                     meta.page_count,
+                    cover_image.as_deref(),
                 ) {
                     eprintln!("[PDFLibrary] 更新元数据失败 (id={}): {}", book.id, e);
                     failed += 1;
@@ -436,6 +605,22 @@ fn get_workspace_directory(conn: &rusqlite::Connection) -> Option<Directory> {
     database::get_all_directories(conn)
         .ok()
         .and_then(|dirs| dirs.into_iter().find(|d| d.dir_type == "workspace"))
+}
+
+/// 打开 Workspace 文件夹
+#[tauri::command]
+pub fn pdflibrary_open_workspace_folder(
+    state: State<Mutex<PdfLibraryState>>,
+) -> Result<(), String> {
+    let state_guard = state.lock().unwrap();
+    let conn = state_guard.get_connection()?;
+    
+    // 从数据库获取 workspace 路径
+    let ws = get_workspace_directory(&conn)
+        .ok_or("未配置 Workspace 目录")?;
+    
+    let workspace_path = std::path::Path::new(&ws.path);
+    file_ops::show_folder(workspace_path)
 }
 
 /// 重新检查所有文件是否存在，并标记缺失

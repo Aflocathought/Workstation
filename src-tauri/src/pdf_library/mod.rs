@@ -63,6 +63,10 @@ pub struct Book {
     pub import_date: String,
     pub modified_date: String,
     
+    // 分类
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub category_id: Option<i32>,
+    
     // 标签 (在查询时加载)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tags: Option<Vec<Tag>>,
@@ -77,6 +81,8 @@ pub struct Tag {
     pub color: Option<String>,
     pub parent_id: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub aliases: Option<String>, // 别名，逗号分隔
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub book_count: Option<i32>,
 }
 
@@ -90,6 +96,17 @@ pub struct Directory {
     pub dir_type: String, // "workspace" or "external"
     pub name: String,
     pub is_monitoring: bool,
+}
+
+/// 分类
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Category {
+    pub id: i32,
+    pub name: String,
+    pub icon: Option<String>,
+    pub color: Option<String>,
+    pub display_order: i32,
 }
 
 /// 重命名结果

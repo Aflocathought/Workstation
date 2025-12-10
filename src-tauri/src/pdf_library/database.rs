@@ -4,7 +4,7 @@ use rusqlite::{Connection, Result, params};
 use std::path::Path;
 use chrono::Utc;
 
-use super::{Book, Tag, Directory};
+use super::{Book, Tag, Directory, Category};
 
 /// 初始化数据库并返回连接
 pub fn init_db(db_path: &Path) -> Result<Connection> {
@@ -101,10 +101,17 @@ fn create_tables(conn: &Connection) -> Result<()> {
             name TEXT NOT NULL UNIQUE,
             color TEXT,
             parent_id INTEGER,
+            aliases TEXT,
             FOREIGN KEY(parent_id) REFERENCES tags(id) ON DELETE CASCADE
         )",
         [],
     )?;
+    
+    // 添加 aliases 列（如果不存在）
+    conn.execute(
+        "ALTER TABLE tags ADD COLUMN aliases TEXT",
+        [],
+    ).ok(); // 忽略错误（列已存在）
     
     // 书籍-标签关联表
     conn.execute(
@@ -117,6 +124,43 @@ fn create_tables(conn: &Connection) -> Result<()> {
         )",
         [],
     )?;
+    
+    // 分类表
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS categories (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            icon TEXT,
+            color TEXT,
+            display_order INTEGER NOT NULL DEFAULT 0
+        )",
+        [],
+    )?;
+    
+    // 为 books 表添加 category_id 列（如果不存在）
+    let _ = conn.execute(
+        "ALTER TABLE books ADD COLUMN category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL",
+        [],
+    );
+    
+    // 检查是否需要初始化默认分类
+    let category_count: i32 = conn.query_row(
+        "SELECT COUNT(*) FROM categories",
+        [],
+        |row| row.get(0)
+    ).unwrap_or(0);
+    
+    if category_count == 0 {
+        // 添加默认分类
+        conn.execute(
+            "INSERT INTO categories (name, icon, color, display_order) VALUES 
+            ('书籍', '📚', '#2196F3', 1),
+            ('论文', '📄', '#4CAF50', 2),
+            ('乐谱', '🎵', '#FF9800', 3)",
+            [],
+        )?;
+        println!("[PDFLibrary] 已初始化默认分类");
+    }
     
     Ok(())
 }
@@ -189,7 +233,7 @@ pub fn get_all_books(conn: &Connection) -> Result<Vec<Book>> {
         "SELECT id, title, filename, filepath, directory_id, is_managed,
             volume_id, file_index, file_size,
             author, page_count, cover_image,
-            import_date, modified_date, is_missing
+            import_date, modified_date, is_missing, category_id
          FROM books
          ORDER BY import_date DESC"
     )?;
@@ -210,8 +254,9 @@ pub fn get_all_books(conn: &Connection) -> Result<Vec<Book>> {
             cover_image: row.get(11)?,
             import_date: row.get(12)?,
             modified_date: row.get(13)?,
-            tags: None,
             is_missing: row.get::<_, i32>(14)? != 0,
+            category_id: row.get(15)?,
+            tags: None,
         })
     })?
     .collect::<Result<Vec<_>>>()?;
@@ -284,7 +329,7 @@ pub fn get_book_by_id(conn: &Connection, id: i32) -> Result<Option<Book>> {
         "SELECT id, title, filename, filepath, directory_id, is_managed,
                 volume_id, file_index, file_size,
                 author, page_count, cover_image,
-                import_date, modified_date, is_missing
+                import_date, modified_date, is_missing, category_id
          FROM books WHERE id = ?1"
     )?;
 
@@ -305,8 +350,9 @@ pub fn get_book_by_id(conn: &Connection, id: i32) -> Result<Option<Book>> {
             cover_image: row.get(11)?,
             import_date: row.get(12)?,
             modified_date: row.get(13)?,
-            tags: None,
             is_missing: row.get::<_, i32>(14)? != 0,
+            category_id: row.get(15)?,
+            tags: None,
         }))
     } else {
         Ok(None)
@@ -324,6 +370,36 @@ pub fn update_book_metadata(
     conn.execute(
         "UPDATE books SET author = ?1, page_count = ?2, modified_date = ?3 WHERE id = ?4",
         params![author, page_count, now, id],
+    )?;
+    Ok(())
+}
+
+/// 更新书籍封面
+pub fn update_book_cover(
+    conn: &Connection,
+    id: i32,
+    cover_image: Option<&str>,
+) -> Result<()> {
+    let now = Utc::now().to_rfc3339();
+    conn.execute(
+        "UPDATE books SET cover_image = ?1, modified_date = ?2 WHERE id = ?3",
+        params![cover_image, now, id],
+    )?;
+    Ok(())
+}
+
+/// 更新书籍的元数据和封面
+pub fn update_book_metadata_and_cover(
+    conn: &Connection,
+    id: i32,
+    author: Option<&str>,
+    page_count: i32,
+    cover_image: Option<&str>,
+) -> Result<()> {
+    let now = Utc::now().to_rfc3339();
+    conn.execute(
+        "UPDATE books SET author = ?1, page_count = ?2, cover_image = ?3, modified_date = ?4 WHERE id = ?5",
+        params![author, page_count, cover_image, now, id],
     )?;
     Ok(())
 }
@@ -346,7 +422,7 @@ pub fn delete_book(conn: &Connection, id: i32) -> Result<()> {
 /// 获取所有标签
 pub fn get_all_tags(conn: &Connection) -> Result<Vec<Tag>> {
     let mut stmt = conn.prepare(
-        "SELECT t.id, t.name, t.color, t.parent_id,
+        "SELECT t.id, t.name, t.color, t.parent_id, t.aliases,
                 (SELECT COUNT(*) FROM book_tags WHERE tag_id = t.id) as book_count
          FROM tags t
          ORDER BY t.name"
@@ -358,7 +434,8 @@ pub fn get_all_tags(conn: &Connection) -> Result<Vec<Tag>> {
             name: row.get(1)?,
             color: row.get(2)?,
             parent_id: row.get(3)?,
-            book_count: Some(row.get(4)?),
+            aliases: row.get(4)?,
+            book_count: Some(row.get::<_, i64>(5)? as i32),
         })
     })?
     .collect::<Result<Vec<_>>>()?;
@@ -372,10 +449,11 @@ pub fn create_tag(
     name: &str,
     color: Option<&str>,
     parent_id: Option<i32>,
+    aliases: Option<&str>,
 ) -> Result<i32> {
     conn.execute(
-        "INSERT INTO tags (name, color, parent_id) VALUES (?1, ?2, ?3)",
-        params![name, color, parent_id],
+        "INSERT INTO tags (name, color, parent_id, aliases) VALUES (?1, ?2, ?3, ?4)",
+        params![name, color, parent_id, aliases],
     )?;
     Ok(conn.last_insert_rowid() as i32)
 }
@@ -383,7 +461,7 @@ pub fn create_tag(
 /// 获取书籍的标签
 pub fn get_book_tags(conn: &Connection, book_id: i32) -> Result<Vec<Tag>> {
     let mut stmt = conn.prepare(
-        "SELECT t.id, t.name, t.color, t.parent_id
+        "SELECT t.id, t.name, t.color, t.parent_id, t.aliases
          FROM tags t
          INNER JOIN book_tags bt ON t.id = bt.tag_id
          WHERE bt.book_id = ?1
@@ -396,6 +474,7 @@ pub fn get_book_tags(conn: &Connection, book_id: i32) -> Result<Vec<Tag>> {
             name: row.get(1)?,
             color: row.get(2)?,
             parent_id: row.get(3)?,
+            aliases: row.get(4)?,
             book_count: None,
         })
     })?
@@ -422,10 +501,43 @@ pub fn remove_book_tag(conn: &Connection, book_id: i32, tag_id: i32) -> Result<(
     Ok(())
 }
 
+/// 更新标签
+pub fn update_tag(
+    conn: &Connection,
+    tag_id: i32,
+    name: Option<&str>,
+    color: Option<&str>,
+    parent_id: Option<Option<i32>>,
+    aliases: Option<Option<&str>>,
+) -> Result<()> {
+    if let Some(n) = name {
+        conn.execute("UPDATE tags SET name = ?1 WHERE id = ?2", params![n, tag_id])?;
+    }
+    if let Some(c) = color {
+        conn.execute("UPDATE tags SET color = ?1 WHERE id = ?2", params![c, tag_id])?;
+    }
+    if let Some(p) = parent_id {
+        conn.execute("UPDATE tags SET parent_id = ?1 WHERE id = ?2", params![p, tag_id])?;
+    }
+    if let Some(a) = aliases {
+        conn.execute("UPDATE tags SET aliases = ?1 WHERE id = ?2", params![a, tag_id])?;
+    }
+    Ok(())
+}
+
+/// 删除标签（同时删除所有关联）
+pub fn delete_tag(conn: &Connection, tag_id: i32) -> Result<()> {
+    // 删除所有书籍关联
+    conn.execute("DELETE FROM book_tags WHERE tag_id = ?1", params![tag_id])?;
+    // 删除标签本身
+    conn.execute("DELETE FROM tags WHERE id = ?1", params![tag_id])?;
+    Ok(())
+}
+
 /// 获取所有目录
 pub fn get_all_directories(conn: &Connection) -> Result<Vec<Directory>> {
     let mut stmt = conn.prepare(
-        "SELECT id, path, type, name, is_monitoring FROM directories"
+        "SELECT id, path, type, name FROM directories ORDER BY id"
     )?;
     
     let dirs = stmt.query_map([], |row| {
@@ -434,12 +546,97 @@ pub fn get_all_directories(conn: &Connection) -> Result<Vec<Directory>> {
             path: row.get(1)?,
             dir_type: row.get(2)?,
             name: row.get(3)?,
-            is_monitoring: row.get::<_, i32>(4)? != 0,
+            is_monitoring: false,
         })
     })?
     .collect::<Result<Vec<_>>>()?;
     
     Ok(dirs)
+}
+
+/// 获取所有分类
+pub fn get_all_categories(conn: &Connection) -> Result<Vec<Category>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, name, icon, color, display_order FROM categories ORDER BY display_order, id"
+    )?;
+    
+    let categories = stmt.query_map([], |row| {
+        Ok(Category {
+            id: row.get(0)?,
+            name: row.get(1)?,
+            icon: row.get(2)?,
+            color: row.get(3)?,
+            display_order: row.get(4)?,
+        })
+    })?
+    .collect::<Result<Vec<_>>>()?;
+    
+    Ok(categories)
+}
+
+/// 创建分类
+pub fn create_category(
+    conn: &Connection,
+    name: &str,
+    icon: Option<&str>,
+    color: Option<&str>,
+) -> Result<i32> {
+    // 获取当前最大排序值
+    let max_order: i32 = conn.query_row(
+        "SELECT COALESCE(MAX(display_order), 0) FROM categories",
+        [],
+        |row| row.get(0)
+    ).unwrap_or(0);
+    
+    conn.execute(
+        "INSERT INTO categories (name, icon, color, display_order) VALUES (?1, ?2, ?3, ?4)",
+        params![name, icon, color, max_order + 1],
+    )?;
+    Ok(conn.last_insert_rowid() as i32)
+}
+
+/// 更新分类
+pub fn update_category(
+    conn: &Connection,
+    id: i32,
+    name: Option<&str>,
+    icon: Option<&str>,
+    color: Option<&str>,
+) -> Result<()> {
+    if let Some(n) = name {
+        conn.execute(
+            "UPDATE categories SET name = ?1 WHERE id = ?2",
+            params![n, id],
+        )?;
+    }
+    if let Some(i) = icon {
+        conn.execute(
+            "UPDATE categories SET icon = ?1 WHERE id = ?2",
+            params![i, id],
+        )?;
+    }
+    if let Some(c) = color {
+        conn.execute(
+            "UPDATE categories SET color = ?1 WHERE id = ?2",
+            params![c, id],
+        )?;
+    }
+    Ok(())
+}
+
+/// 删除分类
+pub fn delete_category(conn: &Connection, id: i32) -> Result<()> {
+    conn.execute("DELETE FROM categories WHERE id = ?1", params![id])?;
+    Ok(())
+}
+
+/// 更新书籍的分类
+pub fn update_book_category(conn: &Connection, book_id: i32, category_id: Option<i32>) -> Result<()> {
+    conn.execute(
+        "UPDATE books SET category_id = ?1 WHERE id = ?2",
+        params![category_id, book_id],
+    )?;
+    Ok(())
 }
 
 /// 添加目录

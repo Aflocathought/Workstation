@@ -15,6 +15,8 @@
         "title": "Workstation",
         "width": 800,
         "height": 600,
+        "focus": false,
+        "alwaysOnTop": false,
         "decorations": false,
         "transparent": false,
         "dragDropEnabled": false

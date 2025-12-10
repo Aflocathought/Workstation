@@ -16,6 +16,41 @@ html, body {
 
 /* ==================== 浅色主题 ==================== */
 [data-theme='light'] {
+  /* VSCode CSS 变量映射 - 浅色主题 */
+  --vscode-editor-background: #ffffff;
+  --vscode-editor-foreground: #1a1a1a;
+  --vscode-sideBar-background: #f3f3f3;
+  --vscode-sideBar-border: #e5e5e5;
+  --vscode-sideBarTitle-foreground: #1a1a1a;
+  --vscode-sideBarSectionHeader-background: #e8e8e8;
+  --vscode-sideBarSectionHeader-foreground: #1a1a1a;
+  --vscode-list-hoverBackground: #e8e8e8;
+  --vscode-list-activeSelectionBackground: #0066cc;
+  --vscode-list-activeSelectionForeground: #ffffff;
+  --vscode-list-errorBackground: #fbe9eb;
+  --vscode-list-dropBackground: #d6ebff;
+  --vscode-panel-border: #e5e5e5;
+  --vscode-input-background: #ffffff;
+  --vscode-input-foreground: #1a1a1a;
+  --vscode-input-border: #cccccc;
+  --vscode-focusBorder: #0066cc;
+  --vscode-button-background: #0066cc;
+  --vscode-button-foreground: #ffffff;
+  --vscode-button-hoverBackground: #005bb5;
+  --vscode-button-secondaryBackground: #f3f3f3;
+  --vscode-button-secondaryForeground: #1a1a1a;
+  --vscode-button-secondaryHoverBackground: #e5e5e5;
+  --vscode-foreground: #1a1a1a;
+  --vscode-descriptionForeground: #666666;
+  --vscode-icon-foreground: #424242;
+  --vscode-toolbar-hoverBackground: rgba(0, 0, 0, 0.05);
+  --vscode-toolbar-activeBackground: rgba(0, 0, 0, 0.1);
+  --vscode-editorGroupHeader-tabsBackground: #f3f3f3;
+  --vscode-editorWidget-background: #f3f3f3;
+  --vscode-editorWidget-foreground: #1a1a1a;
+  --vscode-editorWidget-border: #c8c8c8;
+  --vscode-statusBarItem-errorForeground: #dc3545;
+  
   /* 基础颜色 */
   --bg-primary: #ffffff;
   --bg-secondary: #f5f5f5;
@@ -65,6 +100,41 @@ html, body {
 
 /* ==================== 深色主题 ==================== */
 [data-theme='dark'] {
+  /* VSCode CSS 变量映射 - 深色主题 */
+  --vscode-editor-background: #1e1e1e;
+  --vscode-editor-foreground: #d4d4d4;
+  --vscode-sideBar-background: #252526;
+  --vscode-sideBar-border: #3e3e42;
+  --vscode-sideBarTitle-foreground: #bbbbbb;
+  --vscode-sideBarSectionHeader-background: #2d2d30;
+  --vscode-sideBarSectionHeader-foreground: #cccccc;
+  --vscode-list-hoverBackground: #2a2d2e;
+  --vscode-list-activeSelectionBackground: #094771;
+  --vscode-list-activeSelectionForeground: #ffffff;
+  --vscode-list-errorBackground: #5a1d1d;
+  --vscode-list-dropBackground: #062f4a;
+  --vscode-panel-border: #3e3e42;
+  --vscode-input-background: #3c3c3c;
+  --vscode-input-foreground: #cccccc;
+  --vscode-input-border: #3c3c3c;
+  --vscode-focusBorder: #007acc;
+  --vscode-button-background: #0e639c;
+  --vscode-button-foreground: #ffffff;
+  --vscode-button-hoverBackground: #1177bb;
+  --vscode-button-secondaryBackground: #3a3d41;
+  --vscode-button-secondaryForeground: #cccccc;
+  --vscode-button-secondaryHoverBackground: #45494e;
+  --vscode-foreground: #cccccc;
+  --vscode-descriptionForeground: #9d9d9d;
+  --vscode-icon-foreground: #c5c5c5;
+  --vscode-toolbar-hoverBackground: rgba(255, 255, 255, 0.1);
+  --vscode-toolbar-activeBackground: rgba(255, 255, 255, 0.15);
+  --vscode-editorGroupHeader-tabsBackground: #252526;
+  --vscode-editorWidget-background: #252526;
+  --vscode-editorWidget-foreground: #cccccc;
+  --vscode-editorWidget-border: #454545;
+  --vscode-statusBarItem-errorForeground: #f48771;
+  
   /* 基础颜色 */
   --bg-primary: #1e1e1e;
   --bg-secondary: #252525;
@@ -115,6 +185,41 @@ html, body {
 /* ==================== 自动主题（跟随系统） ==================== */
 @media (prefers-color-scheme: dark) {
   [data-theme='auto'] {
+    /* VSCode CSS 变量映射 - 深色主题 */
+    --vscode-editor-background: #1e1e1e;
+    --vscode-editor-foreground: #d4d4d4;
+    --vscode-sideBar-background: #252526;
+    --vscode-sideBar-border: #3e3e42;
+    --vscode-sideBarTitle-foreground: #bbbbbb;
+    --vscode-sideBarSectionHeader-background: #2d2d30;
+    --vscode-sideBarSectionHeader-foreground: #cccccc;
+    --vscode-list-hoverBackground: #2a2d2e;
+    --vscode-list-activeSelectionBackground: #094771;
+    --vscode-list-activeSelectionForeground: #ffffff;
+    --vscode-list-errorBackground: #5a1d1d;
+    --vscode-list-dropBackground: #062f4a;
+    --vscode-panel-border: #3e3e42;
+    --vscode-input-background: #3c3c3c;
+    --vscode-input-foreground: #cccccc;
+    --vscode-input-border: #3c3c3c;
+    --vscode-focusBorder: #007acc;
+    --vscode-button-background: #0e639c;
+    --vscode-button-foreground: #ffffff;
+    --vscode-button-hoverBackground: #1177bb;
+    --vscode-button-secondaryBackground: #3a3d41;
+    --vscode-button-secondaryForeground: #cccccc;
+    --vscode-button-secondaryHoverBackground: #45494e;
+    --vscode-foreground: #cccccc;
+    --vscode-descriptionForeground: #9d9d9d;
+    --vscode-icon-foreground: #c5c5c5;
+    --vscode-toolbar-hoverBackground: rgba(255, 255, 255, 0.1);
+    --vscode-toolbar-activeBackground: rgba(255, 255, 255, 0.15);
+    --vscode-editorGroupHeader-tabsBackground: #252526;
+    --vscode-editorWidget-background: #252526;
+    --vscode-editorWidget-foreground: #cccccc;
+    --vscode-editorWidget-border: #454545;
+    --vscode-statusBarItem-errorForeground: #f48771;
+    
     /* 基础颜色 */
     --bg-primary: #1e1e1e;
     --bg-secondary: #252525;
@@ -165,6 +270,41 @@ html, body {
 
 @media (prefers-color-scheme: light) {
   [data-theme='auto'] {
+    /* VSCode CSS 变量映射 - 浅色主题 */
+    --vscode-editor-background: #ffffff;
+    --vscode-editor-foreground: #1a1a1a;
+    --vscode-sideBar-background: #f3f3f3;
+    --vscode-sideBar-border: #e5e5e5;
+    --vscode-sideBarTitle-foreground: #1a1a1a;
+    --vscode-sideBarSectionHeader-background: #e8e8e8;
+    --vscode-sideBarSectionHeader-foreground: #1a1a1a;
+    --vscode-list-hoverBackground: #e8e8e8;
+    --vscode-list-activeSelectionBackground: #0066cc;
+    --vscode-list-activeSelectionForeground: #ffffff;
+    --vscode-list-errorBackground: #fbe9eb;
+    --vscode-list-dropBackground: #d6ebff;
+    --vscode-panel-border: #e5e5e5;
+    --vscode-input-background: #ffffff;
+    --vscode-input-foreground: #1a1a1a;
+    --vscode-input-border: #cccccc;
+    --vscode-focusBorder: #0066cc;
+    --vscode-button-background: #0066cc;
+    --vscode-button-foreground: #ffffff;
+    --vscode-button-hoverBackground: #005bb5;
+    --vscode-button-secondaryBackground: #f3f3f3;
+    --vscode-button-secondaryForeground: #1a1a1a;
+    --vscode-button-secondaryHoverBackground: #e5e5e5;
+    --vscode-foreground: #1a1a1a;
+    --vscode-descriptionForeground: #666666;
+    --vscode-icon-foreground: #424242;
+    --vscode-toolbar-hoverBackground: rgba(0, 0, 0, 0.05);
+    --vscode-toolbar-activeBackground: rgba(0, 0, 0, 0.1);
+    --vscode-editorGroupHeader-tabsBackground: #f3f3f3;
+    --vscode-editorWidget-background: #f3f3f3;
+    --vscode-editorWidget-foreground: #1a1a1a;
+    --vscode-editorWidget-border: #c8c8c8;
+    --vscode-statusBarItem-errorForeground: #dc3545;
+    
     /* 基础颜色 */
     --bg-primary: #ffffff;
     --bg-secondary: #f5f5f5;

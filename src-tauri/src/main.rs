@@ -481,6 +481,10 @@ fn main() {
 
             // 监听主窗口关闭/销毁，通知后台线程退出
             if let Some(main_win) = app.get_webview_window("main") {
+                // 启动时不抢焦点：去掉置顶并直接最小化
+                let _ = main_win.set_always_on_top(false);
+                let _ = main_win.minimize();
+
                 // #[cfg(target_os = "windows")]
                 // {
                 //     apply_mica(&main_win, Some(true)).expect(
@@ -544,13 +548,22 @@ fn main() {
             pdf_library::commands::pdflibrary_get_book_tags,
             pdf_library::commands::pdflibrary_add_book_tag,
             pdf_library::commands::pdflibrary_remove_book_tag,
+            pdf_library::commands::pdflibrary_update_tag,
+            pdf_library::commands::pdflibrary_delete_tag,
             pdf_library::commands::pdflibrary_get_directories,
             pdf_library::commands::pdflibrary_add_directory,
+            pdf_library::commands::pdflibrary_get_categories,
+            pdf_library::commands::pdflibrary_create_category,
+            pdf_library::commands::pdflibrary_update_category,
+            pdf_library::commands::pdflibrary_delete_category,
+            pdf_library::commands::pdflibrary_update_book_category,
             pdf_library::commands::pdflibrary_extract_metadata,
             pdf_library::commands::pdflibrary_extract_cover,
+            pdf_library::commands::pdflibrary_update_book_cover,
             pdf_library::commands::pdflibrary_get_file_identity,
             pdf_library::commands::pdflibrary_show_in_folder,
             pdf_library::commands::pdflibrary_open_file,
+            pdf_library::commands::pdflibrary_open_workspace_folder,
             pdf_library::commands::pdflibrary_copy_file_to_clipboard,
             pdf_library::commands::pdflibrary_remove_missing_files,
             pdf_library::commands::pdflibrary_rescan_files,

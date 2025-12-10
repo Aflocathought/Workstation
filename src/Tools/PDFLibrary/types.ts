@@ -52,6 +52,9 @@ export interface Book {
   importDate: string;      // 入库时间 (ISO 8601)
   modifiedDate: string;    // 最后修改时间
   
+  // 分类
+  categoryId?: number;     // 所属分类 ID
+  
   // 标签 (多对多关系,在查询时动态加载)
   tags?: Tag[];
 }
@@ -64,6 +67,7 @@ export interface Tag {
   name: string;
   color?: string;          // 颜色 (Hex)
   parentId?: number;       // 父标签 ID (支持嵌套)
+  aliases?: string;        // 别名，逗号分隔 (如 "Score,乐谱")
   bookCount?: number;      // 关联的书籍数量
 }
 
@@ -76,6 +80,17 @@ export interface Directory {
   type: 'workspace' | 'external';  // 主库 or 外部库
   name: string;            // 显示名称
   isMonitoring: boolean;   // 是否正在监控
+}
+
+/**
+ * 分类
+ */
+export interface Category {
+  id: number;
+  name: string;
+  icon?: string;           // 图标 emoji
+  color?: string;          // 颜色 (Hex)
+  displayOrder: number;    // 显示顺序
 }
 
 /**

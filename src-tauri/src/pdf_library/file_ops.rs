@@ -103,6 +103,23 @@ fn sanitize_filename(name: &str) -> String {
         .collect()
 }
 
+/// 在文件夹中显示workspace
+#[cfg(target_os = "windows")]
+pub fn show_folder(path: &Path) -> Result<(), String> {
+    use std::process::Command;
+    
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+    
+    Command::new("explorer")
+        .arg(path.to_string_lossy().to_string())
+        .creation_flags(CREATE_NO_WINDOW)
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    
+    Ok(())
+}
+
+
 /// 在文件管理器中显示文件
 #[cfg(target_os = "windows")]
 pub fn show_in_folder(path: &Path) -> Result<(), String> {

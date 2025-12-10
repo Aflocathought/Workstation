@@ -54,6 +54,19 @@
 .navItem.active {
   background: var(--vscode-list-activeSelectionBackground);
   color: var(--vscode-list-activeSelectionForeground);
+  border: 2px solid #4caf50;
+}
+
+.navItem.excluded {
+  background: var(--vscode-list-errorBackground);
+  border: 2px solid #f44336;
+  opacity: 0.8;
+}
+
+.navItem.dropTarget {
+  background: var(--vscode-list-dropBackground);
+  border: 2px dashed var(--vscode-focusBorder);
+  box-shadow: inset 0 0 0 1px var(--vscode-focusBorder);
 }
 
 .navIcon {
@@ -63,6 +76,12 @@
 
 .navLabel {
   flex: 1;
+}
+
+.tagAliases {
+  font-size: 11px;
+  opacity: 0.6;
+  font-style: italic;
 }
 
 .navCount {
@@ -121,6 +140,86 @@
 
 .toolbarButton:hover {
   background: var(--vscode-button-secondaryHoverBackground);
+}
+
+.toolbarButton.active {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+.toolbarButton.dangerButton {
+  background: var(--vscode-statusBarItem-errorBackground);
+  color: var(--vscode-statusBarItem-errorForeground);
+}
+
+.toolbarButton.dangerButton:hover {
+  opacity: 0.9;
+}
+
+.batchActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  padding-left: 12px;
+  border-left: 1px solid var(--vscode-panel-border);
+}
+
+.selectionCount {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--vscode-foreground);
+  padding: 0 8px;
+}
+
+.batchActionGroup {
+  position: relative;
+}
+
+.dropdownMenu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  background: var(--vscode-dropdown-background);
+  border: 1px solid var(--vscode-dropdown-border);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  min-width: 180px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.dropdownItem {
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.15s;
+}
+
+.dropdownItem:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.batchTagInputField {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: none;
+  border-bottom: 1px solid var(--vscode-input-border);
+  font-size: 13px;
+  outline: none;
+}
+
+.batchTagInputField:focus {
+  border-bottom-color: var(--vscode-focusBorder);
+}
+
+.tagSuggestionsList {
+  max-height: 200px;
+  overflow-y: auto;
 }
 
 .viewToggle {
@@ -187,11 +286,27 @@
   padding: 12px;
   cursor: pointer;
   transition: all 0.15s;
+  position: relative;
 }
 
 .bookCard.missing {
   border-color: var(--vscode-statusBarItem-errorBackground);
   color: var(--vscode-statusBarItem-errorForeground);
+}
+
+.bookCard.batchSelected {
+  border-color: var(--vscode-focusBorder);
+  border-width: 2px;
+  background: var(--vscode-list-activeSelectionBackground);
+  opacity: 0.95;
+}
+
+.bookCard.dragging {
+  opacity: 0.4;
+  cursor: move;
+  transform: scale(0.95);
+  transition: all 0.2s;
+  border-color: var(--vscode-focusBorder);
 }
 
 .bookCard:hover {
@@ -355,10 +470,38 @@
   background: var(--vscode-input-background);
   border-radius: 6px;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   font-size: 64px;
   margin-bottom: 16px;
+  position: relative;
+}
+
+.inspectorCover img {
+  max-width: 100%;
+  max-height: calc(100% - 40px);
+  object-fit: contain;
+}
+
+.updateCoverButton {
+  margin-top: 8px;
+  padding: 6px 12px;
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+  transition: background 0.1s;
+}
+
+.updateCoverButton:hover {
+  background: var(--vscode-button-hoverBackground);
+}
+
+.updateCoverButton:active {
+  background: var(--vscode-button-activeBackground);
 }
 
 .inspectorField {
@@ -393,6 +536,26 @@
   padding: 4px 0;
 }
 
+.categorySelect {
+  width: 100%;
+  padding: 6px 8px;
+  background: var(--vscode-dropdown-background);
+  color: var(--vscode-dropdown-foreground);
+  border: 1px solid var(--vscode-dropdown-border);
+  border-radius: 4px;
+  font-size: 13px;
+  outline: none;
+  cursor: pointer;
+}
+
+.categorySelect:hover {
+  background: var(--vscode-dropdown-listBackground);
+}
+
+.categorySelect:focus {
+  border-color: var(--vscode-focusBorder);
+}
+
 .tagList {
   display: flex;
   flex-wrap: wrap;
@@ -407,7 +570,10 @@
   color: var(--vscode-badge-foreground);
   border-radius: 12px;
   font-size: 11px;
+  max-height: fit-content;
   gap: 4px;
+  border: 1px solid var(--vscode-badge-border);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .tagRemove {
@@ -499,7 +665,7 @@
   margin-bottom: 16px;
 }
 
-/* ==================== 澶栭儴鏉ユ簮鏍囪 ==================== */
+/* ==================== ?????? ==================== */
 
 .externalBadge {
   position: absolute;
@@ -507,6 +673,26 @@
   right: 8px;
   font-size: 12px;
   opacity: 0.7;
+}
+
+/* ==================== ??????? ==================== */
+
+.selectionCheckbox {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 10;
+  background: var(--vscode-editor-background);
+  border-radius: 3px;
+  padding: 2px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.selectionCheckbox input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  margin: 0;
 }
 
 /* 标签自动补全 */

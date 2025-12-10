@@ -3,7 +3,9 @@ import { Component, createSignal, onMount, onCleanup, For, Show, createMemo } fr
 import { open } from '@tauri-apps/plugin-dialog';
 import { listen } from '@tauri-apps/api/event';
 import { pdfLibraryService } from './PDFLibraryService';
-import type { Book, Tag, Directory, ViewType, SortField, SortOrder } from './types';
+import type { Book, Tag, Directory, Category, ViewType, SortField, SortOrder } from './types';
+import TagManager from './TagManager';
+import { loadState, saveState } from './PDFLibraryState';
 import styles from './PDFLibrary.module.css';
 
 /**
@@ -16,6 +18,7 @@ const PDFLibrary: Component = () => {
   const [books, setBooks] = createSignal<Book[]>([]);
   const [tags, setTags] = createSignal<Tag[]>([]);
   const [directories, setDirectories] = createSignal<Directory[]>([]);
+  const [categories, setCategories] = createSignal<Category[]>([]);
   
   const [selectedBook, setSelectedBook] = createSignal<Book | null>(null);
   const [viewType, setViewType] = createSignal<ViewType>('grid');
@@ -23,7 +26,9 @@ const PDFLibrary: Component = () => {
   // 过滤和排序
   const [searchText, setSearchText] = createSignal('');
   const [selectedTagIds, setSelectedTagIds] = createSignal<number[]>([]);
+  const [excludedTagIds, setExcludedTagIds] = createSignal<number[]>([]); // 排除的标签
   const [selectedDirectoryId, setSelectedDirectoryId] = createSignal<number | null>(null);
+  const [selectedCategoryId, setSelectedCategoryId] = createSignal<number | null>(null);
   const [sortField] = createSignal<SortField>('importDate');
   const [sortOrder] = createSignal<SortOrder>('desc');
   
@@ -35,6 +40,58 @@ const PDFLibrary: Component = () => {
   const [newTitle, setNewTitle] = createSignal('');
   const [tagInputValue, setTagInputValue] = createSignal('');
   const [tagSuggestions, setTagSuggestions] = createSignal<Tag[]>([]);
+  const [draggedBook, setDraggedBook] = createSignal<Book | null>(null);
+  const [dropTargetCategoryId, setDropTargetCategoryId] = createSignal<number | null>(null);
+  
+  // 批量选择
+  const [selectionMode, setSelectionMode] = createSignal(false);
+  const [selectedBookIds, setSelectedBookIds] = createSignal<number[]>([]);
+  
+  // 视图切换
+  const [showTagManager, setShowTagManager] = createSignal(false);
+  const [showBatchTagInput, setShowBatchTagInput] = createSignal(false);
+  const [batchTagInput, setBatchTagInput] = createSignal('');
+  const [showBatchCategorySelect, setShowBatchCategorySelect] = createSignal(false);
+
+  // ==================== 状态持久化辅助函数 ====================
+  
+  // 包装状态设置函数，自动保存到 localStorage
+  const setAndSaveDirectoryId = (id: number | null) => {
+    setSelectedDirectoryId(id);
+    saveState({ selectedDirectoryId: id });
+  };
+  
+  const setAndSaveCategoryId = (id: number | null) => {
+    setSelectedCategoryId(id);
+    saveState({ selectedCategoryId: id });
+  };
+  
+  const setAndSaveTagIds = (ids: number[]) => {
+    setSelectedTagIds(ids);
+    saveState({ selectedTagIds: ids });
+  };
+  
+  const setAndSaveExcludedTagIds = (ids: number[]) => {
+    setExcludedTagIds(ids);
+    saveState({ excludedTagIds: ids });
+  };
+  
+  const setAndSaveViewType = (type: ViewType) => {
+    setViewType(type);
+    saveState({ viewType: type });
+  };
+  
+  // 搜索文本使用防抖保存
+  let searchTextTimeout: number | undefined;
+  const setAndSaveSearchText = (text: string) => {
+    setSearchText(text);
+    if (searchTextTimeout) {
+      clearTimeout(searchTextTimeout);
+    }
+    searchTextTimeout = setTimeout(() => {
+      saveState({ searchText: text });
+    }, 500) as unknown as number; // 500ms 防抖
+  };
 
   // ==================== 计算属性 ====================
   
@@ -53,9 +110,18 @@ const PDFLibrary: Component = () => {
     
     // 标签过滤
     const tagIds = selectedTagIds();
+    const excludedIds = excludedTagIds();
+    
     if (tagIds.length > 0) {
       result = result.filter(book =>
         book.tags?.some(tag => tagIds.includes(tag.id))
+      );
+    }
+    
+    // 排除标签
+    if (excludedIds.length > 0) {
+      result = result.filter(book =>
+        !book.tags?.some(tag => excludedIds.includes(tag.id))
       );
     }
     
@@ -65,6 +131,18 @@ const PDFLibrary: Component = () => {
       result = result.filter(book => book.directoryId === dirId);
     }
     
+    // 分类过滤
+    const catId = selectedCategoryId();
+    if (catId !== null) {
+      if (catId === -1) {
+        // 未分类：过滤出没有 categoryId 的书籍
+        result = result.filter(book => !book.categoryId);
+      } else {
+        // 特定分类：过滤出匹配的书籍
+        result = result.filter(book => book.categoryId === catId);
+      }
+    }
+    
     return result;
   });
 
@@ -72,6 +150,18 @@ const PDFLibrary: Component = () => {
   
   onMount(async () => {
     console.log('[PDFLibrary] onMount 被调用, isLoading =', isLoading());
+    
+    // 加载保存的状态
+    const savedState = loadState();
+    console.log('[PDFLibrary] 加载保存的状态:', savedState);
+    
+    // 恢复状态
+    setSelectedDirectoryId(savedState.selectedDirectoryId);
+    setSelectedCategoryId(savedState.selectedCategoryId);
+    setSelectedTagIds(savedState.selectedTagIds);
+    setExcludedTagIds(savedState.excludedTagIds);
+    setViewType(savedState.viewType);
+    setSearchText(savedState.searchText);
     
     // 监听后端更新事件
     const unlisten = await listen('pdf-library-update', () => {
@@ -91,6 +181,14 @@ const PDFLibrary: Component = () => {
       console.log('[PDFLibrary] 开始加载数据...');
       await loadData();
       console.log('[PDFLibrary] 数据加载完成');
+      
+      // 恢复选中的书籍
+      if (savedState.selectedBookId) {
+        const book = books().find(b => b.id === savedState.selectedBookId);
+        if (book) {
+          await handleSelectBook(book);
+        }
+      }
     } catch (error) {
       console.error('[PDFLibrary] 初始化失败:', error);
       console.error('[PDFLibrary] 错误详情:', JSON.stringify(error, null, 2));
@@ -105,17 +203,23 @@ const PDFLibrary: Component = () => {
   
   const loadData = async () => {
     try {
-      const [booksData, tagsData, dirsData] = await Promise.all([
+      console.log('[PDFLibrary] 开始加载数据...');
+      const [booksData, tagsData, dirsData, catsData] = await Promise.all([
         pdfLibraryService.getAllBooks(undefined, sortField(), sortOrder()),
         pdfLibraryService.getAllTags(),
         pdfLibraryService.getAllDirectories(),
+        pdfLibraryService.getAllCategories(),
       ]);
+      
+      console.log('[PDFLibrary] 加载完成 - 书籍数:', booksData.length, '标签数:', tagsData.length, '分类数:', catsData.length);
+      console.log('[PDFLibrary] 书籍标签详情:', booksData.map(b => ({ id: b.id, title: b.title, tags: b.tags?.map(t => t.name) })));
       
       setBooks(booksData);
       setTags(tagsData);
       setDirectories(dirsData);
+      setCategories(catsData);
     } catch (error) {
-      console.error('加载数据失败:', error);
+      console.error('[PDFLibrary] 加载数据失败:', error);
     }
   };
 
@@ -125,6 +229,9 @@ const PDFLibrary: Component = () => {
     setSelectedBook(book);
     setEditingTitle(false);
     setNewTitle(book.title);
+    
+    // 保存选中的书籍ID
+    saveState({ selectedBookId: book.id });
     
     // 加载书籍的标签
     try {
@@ -239,6 +346,31 @@ const PDFLibrary: Component = () => {
     }
   };
 
+  const handleUpdateCover = async () => {
+    const book = selectedBook();
+    if (!book) return;
+    
+    if (book.isMissing) {
+      alert('文件缺失，无法更新封面');
+      return;
+    }
+    
+    try {
+      const coverImage = await pdfLibraryService.updateBookCover(book.id);
+      // 更新当前选中的书籍
+      setSelectedBook({ ...book, coverImage });
+      // 更新列表中的书籍
+      const updatedBooks = books().map(b => 
+        b.id === book.id ? { ...b, coverImage } : b
+      );
+      setBooks(updatedBooks);
+      alert('封面更新成功');
+    } catch (error) {
+      console.error('更新封面失败:', error);
+      alert('更新封面失败: ' + error);
+    }
+  };
+
   // ==================== 标签操作 ====================
   
   const handleAddTag = async (e: KeyboardEvent) => {
@@ -248,27 +380,71 @@ const PDFLibrary: Component = () => {
     const tagName = tagInputValue().trim();
     if (!book || !tagName) return;
     
+    console.log('[PDFLibrary] 开始添加标签:', tagName, '到书籍:', book.id);
+    
     try {
-      // 查找或创建标签
-      let tag = tags().find(t => t.name === tagName);
+      // 查找或创建标签（支持别名匹配）
+      let tag = tags().find(t => {
+        if (t.name === tagName) return true;
+        if (t.aliases) {
+          const aliases = t.aliases.split(',').map(a => a.trim());
+          return aliases.includes(tagName);
+        }
+        return false;
+      });
+      
       if (!tag) {
+        console.log('[PDFLibrary] 创建新标签:', tagName);
         tag = await pdfLibraryService.createTag(tagName);
+        console.log('[PDFLibrary] 标签创建成功:', tag);
         setTags(prev => [...prev, tag!]);
+      } else {
+        console.log('[PDFLibrary] 找到已存在的标签:', tag);
       }
       
-      // 关联到书籍
-      await pdfLibraryService.addTagToBook(book.id, tag.id);
+      // 获取所有需要添加的标签（包括父标签）
+      const tagsToAdd: Tag[] = [tag];
+      let currentTag = tag;
+      while (currentTag.parentId) {
+        const parentTag = tags().find(t => t.id === currentTag.parentId);
+        if (parentTag && !tagsToAdd.find(t => t.id === parentTag.id)) {
+          tagsToAdd.push(parentTag);
+          currentTag = parentTag;
+        } else {
+          break;
+        }
+      }
+      
+      console.log('[PDFLibrary] 需要添加的标签（含父标签）:', tagsToAdd.map(t => t.name));
+      
+      // 关联所有标签到书籍
+      for (const tagToAdd of tagsToAdd) {
+        if (!book.tags?.find(t => t.id === tagToAdd.id)) {
+          console.log('[PDFLibrary] 调用后端添加标签关联:', book.id, tagToAdd.id);
+          await pdfLibraryService.addTagToBook(book.id, tagToAdd.id);
+          console.log('[PDFLibrary] 标签关联成功');
+        } else {
+          console.log('[PDFLibrary] 标签已存在，跳过:', tagToAdd.name);
+        }
+      }
       
       // 更新本地状态
-      const updatedTags = [...(book.tags || []), tag];
+      const existingTags = book.tags || [];
+      const newTags = tagsToAdd.filter(t => !existingTags.find(et => et.id === t.id));
+      const updatedTags = [...existingTags, ...newTags];
+      
+      console.log('[PDFLibrary] 更新本地状态，新标签列表:', updatedTags.map(t => t.name));
+      
       setBooks(prev => prev.map(b =>
         b.id === book.id ? { ...b, tags: updatedTags } : b
       ));
       setSelectedBook({ ...book, tags: updatedTags });
       
       setTagInputValue('');
+      console.log('[PDFLibrary] 标签添加完成');
     } catch (error) {
-      console.error('添加标签失败:', error);
+      console.error('[PDFLibrary] 添加标签失败:', error);
+      alert('添加标签失败: ' + error);
     }
   };
 
@@ -305,6 +481,15 @@ const PDFLibrary: Component = () => {
       }
     } catch (error) {
       console.error('设置 Workspace 失败:', error);
+    }
+  };
+
+  const handleOpenWorkspaceFolder = async () => {
+    try {
+      await pdfLibraryService.openWorkspaceFolder();
+    } catch (error) {
+      console.error('打开 Workspace 文件夹失败:', error);
+      alert('打开 Workspace 文件夹失败: ' + error);
     }
   };
 
@@ -438,6 +623,8 @@ const PDFLibrary: Component = () => {
       when={!isLoading()}
       fallback={<div class={styles.emptyState}>加载中...</div>}
     >
+    {/* 如果显示标签管理器，则渲染标签管理器 */}
+    <Show when={showTagManager()} fallback={
     <div class={styles.container}>
       {/* 左侧导航栏 */}
       <div class={styles.sidebar}>
@@ -446,7 +633,7 @@ const PDFLibrary: Component = () => {
           <div 
             class={styles.navItem}
             classList={{ [styles.active]: selectedDirectoryId() === null }}
-            onClick={() => setSelectedDirectoryId(null)}
+            onClick={() => setAndSaveDirectoryId(null)}
           >
             <span class={styles.navIcon}>📚</span>
             <span class={styles.navLabel}>全部书籍</span>
@@ -458,7 +645,7 @@ const PDFLibrary: Component = () => {
               <div 
                 class={styles.navItem}
                 classList={{ [styles.active]: selectedDirectoryId() === dir.id }}
-                onClick={() => setSelectedDirectoryId(dir.id)}
+                onClick={() => setAndSaveDirectoryId(dir.id)}
               >
                 <span class={styles.navIcon}>
                   {dir.type === 'workspace' ? '📁' : '🔗'}
@@ -470,36 +657,174 @@ const PDFLibrary: Component = () => {
         </div>
         
         <div class={styles.sidebarSection}>
+          <div class={styles.sidebarTitle}>分类</div>
+          <div 
+            class={styles.navItem}
+            classList={{ [styles.active]: selectedCategoryId() === null }}
+            onClick={() => setAndSaveCategoryId(null)}
+          >
+            <span class={styles.navIcon}>📂</span>
+            <span class={styles.navLabel}>全部分类</span>
+          </div>
+          <div 
+            class={styles.navItem}
+            classList={{ [styles.active]: selectedCategoryId() === -1 }}
+            onClick={() => setAndSaveCategoryId(-1)}
+          >
+            <span class={styles.navIcon}>📭</span>
+            <span class={styles.navLabel}>未分类</span>
+            <span class={styles.navCount}>
+              {books().filter(b => !b.categoryId).length}
+            </span>
+          </div>
+          <For each={categories()}>
+            {(category) => {
+              const categoryBooks = () => books().filter(b => b.categoryId === category.id).length;
+              const isDropTarget = () => dropTargetCategoryId() === category.id;
+              
+              return (
+                <div 
+                  class={styles.navItem}
+                  classList={{ 
+                    [styles.active]: selectedCategoryId() === category.id,
+                    [styles.dropTarget]: isDropTarget()
+                  }}
+                  onClick={() => setAndSaveCategoryId(category.id)}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    if (e.dataTransfer) {
+                      e.dataTransfer.dropEffect = 'move';
+                    }
+                    setDropTargetCategoryId(category.id);
+                  }}
+                  onDragLeave={(e) => {
+                    e.preventDefault();
+                    setDropTargetCategoryId(null);
+                  }}
+                  onDrop={async (e) => {
+                    e.preventDefault();
+                    setDropTargetCategoryId(null);
+                    const book = draggedBook();
+                    if (book && book.categoryId !== category.id) {
+                      try {
+                        await pdfLibraryService.updateBookCategory(book.id, category.id);
+                        setBooks(prev => prev.map(b => 
+                          b.id === book.id ? { ...b, categoryId: category.id } : b
+                        ));
+                        if (selectedBook()?.id === book.id) {
+                          setSelectedBook({ ...book, categoryId: category.id });
+                        }
+                      } catch (error) {
+                        console.error('更新分类失败:', error);
+                      }
+                    }
+                    setDraggedBook(null);
+                  }}
+                >
+                  <span class={styles.navIcon}>{category.icon || '📑'}</span>
+                  <span 
+                    class={styles.navLabel}
+                    style={category.color ? { color: category.color } : {}}
+                  >
+                    {category.name}
+                  </span>
+                  <span class={styles.navCount}>{categoryBooks()}</span>
+                </div>
+              );
+            }}
+          </For>
+        </div>
+        
+        <div class={styles.sidebarSection}>
           <div class={styles.sidebarTitle}>标签</div>
           <For each={tags()}>
-            {(tag) => (
-              <div 
-                class={styles.navItem}
-                classList={{ [styles.active]: selectedTagIds().includes(tag.id) }}
-                onClick={() => {
-                  const ids = selectedTagIds();
-                  setSelectedTagIds(
-                    ids.includes(tag.id)
-                      ? ids.filter(id => id !== tag.id)
-                      : [...ids, tag.id]
-                  );
-                }}
-              >
-                <span class={styles.navIcon}>🏷️</span>
-                <span class={styles.navLabel}>{tag.name}</span>
-                <Show when={tag.bookCount}>
-                  <span class={styles.navCount}>{tag.bookCount}</span>
-                </Show>
-              </div>
-            )}
+            {(tag) => {
+              const isSelected = () => selectedTagIds().includes(tag.id);
+              const isExcluded = () => excludedTagIds().includes(tag.id);
+              
+              // 获取所有需要添加的标签ID（包括父标签）
+              const getTagIdsWithParents = (tagId: number): number[] => {
+                const result = [tagId];
+                const currentTag = tags().find(t => t.id === tagId);
+                if (currentTag?.parentId) {
+                  result.push(...getTagIdsWithParents(currentTag.parentId));
+                }
+                return result;
+              };
+              
+              return (
+                <div 
+                  class={styles.navItem}
+                  classList={{ 
+                    [styles.active]: isSelected(),
+                    [styles.excluded]: isExcluded()
+                  }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    const tagIdsToAdd = getTagIdsWithParents(tag.id);
+                    const currentSelected = selectedTagIds();
+                    const currentExcluded = excludedTagIds();
+                    
+                    // 移除排除状态
+                    const newExcluded = currentExcluded.filter(id => !tagIdsToAdd.includes(id));
+                    setAndSaveExcludedTagIds(newExcluded);
+                    
+                    // 切换选中状态
+                    if (isSelected()) {
+                      setAndSaveTagIds(currentSelected.filter(id => !tagIdsToAdd.includes(id)));
+                    } else {
+                      setAndSaveTagIds([...currentSelected, ...tagIdsToAdd.filter(id => !currentSelected.includes(id))]);
+                    }
+                  }}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    const currentExcluded = excludedTagIds();
+                    const currentSelected = selectedTagIds();
+                    
+                    // 移除选中状态
+                    setAndSaveTagIds(currentSelected.filter(id => id !== tag.id));
+                    
+                    // 切换排除状态
+                    if (isExcluded()) {
+                      setAndSaveExcludedTagIds(currentExcluded.filter(id => id !== tag.id));
+                    } else {
+                      setAndSaveExcludedTagIds([...currentExcluded, tag.id]);
+                    }
+                  }}
+                >
+                  <span class={styles.navIcon}>🏷️</span>
+                  <span class={styles.navLabel}>
+                    {tag.name}
+                    <Show when={tag.aliases}>
+                      <span class={styles.tagAliases}> ({tag.aliases})</span>
+                    </Show>
+                  </span>
+                  <Show when={tag.bookCount}>
+                    <span class={styles.navCount}>{tag.bookCount}</span>
+                  </Show>
+                </div>
+              );
+            }}
           </For>
         </div>
 
         <div class={styles.sidebarSection}>
           <div class={styles.sidebarTitle}>设置</div>
+          <div 
+            class={styles.navItem} 
+            classList={{ [styles.active]: showTagManager() }}
+            onClick={() => setShowTagManager(!showTagManager())}
+          >
+            <span class={styles.navIcon}>🏷️</span>
+            <span class={styles.navLabel}>标签管理器</span>
+          </div>
           <div class={styles.navItem} onClick={handleChangeWorkspace}>
             <span class={styles.navIcon}>⚙️</span>
             <span class={styles.navLabel}>设置 Workspace</span>
+          </div>
+          <div class={styles.navItem} onClick={handleOpenWorkspaceFolder}>
+            <span class={styles.navIcon}>📂</span>
+            <span class={styles.navLabel}>打开 Workspace</span>
           </div>
           <div class={styles.navItem} onClick={handleRemoveMissing}>
             <span class={styles.navIcon}>🧹</span>
@@ -518,28 +843,186 @@ const PDFLibrary: Component = () => {
       <div class={styles.main}>
         {/* 工具栏 */}
         <div class={styles.toolbar}>
-          <input
-            class={styles.searchBox}
-            type="text"
-            placeholder="搜索书籍..."
-            value={searchText()}
-            onInput={(e) => setSearchText(e.currentTarget.value)}
-          />
-
+          {/* 批量选择模式切换 */}
           <button
             class={styles.toolbarButton}
-            onClick={handleRefreshAllMetadata}
-            disabled={isRefreshingMetadata() || isLoading()}
-            title="重新提取所有 PDF 元数据"
+            classList={{ [styles.active]: selectionMode() }}
+            onClick={() => {
+              setSelectionMode(!selectionMode());
+              if (!selectionMode()) {
+                setSelectedBookIds([]);
+              }
+            }}
+            title="批量选择模式"
           >
-            {isRefreshingMetadata() ? '重新提取中...' : '重新提取信息'}
+            {selectionMode() ? '✓ 选择中' : '☐ 批量选择'}
           </button>
+          
+          {/* 批量操作按钮 - 仅在选择模式下显示 */}
+          <Show when={selectionMode() && selectedBookIds().length > 0}>
+            <div class={styles.batchActions}>
+              <span class={styles.selectionCount}>已选 {selectedBookIds().length} 本</span>
+              
+              <button
+                class={styles.toolbarButton}
+                onClick={() => setSelectedBookIds([...filteredBooks().map(b => b.id)])}
+                title="全选"
+              >
+                全选
+              </button>
+              
+              <button
+                class={styles.toolbarButton}
+                onClick={() => setSelectedBookIds([])}
+                title="取消选择"
+              >
+                清空
+              </button>
+              
+              <div class={styles.batchActionGroup}>
+                <button
+                  class={styles.toolbarButton}
+                  onClick={() => setShowBatchCategorySelect(!showBatchCategorySelect())}
+                  title="批量移动到分类"
+                >
+                  📁 移动分类
+                </button>
+                <Show when={showBatchCategorySelect()}>
+                  <div class={styles.dropdownMenu}>
+                    <For each={categories()}>
+                      {(category) => (
+                        <div
+                          class={styles.dropdownItem}
+                          onClick={async () => {
+                            for (const bookId of selectedBookIds()) {
+                              await pdfLibraryService.updateBookCategory(bookId, category.id);
+                            }
+                            setBooks(prev => prev.map(b => 
+                              selectedBookIds().includes(b.id) ? { ...b, categoryId: category.id } : b
+                            ));
+                            setShowBatchCategorySelect(false);
+                          }}
+                        >
+                          {category.icon || '📑'} {category.name}
+                        </div>
+                      )}
+                    </For>
+                    <div
+                      class={styles.dropdownItem}
+                      onClick={async () => {
+                        for (const bookId of selectedBookIds()) {
+                          await pdfLibraryService.updateBookCategory(bookId, undefined);
+                        }
+                        setBooks(prev => prev.map(b => 
+                          selectedBookIds().includes(b.id) ? { ...b, categoryId: undefined } : b
+                        ));
+                        setShowBatchCategorySelect(false);
+                      }}
+                    >
+                      🚫 移除分类
+                    </div>
+                  </div>
+                </Show>
+              </div>
+              
+              <div class={styles.batchActionGroup}>
+                <button
+                  class={styles.toolbarButton}
+                  onClick={() => setShowBatchTagInput(!showBatchTagInput())}
+                  title="批量添加标签"
+                >
+                  🏷️ 添加标签
+                </button>
+                <Show when={showBatchTagInput()}>
+                  <div class={styles.dropdownMenu}>
+                    <input
+                      class={styles.batchTagInputField}
+                      type="text"
+                      placeholder="输入标签名..."
+                      value={batchTagInput()}
+                      onInput={(e) => setBatchTagInput(e.currentTarget.value)}
+                      onKeyPress={async (e) => {
+                        if (e.key === 'Enter' && batchTagInput().trim()) {
+                          const tagName = batchTagInput().trim();
+                          let tag = tags().find(t => t.name === tagName);
+                          if (!tag) {
+                            tag = await pdfLibraryService.createTag(tagName);
+                            setTags([...tags(), tag]);
+                          }
+                          for (const bookId of selectedBookIds()) {
+                            await pdfLibraryService.addTagToBook(bookId, tag.id);
+                          }
+                          await loadData();
+                          setBatchTagInput('');
+                          setShowBatchTagInput(false);
+                        }
+                      }}
+                    />
+                    <div class={styles.tagSuggestionsList}>
+                      <For each={tags()}>
+                        {(tag) => (
+                          <div
+                            class={styles.dropdownItem}
+                            onClick={async () => {
+                              for (const bookId of selectedBookIds()) {
+                                await pdfLibraryService.addTagToBook(bookId, tag.id);
+                              }
+                              await loadData();
+                              setShowBatchTagInput(false);
+                            }}
+                          >
+                            🏷️ {tag.name}
+                          </div>
+                        )}
+                      </For>
+                    </div>
+                  </div>
+                </Show>
+              </div>
+              
+              <button
+                class={`${styles.toolbarButton} ${styles.dangerButton}`}
+                onClick={async () => {
+                  if (confirm(`确定要删除选中的 ${selectedBookIds().length} 本书籍吗?（仅删除记录，不删除文件）`)) {
+                    for (const bookId of selectedBookIds()) {
+                      await pdfLibraryService.deleteBook(bookId, false);
+                    }
+                    await loadData();
+                    setSelectedBookIds([]);
+                  }
+                }}
+                title="批量删除"
+              >
+                🗑️ 删除
+              </button>
+            </div>
+          </Show>
+          
+          {/* 原有工具栏按钮 */}
+          <Show when={!selectionMode()}>
+            <input
+              class={styles.searchBox}
+              type="text"
+              placeholder="搜索书籍..."
+              value={searchText()}
+              onInput={(e) => setAndSaveSearchText(e.currentTarget.value)}
+            />
+
+            <button
+              class={styles.toolbarButton}
+              onClick={handleRefreshAllMetadata}
+              disabled={isRefreshingMetadata() || isLoading()}
+              title="重新提取所有 PDF 元数据"
+            >
+              {isRefreshingMetadata() ? '重新提取中...' : '重新提取信息'}
+            </button>
+          </Show>
           
           <div class={styles.viewToggle}>
             <button
               class={styles.viewButton}
               classList={{ [styles.active]: viewType() === 'grid' }}
-              onClick={() => setViewType('grid')}
+              onClick={() => setAndSaveViewType('grid')}
               title="网格视图"
             >
               ⊞
@@ -547,7 +1030,7 @@ const PDFLibrary: Component = () => {
             <button
               class={styles.viewButton}
               classList={{ [styles.active]: viewType() === 'list' }}
-              onClick={() => setViewType('list')}
+              onClick={() => setAndSaveViewType('list')}
               title="列表视图"
             >
               ☰
@@ -576,10 +1059,60 @@ const PDFLibrary: Component = () => {
                     {(book) => (
                       <div
                         class={styles.bookCard}
-                        classList={{ [styles.selected]: selectedBook()?.id === book.id, [styles.missing]: book.isMissing }}
-                        onClick={() => handleSelectBook(book)}
-                        onDblClick={() => handleOpenBook(book)}
+                        classList={{ 
+                          [styles.selected]: selectedBook()?.id === book.id, 
+                          [styles.missing]: book.isMissing,
+                          [styles.dragging]: draggedBook()?.id === book.id,
+                          [styles.batchSelected]: selectedBookIds().includes(book.id)
+                        }}
+                        draggable={!selectionMode()}
+                        onDragStart={(e) => {
+                          if (!selectionMode()) {
+                            setDraggedBook(book);
+                            if (e.dataTransfer) {
+                              e.dataTransfer.effectAllowed = 'move';
+                              e.dataTransfer.setData('text/plain', book.id.toString());
+                            }
+                          }
+                        }}
+                        onDragEnd={() => {
+                          setDraggedBook(null);
+                          setDropTargetCategoryId(null);
+                        }}
+                        onClick={() => {
+                          if (selectionMode()) {
+                            setSelectedBookIds(prev => 
+                              prev.includes(book.id)
+                                ? prev.filter(id => id !== book.id)
+                                : [...prev, book.id]
+                            );
+                          } else {
+                            handleSelectBook(book);
+                          }
+                        }}
+                        onDblClick={() => !selectionMode() && handleOpenBook(book)}
                       >
+                        {/* 批量选择复选框 */}
+                        <Show when={selectionMode()}>
+                          <div 
+                            class={styles.selectionCheckbox}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedBookIds().includes(book.id)}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                setSelectedBookIds(prev => 
+                                  prev.includes(book.id)
+                                    ? prev.filter(id => id !== book.id)
+                                    : [...prev, book.id]
+                                );
+                              }}
+                            />
+                          </div>
+                        </Show>
+                        
                         <div class={styles.bookCover}>
                           <Show when={book.isMissing}>
                             <span class={styles.missingBadge}>缺失</span>
@@ -675,6 +1208,13 @@ const PDFLibrary: Component = () => {
                     >
                       <img src={`data:image/jpeg;base64,${book().coverImage}`} alt={book().title} />
                     </Show>
+                    <button 
+                      class={styles.updateCoverButton}
+                      onClick={handleUpdateCover}
+                      title="更新封面"
+                    >
+                      🔄 更新封面
+                    </button>
                   </div>
 
                   {/* 标题 */}
@@ -727,6 +1267,38 @@ const PDFLibrary: Component = () => {
                     <div class={styles.fieldValue}>
                       {new Date(book().importDate).toLocaleString()}
                     </div>
+                  </div>
+
+                  {/* 分类 */}
+                  <div class={styles.inspectorField}>
+                    <div class={styles.fieldLabel}>分类</div>
+                    <select 
+                      class={styles.categorySelect}
+                      value={book().categoryId || ''}
+                      onChange={async (e) => {
+                        const value = e.currentTarget.value;
+                        const categoryId = value ? parseInt(value) : undefined;
+                        try {
+                          await pdfLibraryService.updateBookCategory(book().id, categoryId);
+                          // 更新本地状态
+                          setBooks(prev => prev.map(b => 
+                            b.id === book().id ? { ...b, categoryId } : b
+                          ));
+                          setSelectedBook({ ...book(), categoryId });
+                        } catch (error) {
+                          console.error('更新分类失败:', error);
+                        }
+                      }}
+                    >
+                      <option value="">未分类</option>
+                      <For each={categories()}>
+                        {(category) => (
+                          <option value={category.id}>
+                            {category.icon || '📑'} {category.name}
+                          </option>
+                        )}
+                      </For>
+                    </select>
                   </div>
 
                   {/* 标签 */}
@@ -827,6 +1399,9 @@ const PDFLibrary: Component = () => {
         </div>
       </div>
     </div>
+    }>
+      <TagManager onBack={() => setShowTagManager(false)} />
+    </Show>
     </Show>
   );
 };

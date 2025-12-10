@@ -4,6 +4,7 @@ import type {
   Book,
   Tag,
   Directory,
+  Category,
   PDFMetadata,
   FileIdentity,
   RenameResult,
@@ -115,22 +116,28 @@ class PDFLibraryService {
   /**
    * 创建标签
    */
-  async createTag(name: string, color?: string, parentId?: number): Promise<Tag> {
-    return invoke('pdflibrary_create_tag', { name, color, parentId });
+  async createTag(name: string, color?: string, parentId?: number, aliases?: string): Promise<Tag> {
+    return invoke('pdflibrary_create_tag', { name, color, parentId, aliases });
   }
 
   /**
    * 更新标签
    */
-  async updateTag(id: number, name?: string, color?: string): Promise<void> {
-    return invoke('pdflibrary_update_tag', { id, name, color });
+  async updateTag(
+    tagId: number, 
+    name?: string, 
+    color?: string, 
+    parentId?: number | null,
+    aliases?: string | null
+  ): Promise<void> {
+    return invoke('pdflibrary_update_tag', { tagId, name, color, parentId, aliases });
   }
 
   /**
    * 删除标签
    */
-  async deleteTag(id: number): Promise<void> {
-    return invoke('pdflibrary_delete_tag', { id });
+  async deleteTag(tagId: number): Promise<void> {
+    return invoke('pdflibrary_delete_tag', { tagId });
   }
 
   /**
@@ -178,6 +185,13 @@ class PDFLibraryService {
   }
 
   /**
+   * 打开 Workspace 文件夹
+   */
+  async openWorkspaceFolder(): Promise<void> {
+    return invoke('pdflibrary_open_workspace_folder');
+  }
+
+  /**
    * 删除目录
    */
   async deleteDirectory(id: number): Promise<void> {
@@ -189,6 +203,43 @@ class PDFLibraryService {
    */
   async scanDirectory(id: number): Promise<number> {
     return invoke('pdflibrary_scan_directory', { id });
+  }
+
+  // ==================== 分类管理 ====================
+
+  /**
+   * 获取所有分类
+   */
+  async getAllCategories(): Promise<Category[]> {
+    return invoke('pdflibrary_get_categories');
+  }
+
+  /**
+   * 创建分类
+   */
+  async createCategory(name: string, icon?: string, color?: string): Promise<Category> {
+    return invoke('pdflibrary_create_category', { name, icon, color });
+  }
+
+  /**
+   * 更新分类
+   */
+  async updateCategory(id: number, name?: string, icon?: string, color?: string): Promise<void> {
+    return invoke('pdflibrary_update_category', { id, name, icon, color });
+  }
+
+  /**
+   * 删除分类
+   */
+  async deleteCategory(id: number): Promise<void> {
+    return invoke('pdflibrary_delete_category', { id });
+  }
+
+  /**
+   * 更新书籍的分类
+   */
+  async updateBookCategory(bookId: number, categoryId?: number): Promise<void> {
+    return invoke('pdflibrary_update_book_category', { bookId, categoryId });
   }
 
   // ==================== PDF 处理 ====================
@@ -205,6 +256,13 @@ class PDFLibraryService {
    */
   async extractCover(filepath: string): Promise<string> {
     return invoke('pdflibrary_extract_cover', { filepath });
+  }
+
+  /**
+   * 更新书籍封面（提取并保存到数据库）
+   */
+  async updateBookCover(bookId: number): Promise<string> {
+    return invoke('pdflibrary_update_book_cover', { bookId });
   }
 
   /**
