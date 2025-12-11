@@ -17,10 +17,22 @@ interface ThumbnailGridProps {
 }
 
 const ThumbnailGrid: Component<ThumbnailGridProps> = (props) => {
+  const handleWheel = (e: WheelEvent) => {
+    // 如果是垂直滚动，转换为水平滚动
+    if (e.deltaY !== 0) {
+      // 只有当内容确实可以水平滚动时才阻止默认行为（防止页面无法垂直滚动）
+      const target = e.currentTarget as HTMLDivElement;
+      if (target.scrollWidth > target.clientWidth) {
+        e.preventDefault();
+        target.scrollLeft += e.deltaY;
+      }
+    }
+  };
+
   return (
     <div class={styles.container}>
       <div class={styles.title}>数据分页预览 ({props.totalPages} 页)</div>
-      <div class={styles.grid}>
+      <div class={styles.grid} onWheel={handleWheel}>
         <For each={props.thumbnails}>
           {(thumbnail) => {
             const isCurrent = () => thumbnail.pageIndex === props.currentPage;

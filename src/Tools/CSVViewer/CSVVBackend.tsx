@@ -524,27 +524,28 @@ const CSVV: Component = () => {
         <div class={styles.message}>加载成功, 请选择至少一个数值列以绘图。</div>
       );
     }
-    return (
-      <div class={styles.stats}>
-        <span>
-          <strong>原始点:</strong> {data.rawCount.toLocaleString()}
-        </span>
-        <span>
-          <strong>采样后:</strong> {data.sampledCount.toLocaleString()}
-        </span>
-        <span>
-          <strong>下采样:</strong> {data.downsampled ? "已启用" : "未启用"}
-        </span>
-        <span>
-          <strong>X 轴类型:</strong> {axisTypeLabel(data.axisType)}
-        </span>
-        {data.droppedRows > 0 && (
-          <span>
-            <strong>忽略行:</strong> {data.droppedRows.toLocaleString()}
-          </span>
-        )}
-      </div>
-    );
+    // return (
+    //   <div class={styles.stats}>
+    //     <span>
+    //       <strong>原始点:</strong> {data.rawCount.toLocaleString()}
+    //     </span>
+    //     <span>
+    //       <strong>采样后:</strong> {data.sampledCount.toLocaleString()}
+    //     </span>
+    //     <span>
+    //       <strong>下采样:</strong> {data.downsampled ? "已启用" : "未启用"}
+    //     </span>
+    //     <span>
+    //       <strong>X 轴类型:</strong> {axisTypeLabel(data.axisType)}
+    //     </span>
+    //     {data.droppedRows > 0 && (
+    //       <span>
+    //         <strong>忽略行:</strong> {data.droppedRows.toLocaleString()}
+    //       </span>
+    //     )}
+    //   </div>
+    // );
+    return undefined;
   };
 
   const renderChart = () => {

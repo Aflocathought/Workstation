@@ -19,19 +19,19 @@
 }
 
 .grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  display: flex;
+  flex-direction: row;
   gap: 12px;
-  padding: 4px;
-  justify-items: center; /* 每个缩略图居中 */
+  padding: 8px 4px 12px 4px;
   width: 100%;
-  max-width: 1200px;
-  margin: 0 auto;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .thumbnail {
-  max-width: 200px;
-  max-height: 200px;
+  flex-shrink: 0;
+  width: 150px;
+  height: 150px;
   position: relative;
   aspect-ratio: 1;
   background: var(--vscode-input-background);

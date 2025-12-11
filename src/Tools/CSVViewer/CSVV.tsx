@@ -69,14 +69,21 @@ const CSVV: Component = () => {
   const [xRange, setXRange] = createSignal<[number, number] | null>([0, 50000]); //默认50000，否则会很卡
 
   // 分页相关状态
-  const [pagination, setPagination] = createSignal<PaginationState | null>(null);
+  const [pagination, setPagination] = createSignal<PaginationState | null>(
+    null
+  );
   const [thumbnails, setThumbnails] = createSignal<ThumbnailData[]>([]);
-  const [loadingProgress, setLoadingProgress] = createSignal({ current: 0, total: 0 });
+  const [loadingProgress, setLoadingProgress] = createSignal({
+    current: 0,
+    total: 0,
+  });
   const [progressMessage, setProgressMessage] = createSignal("");
   const [isPageLoading, setIsPageLoading] = createSignal(false);
-  
+
   // 缓存：预加载当前页和下一页
-  const [cachedPages, setCachedPages] = createSignal<Map<number, CSVRecord[]>>(new Map());
+  const [cachedPages, setCachedPages] = createSignal<Map<number, CSVRecord[]>>(
+    new Map()
+  );
 
   let fileInputRef: HTMLInputElement | undefined;
   let dragCounter = 0;
@@ -166,14 +173,14 @@ const CSVV: Component = () => {
     setStatus("读取文件中...");
 
     const reader = new FileReader();
-    
+
     reader.onload = async () => {
       try {
         const content =
           typeof reader.result === "string"
             ? reader.result
             : new TextDecoder().decode(reader.result as ArrayBuffer);
-        
+
         const detected = detectDelimiter(content);
         setRawContent(content);
         setDelimiter(detected);
@@ -191,7 +198,6 @@ const CSVV: Component = () => {
           // 小文件，直接全部加载
           await handleSmallFile(content, detected);
         }
-
       } catch (err) {
         setRows([]);
         setHeaders([]);
@@ -243,16 +249,22 @@ const CSVV: Component = () => {
   };
 
   // 处理大文件（分页加载）
-  const handleLargeFile = async (content: string, detected: string, totalRows: number) => {
+  const handleLargeFile = async (
+    content: string,
+    detected: string,
+    totalRows: number
+  ) => {
     const paginationState = calculatePagination(totalRows);
     setPagination(paginationState);
 
     // 初始化缩略图数据
-    const initialThumbnails: ThumbnailData[] = paginationState.pages.map((page) => ({
-      pageIndex: page.pageIndex,
-      points: [],
-      isLoaded: false,
-    }));
+    const initialThumbnails: ThumbnailData[] = paginationState.pages.map(
+      (page) => ({
+        pageIndex: page.pageIndex,
+        points: [],
+        isLoaded: false,
+      })
+    );
     setThumbnails(initialThumbnails);
 
     // 加载第一页数据
@@ -287,7 +299,9 @@ const CSVV: Component = () => {
         setRows(cachedRows);
         setPagination({ ...pg, currentPage: pageIndex });
         setStatus(
-          `第 ${pageIndex + 1}/${pg.totalPages} 页 · ${pageInfo.startRow.toLocaleString()} - ${pageInfo.endRow.toLocaleString()} 行`
+          `第 ${pageIndex + 1}/${
+            pg.totalPages
+          } 页 · ${pageInfo.startRow.toLocaleString()} - ${pageInfo.endRow.toLocaleString()} 行`
         );
       });
       return;
@@ -298,22 +312,20 @@ const CSVV: Component = () => {
     setLoadingProgress({ current: 0, total: pageInfo.rowCount });
 
     try {
-      const parsed = await new Promise<StreamParseResult>(
-        (resolve) => {
-          setTimeout(() => {
-            const result = parseCSVPage({
-              content: csvContent,
-              delimiter: csvDelimiter,
-              startRow: pageInfo.startRow,
-              endRow: pageInfo.endRow,
-              onProgress: (current, total) => {
-                setLoadingProgress({ current, total });
-              },
-            });
-            resolve(result);
-          }, 0);
-        }
-      );
+      const parsed = await new Promise<StreamParseResult>((resolve) => {
+        setTimeout(() => {
+          const result = parseCSVPage({
+            content: csvContent,
+            delimiter: csvDelimiter,
+            startRow: pageInfo.startRow,
+            endRow: pageInfo.endRow,
+            onProgress: (current, total) => {
+              setLoadingProgress({ current, total });
+            },
+          });
+          resolve(result);
+        }, 0);
+      });
 
       batch(() => {
         setHeaders(parsed.headers);
@@ -323,7 +335,9 @@ const CSVV: Component = () => {
         setXColumn(ROW_INDEX_KEY);
         setPagination({ ...pg, currentPage: pageIndex });
         setStatus(
-          `第 ${pageIndex + 1}/${pg.totalPages} 页 · ${pageInfo.startRow.toLocaleString()} - ${pageInfo.endRow.toLocaleString()} 行`
+          `第 ${pageIndex + 1}/${
+            pg.totalPages
+          } 页 · ${pageInfo.startRow.toLocaleString()} - ${pageInfo.endRow.toLocaleString()} 行`
         );
 
         // 缓存当前页
@@ -336,9 +350,10 @@ const CSVV: Component = () => {
       if (pageIndex + 1 < pg.totalPages && !cache.has(pageIndex + 1)) {
         preloadPage(pageIndex + 1, csvContent, csvDelimiter);
       }
-
     } catch (err) {
-      setErrorMessage(`加载第 ${pageIndex + 1} 页失败: ${(err as Error).message}`);
+      setErrorMessage(
+        `加载第 ${pageIndex + 1} 页失败: ${(err as Error).message}`
+      );
     } finally {
       setIsPageLoading(false);
     }
@@ -382,12 +397,10 @@ const CSVV: Component = () => {
     for (let i = 0; i < pg.pages.length; i++) {
       try {
         const points = sampleForThumbnail(content, delim, pg.pages[i]);
-        
+
         setThumbnails((prev) =>
           prev.map((thumb) =>
-            thumb.pageIndex === i
-              ? { ...thumb, points, isLoaded: true }
-              : thumb
+            thumb.pageIndex === i ? { ...thumb, points, isLoaded: true } : thumb
           )
         );
 
@@ -517,27 +530,28 @@ const CSVV: Component = () => {
         <div class={styles.message}>加载成功, 请选择至少一个数值列以绘图。</div>
       );
     }
-    return (
-      <div class={styles.stats}>
-        <span>
-          <strong>原始点:</strong> {data.rawCount.toLocaleString()}
-        </span>
-        <span>
-          <strong>采样后:</strong> {data.sampledCount.toLocaleString()}
-        </span>
-        <span>
-          <strong>下采样:</strong> {data.downsampled ? "已启用" : "未启用"}
-        </span>
-        <span>
-          <strong>X 轴类型:</strong> {axisTypeLabel(data.axisType)}
-        </span>
-        {data.droppedRows > 0 && (
-          <span>
-            <strong>忽略行:</strong> {data.droppedRows.toLocaleString()}
-          </span>
-        )}
-      </div>
-    );
+    // return (
+    //   <div class={styles.stats}>
+    //     <span>
+    //       <strong>原始点:</strong> {data.rawCount.toLocaleString()}
+    //     </span>
+    //     <span>
+    //       <strong>采样后:</strong> {data.sampledCount.toLocaleString()}
+    //     </span>
+    //     <span>
+    //       <strong>下采样:</strong> {data.downsampled ? "已启用" : "未启用"}
+    //     </span>
+    //     <span>
+    //       <strong>X 轴类型:</strong> {axisTypeLabel(data.axisType)}
+    //     </span>
+    //     {data.droppedRows > 0 && (
+    //       <span>
+    //         <strong>忽略行:</strong> {data.droppedRows.toLocaleString()}
+    //       </span>
+    //     )}
+    //   </div>
+    // );
+    return 0;
   };
 
   const renderChart = () => {
@@ -649,16 +663,16 @@ const CSVV: Component = () => {
                 </Show>
               </div>
 
-              <div>
-                <div class={styles.rangeHeader}>
-                  <input
-                    type="checkbox"
-                    checked={enableXRange()}
-                    onChange={() => setEnableXRange(!enableXRange())}
-                  />
-                  <div>预选择X轴的范围</div>
-                </div>
+              <div class={styles.xrange}>
                 <div class={styles.rangeModify}>
+                  <div class={styles.rangeHeader}>
+                    <input
+                      type="checkbox"
+                      checked={enableXRange()}
+                      onChange={() => setEnableXRange(!enableXRange())}
+                    />
+                    <div>预选择X轴的范围</div>
+                  </div>
                   <div class={styles.rangeInputFont}>[</div>
                   <input
                     class={styles.rangeInput}
