@@ -738,3 +738,64 @@
   border-radius: 50%;
 }
 
+/* Drag Overlay */
+.dragOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.9);
+  z-index: 999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  backdrop-filter: blur(4px);
+}
+
+.overlayContent {
+  width: 80%;
+  max-width: 600px;
+  animation: popIn 0.2s ease-out;
+}
+
+.overlayMode {
+  border: 3px dashed #2196f3;
+  background: #e3f2fd;
+  pointer-events: none;
+  border-radius: 12px;
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  box-shadow: 0 8px 32px rgba(33, 150, 243, 0.2);
+}
+
+.modeIcon {
+  font-size: 48px;
+}
+
+.modeTitle {
+  font-size: 24px;
+  font-weight: 600;
+  color: #1976d2;
+}
+
+.modeDesc {
+  font-size: 14px;
+  color: #546e7a;
+}
+
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+

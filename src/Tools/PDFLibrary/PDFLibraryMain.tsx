@@ -42,6 +42,10 @@ const PDFLibrary: Component = () => {
   const [tagSuggestions, setTagSuggestions] = createSignal<Tag[]>([]);
   const [draggedBook, setDraggedBook] = createSignal<Book | null>(null);
   const [dropTargetCategoryId, setDropTargetCategoryId] = createSignal<number | null>(null);
+  const [dragOver, setDragOver] = createSignal(false);
+  
+  let unlistenFileDrop: (() => void) | undefined;
+  let dragCounter = 0;
   
   // 批量选择
   const [selectionMode, setSelectionMode] = createSignal(false);
@@ -148,6 +152,81 @@ const PDFLibrary: Component = () => {
 
   // ==================== 生命周期 ====================
   
+  // ==================== 拖拽处理 ====================
+
+  const handleFileDrop = async (filepath: string) => {
+    // 1. 检查文件类型
+    if (!filepath.toLowerCase().endsWith('.pdf')) {
+      const msg = '错误：只能拖入 PDF 文件';
+      console.error(msg);
+      alert(msg);
+      return;
+    }
+
+    // 2. 找到 Inbox 目录
+    // 尝试找到名为 "Inbox" 的目录，如果找不到则使用 Workspace 主目录
+    let targetDir = directories().find(d => d.name === 'Inbox');
+    let targetName = 'Inbox';
+    
+    if (!targetDir) {
+      console.log('[PDFLibrary] 未找到 Inbox 目录记录，尝试使用 Workspace');
+      targetDir = directories().find(d => d.type === 'workspace');
+      targetName = 'Workspace';
+    }
+    
+    if (!targetDir) {
+      const msg = '错误：找不到 Inbox 或 Workspace 文件夹，请确保已设置 Workspace';
+      console.error(msg);
+      alert(msg);
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      console.log(`[PDFLibrary] 正在添加文件到 ${targetName}: ${filepath}`);
+      // 添加书籍
+      // 注意：目前前端无法直接移动文件到 Inbox 文件夹（受限于权限和插件）
+      // 这里将文件注册到目标目录的索引中
+      await pdfLibraryService.addBook(filepath, targetDir.id, false);
+      
+      await loadData();
+      // 自动选中目标目录
+      setAndSaveDirectoryId(targetDir.id);
+      alert(`文件已成功添加到 ${targetName}`);
+    } catch (error) {
+      console.error('添加文件失败:', error);
+      alert('添加文件失败: ' + error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGlobalDragEnter = (e: DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter++;
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+    setDragOver(true);
+  };
+
+  const handleGlobalDragLeave = (e: DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter--;
+    if (dragCounter <= 0) {
+      dragCounter = 0;
+      setDragOver(false);
+    }
+  };
+
+  const handleGlobalDrop = (e: DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(false);
+    dragCounter = 0;
+    // 注意：实际的文件处理由 tauri://drag-drop 事件处理
+  };
+
   onMount(async () => {
     console.log('[PDFLibrary] onMount 被调用, isLoading =', isLoading());
     
@@ -168,9 +247,43 @@ const PDFLibrary: Component = () => {
       console.log('[PDFLibrary] 收到更新事件，正在刷新数据...');
       loadData();
     });
+
+    // 监听 Tauri v2 的拖拽事件 tauri://drag-drop
+    try {
+      unlistenFileDrop = await listen<any>("tauri://drag-drop", async (event) => {
+        const payload: any = event.payload;
+        const kind = (payload && (payload.type || payload.event || payload.kind)) as string | undefined;
+
+        // 只在真正放下(dropped)时处理
+        if (kind && !["drop", "dropped", "Drop", "Dropped"].includes(kind)) {
+          return;
+        }
+
+        let paths: string[] | undefined;
+        if (Array.isArray(payload?.paths)) {
+          paths = payload.paths as string[];
+        } else if (Array.isArray(payload)) {
+          paths = payload as string[];
+        } else if (typeof payload === "string") {
+          paths = [payload];
+        }
+
+        const firstPath = paths && paths[0];
+        if (firstPath && typeof firstPath === "string") {
+          console.log("📂 [tauri://drag-drop] 路径:", firstPath);
+          await handleFileDrop(firstPath);
+        }
+      });
+    } catch (err) {
+      console.error("监听 tauri://drag-drop 失败", err);
+    }
     
     onCleanup(() => {
       unlisten();
+      if (unlistenFileDrop) {
+        unlistenFileDrop();
+        unlistenFileDrop = undefined;
+      }
     });
 
     try {
@@ -625,7 +738,26 @@ const PDFLibrary: Component = () => {
     >
     {/* 如果显示标签管理器，则渲染标签管理器 */}
     <Show when={showTagManager()} fallback={
-    <div class={styles.container}>
+    <div 
+      class={styles.container}
+      onDragEnter={handleGlobalDragEnter}
+      onDragLeave={handleGlobalDragLeave}
+      onDragOver={(e) => { e.preventDefault(); }}
+      onDrop={handleGlobalDrop}
+    >
+      {/* 拖拽覆盖层 */}
+      <Show when={dragOver()}>
+        <div class={styles.dragOverlay}>
+          <div class={styles.overlayContent}>
+            <div class={styles.overlayMode}>
+              <div class={styles.modeIcon}>📥</div>
+              <div class={styles.modeTitle}>添加到 Inbox</div>
+              <div class={styles.modeDesc}>释放以添加 PDF 文件</div>
+            </div>
+          </div>
+        </div>
+      </Show>
+
       {/* 左侧导航栏 */}
       <div class={styles.sidebar}>
         <div class={styles.sidebarSection}>
