@@ -15,7 +15,7 @@ export interface PaginationState {
 }
 
 export interface CsvRecord {
-  [key: string]: string;
+  [key: string]: unknown;
 }
 
 export interface ParsedPage {

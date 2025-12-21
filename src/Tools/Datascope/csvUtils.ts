@@ -1,5 +1,5 @@
 import type { CSVRecord, AxisType } from "./types";
-import { ROW_INDEX_KEY, ChartComputationResult, DEFAULT_MAX_POINTS,MAX_POINTS,MIN_POINTS } from "./CSVV";
+import { ROW_INDEX_KEY, ChartComputationResult, DEFAULT_MAX_POINTS,MAX_POINTS,MIN_POINTS } from "./Datascope";
 
 export interface ChartSeries {
   name: string;
@@ -22,6 +22,28 @@ interface AxisConversionResult {
   valid: boolean;
   value: number | string;
   numeric: number | null;
+}
+
+function toText(value: unknown): string {
+  if (value == null) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  // list/struct 等复杂类型：用于显示/检测时走 JSON 字符串
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function toNumber(value: unknown): number | null {
+  if (value == null) return null;
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value === "boolean") return value ? 1 : 0;
+  const text = typeof value === "string" ? value.trim() : toText(value).trim();
+  if (!text) return null;
+  const numeric = Number(text);
+  return Number.isFinite(numeric) ? numeric : null;
 }
 
 /**
@@ -159,7 +181,7 @@ export function buildColumnMeta(
     for (let i = 0; i < sampleSize; i += 1) {
       const value = dataRows[i]?.[name];
       if (value == null) continue;
-      const trimmed = value.trim();
+      const trimmed = toText(value).trim();
       if (!trimmed) continue;
       nonEmpty += 1;
 
@@ -194,11 +216,11 @@ export function buildColumnMeta(
  * @returns 
  */
 function convertAxisValue(
-  value: string | undefined,
+  value: unknown,
   axisType: AxisType,
   index: number
 ): AxisConversionResult {
-  const raw = value?.trim() ?? "";
+  const raw = toText(value).trim();
 
   if (axisType === "category") {
     const label = raw || `Row ${index + 1}`;
@@ -225,12 +247,8 @@ function convertAxisValue(
  * @param value 
  * @returns 
  */
-function parseNumeric(value?: string): number | null {
-  if (value == null) return null;
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  const numeric = Number(trimmed);
-  return Number.isFinite(numeric) ? numeric : null;
+function parseNumeric(value?: unknown): number | null {
+  return toNumber(value);
 }
 
 /**

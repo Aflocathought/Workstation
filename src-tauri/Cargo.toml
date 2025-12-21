@@ -44,6 +44,27 @@ base64 = "0.22.1"
 csv = "1.3"
 tokio = { version = "1", features = ["full"] }
 
+# Parquet engine (lazy, zero-copy oriented IO)
+polars = { version = "0.46", default-features = false, features = [
+    "lazy",
+    "streaming",
+    "parquet",
+    "csv",
+    "dtype-datetime",
+    "dtype-time",
+    "dtype-duration",
+    "dtype-date",
+    "dtype-struct",
+    "dtype-array",
+    "dtype-categorical",
+    "strings",
+    "temporal",
+    "fmt",
+] }
+
+# Footer-only metadata read (fast row count)
+parquet2 = "0.17"
+
 [features]
 default = []
 

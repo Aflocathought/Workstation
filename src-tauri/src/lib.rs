@@ -23,6 +23,17 @@ use csv_handler::{
     csv_clear_cache,
 };
 
+// 引入 Parquet 处理模块
+mod parquet_handler;
+use parquet_handler::{
+    ParquetCacheManager,
+    parquet_open_file,
+    parquet_load_page,
+    parquet_generate_thumbnail,
+    parquet_clear_cache,
+    convert_csv_to_parquet,
+};
+
 use once_cell::sync::OnceCell;
 use std::sync::Mutex;
 
@@ -143,6 +154,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(CsvCacheManager::default())
+        .manage(ParquetCacheManager::default())
         .invoke_handler(tauri::generate_handler![
             greet,
             execute_python_script,
@@ -160,6 +172,11 @@ pub fn run() {
             csv_generate_thumbnail,
             csv_change_delimiter,
             csv_clear_cache,
+            parquet_open_file,
+            parquet_load_page,
+            parquet_generate_thumbnail,
+            parquet_clear_cache,
+            convert_csv_to_parquet,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

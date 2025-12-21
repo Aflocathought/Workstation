@@ -7,7 +7,7 @@ import { spectrumToolConfig } from './Spectrum';
 import { pythonToolConfig } from './Python';
 import { calendarToolConfig } from './Calendar';
 import { shortcutReminderConfig } from './ShortcutReminder';
-import { csvViewerToolConfig } from './CSVViewer';
+import { datascopeToolConfig } from './Datascope';
 import pdfLibraryToolConfig from './PDFLibrary';
 
 /**
@@ -19,7 +19,7 @@ export const allToolConfigs: ToolConfig[] = [
   pythonToolConfig,
   calendarToolConfig,
   shortcutReminderConfig,
-  csvViewerToolConfig,
+  datascopeToolConfig,
   pdfLibraryToolConfig,
   // 未来新增工具配置添加在这里...
 ];

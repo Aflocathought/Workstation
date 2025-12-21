@@ -37,6 +37,7 @@ mod shortcut;
 mod spectrum;
 mod tracker;
 mod csv_handler;
+mod parquet_handler;
 
 // 全局快捷键服务实例
 static SHORTCUT_SERVICE: OnceCell<Mutex<ShortcutService>> = OnceCell::new();
@@ -484,6 +485,9 @@ fn main() {
             // 管理 CSV 缓存状态（供 CSV Viewer 后端使用）
             app.manage(CsvCacheManager::default());
 
+            // 管理 Parquet 缓存状态（供 Datascope Parquet 后端使用）
+            app.manage(parquet_handler::ParquetCacheManager::default());
+
             // 在一个新的线程中启动我们的后台追踪器
             let app_handle = app.handle().clone();
             thread::spawn(move || {
@@ -554,6 +558,12 @@ fn main() {
             csv_generate_thumbnail,
             csv_change_delimiter,
             csv_clear_cache,
+            // Parquet Viewer 后端命令
+            parquet_handler::parquet_open_file,
+            parquet_handler::parquet_load_page,
+            parquet_handler::parquet_generate_thumbnail,
+            parquet_handler::parquet_clear_cache,
+            parquet_handler::convert_csv_to_parquet,
             // PDF Library 命令
             pdf_library::commands::pdflibrary_init_db,
             pdf_library::commands::pdflibrary_backup_db,

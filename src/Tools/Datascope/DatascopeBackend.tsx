@@ -1,4 +1,4 @@
-// CSV Viewer - 使用 Tauri 后端处理
+// Datascope - 使用 Tauri 后端处理
 import {
   batch,
   Component,
@@ -13,7 +13,7 @@ import {
 import { open } from "@tauri-apps/plugin-dialog";
 import { listen } from "@tauri-apps/api/event";
 import ChartRender from "./ChartRender";
-import styles from "./CSVViewer.module.css";
+import styles from "./Datascope.module.css";
 import {
   determineAxisType,
   buildColumnMeta,
@@ -25,9 +25,8 @@ import {
 import {
   CsvBackendService,
   type PaginationState as BackendPaginationState,
-  type ParsedPage,
-  type ThumbnailData as BackendThumbnailData,
 } from "./csvBackend";
+import { ParquetBackendService } from "./parquetBackend";
 import ThumbnailGrid, { type ThumbnailData } from "./ThumbnailGrid";
 import ProgressBar from "./ProgressBar";
 import type { CSVRecord, AxisType } from "./types";
@@ -48,7 +47,9 @@ export const MAX_POINTS = 20000;
 export const ROW_INDEX_KEY = "__auto_sequence__";
 const ROWS_PER_PAGE = 200000;
 
-const CSVV: Component = () => {
+type DataFormat = "csv" | "parquet";
+
+const Datascope: Component = () => {
   const [headers, setHeaders] = createSignal<string[]>([]);
   const [rows, setRows] = createSignal<CSVRecord[]>([]);
   const [xColumn, setXColumn] = createSignal<string>("");
@@ -74,10 +75,28 @@ const CSVV: Component = () => {
   const [isPageLoading, setIsPageLoading] = createSignal(false);
   const [currentFilePath, setCurrentFilePath] = createSignal<string>("");
   const [dragOver, setDragOver] = createSignal<boolean>(false);
+  const [dataFormat, setDataFormat] = createSignal<DataFormat>("csv");
+  const isParquet = createMemo(() => dataFormat() === "parquet");
+  const [parquetSchema, setParquetSchema] = createSignal<
+    Array<{ name: string; dtype: string }>
+  >([]);
+  const [parquetInferredNumericColumns, setParquetInferredNumericColumns] =
+    createSignal<string[]>([]);
 
-  let fileInputRef: HTMLInputElement | undefined;
+  type PageInfoLike = BackendPaginationState["pages"][number];
+  const [lastLoadedPageInfo, setLastLoadedPageInfo] = createSignal<PageInfoLike | null>(null);
+
+  const selectedParquetColumns = () => {
+    const cols = new Set<string>();
+    const x = xColumn();
+    if (x && x !== ROW_INDEX_KEY) cols.add(x);
+    valueColumns().forEach((c) => cols.add(c));
+    return cols.size ? Array.from(cols) : undefined;
+  };
+
   let dragCounter = 0;
   let unlistenFileDrop: (() => void) | undefined;
+  let unlistenDatascopeProgress: (() => void) | undefined;
 
   // 监听 Tauri v2 的拖拽事件 tauri://drag-drop，直接获取本地路径
   onMount(async () => {
@@ -111,6 +130,21 @@ const CSVV: Component = () => {
           await handleFileSelection(firstPath);
         }
       });
+
+      unlistenDatascopeProgress = await listen<any>("datascope:progress", (event) => {
+        const payload: any = event.payload;
+        if (!payload) return;
+        const current = Number(payload.current);
+        const total = Number(payload.total);
+        const message = typeof payload.message === "string" ? payload.message : "";
+
+        if (Number.isFinite(current) && Number.isFinite(total) && total >= 0 && current >= 0) {
+          setLoadingProgress({ current, total });
+        }
+        if (message) {
+          setProgressMessage(message);
+        }
+      });
     } catch (err) {
       console.error("监听 tauri://drag-drop 失败", err);
     }
@@ -120,6 +154,10 @@ const CSVV: Component = () => {
     if (unlistenFileDrop) {
       unlistenFileDrop();
       unlistenFileDrop = undefined;
+    }
+    if (unlistenDatascopeProgress) {
+      unlistenDatascopeProgress();
+      unlistenDatascopeProgress = undefined;
     }
   });
 
@@ -193,14 +231,39 @@ const CSVV: Component = () => {
 
   const columnMeta = createMemo(() => buildColumnMeta(rows(), headers()));
 
-  const numericColumns = createMemo(() =>
-    columnMeta()
+  const parquetNumericColumns = createMemo(() => {
+    const cols = parquetSchema();
+    return cols
+      .filter((c) =>
+        /^(Int|UInt|Float|Decimal)/i.test(c.dtype) ||
+        /\b(Int|UInt|Float|Decimal)\b/i.test(c.dtype)
+      )
+      .map((c) => c.name);
+  });
+
+  const numericColumns = createMemo(() => {
+    if (isParquet()) {
+      const schemaNumeric = parquetNumericColumns();
+      if (schemaNumeric.length) return schemaNumeric;
+      // fallback: schema 无法判断时，使用一次性采样推断结果（稳定，不随换页丢失）
+      return parquetInferredNumericColumns();
+    }
+    return columnMeta()
       .filter((meta) => meta.isNumeric)
-      .map((meta) => meta.name)
-  );
+      .map((meta) => meta.name);
+  });
 
   const axisType = createMemo<AxisType>(() => {
     if (xColumn() === ROW_INDEX_KEY) return "value";
+
+    if (isParquet()) {
+      const colName = xColumn();
+      const dtype = parquetSchema().find((c) => c.name === colName)?.dtype ?? "";
+      if (/Datetime|Date|Time/i.test(dtype)) return "time";
+      if (/Int|UInt|Float|Decimal/i.test(dtype)) return "value";
+      return "category";
+    }
+
     return determineAxisType(columnMeta(), xColumn());
   });
 
@@ -211,6 +274,49 @@ const CSVV: Component = () => {
       setValueColumns([numeric[0]]);
     }
   });
+
+  // Parquet 使用列裁剪：当用户切换 X / 数值列时，需要重新加载当前页把新列取回来。
+  const [lastSelectionKey, setLastSelectionKey] = createSignal<string>("");
+  createEffect(() => {
+    if (!isParquet()) return;
+    if (!currentFilePath()) return;
+    if (isLoading() || isPageLoading()) return;
+
+    const x = xColumn() || ROW_INDEX_KEY;
+    const ys = valueColumns().slice().sort();
+    const key = `${x}::${ys.join("|")}`;
+    if (key === lastSelectionKey()) return;
+    setLastSelectionKey(key);
+
+    // 没有任何数据页信息时不触发
+    const pg = pagination();
+    if (pg) {
+      loadPage(pg.current_page);
+      return;
+    }
+    const info = lastLoadedPageInfo();
+    if (!info) return;
+
+    // 小文件模式：用最近一次加载的页信息刷新当前页
+    const total = info.row_count ?? rows().length;
+    setIsPageLoading(true);
+    setProgressMessage("正在更新列...");
+    setLoadingProgress({ current: 0, total });
+    void ParquetBackendService.loadPage(0, info as any, selectedParquetColumns())
+      .then((parsed) => {
+        batch(() => {
+          setRows(parsed.rows);
+          setSkippedRows(parsed.skipped_rows);
+          setLoadingProgress({ current: total, total });
+        });
+      })
+      .catch((err) => {
+        console.warn("Parquet 重新加载列失败:", err);
+      })
+      .finally(() => setIsPageLoading(false));
+  });
+
+  // 进度条改为后端真实进度上报（datascope:progress 事件）
 
   createEffect(() => {
     const availableHeaders = headers();
@@ -251,8 +357,8 @@ const CSVV: Component = () => {
         multiple: false,
         filters: [
           {
-            name: "CSV Files",
-            extensions: ["csv"],
+            name: "Data Files",
+            extensions: ["csv", "parquet", "pq"],
           },
         ],
       });
@@ -272,15 +378,82 @@ const CSVV: Component = () => {
     setStatus("正在加载文件...");
     setCurrentFilePath(filePath);
 
-    try {
-      // 调用后端加载文件
-      console.log("📡 调用后端 csv_load_file...");
-      const [path, totalRows, delim] = await CsvBackendService.loadFile(filePath);
-      
-      console.log("✅ 后端返回:", { path, totalRows, delim });
+    // 简单按扩展名判定格式
+    const ext = (filePath.split(".").pop() || "").toLowerCase();
+    const nextFormat: DataFormat = ext === "parquet" || ext === "pq" ? "parquet" : "csv";
+    setDataFormat(nextFormat);
 
-      setFileName(path.split(/[/\\]/).pop() || path);
-      setDelimiter(delim);
+    try {
+      // 清理两边缓存，避免切换格式时残留
+      await Promise.allSettled([
+        CsvBackendService.clearCache(),
+        ParquetBackendService.clearCache(),
+      ]);
+
+      let totalRows = 0;
+      let displayPath = filePath;
+
+      if (nextFormat === "parquet") {
+        console.log("📡 调用后端 parquet_open_file...");
+        const opened = await ParquetBackendService.openFile(filePath);
+        totalRows = opened.total_rows;
+        displayPath = opened.path;
+        setParquetSchema(opened.columns);
+        setHeaders(opened.columns.map((c) => c.name));
+        // 避免沿用上一个文件的列选择导致 Parquet column pruning 选择不存在的列而加载失败
+        setXColumn(ROW_INDEX_KEY);
+        setValueColumns([]);
+
+        // 先用 schema 推断数值列；若 schema 无法判断（比如数值存成 Utf8/String），做一次小样本推断。
+        const schemaNumeric = opened.columns
+          .filter((c) =>
+            /^(Int|UInt|Float|Decimal)/i.test(c.dtype) ||
+            /\b(Int|UInt|Float|Decimal)\b/i.test(c.dtype)
+          )
+          .map((c) => c.name);
+
+        if (schemaNumeric.length) {
+          setParquetInferredNumericColumns(schemaNumeric);
+          setValueColumns([schemaNumeric[0]]);
+        } else {
+          setStatus("分析列类型... (采样)");
+          try {
+            const sampleCount = 200;
+            const samplePageInfo = {
+              page_index: 0,
+              start_row: 0,
+              end_row: sampleCount,
+              row_count: sampleCount,
+            };
+            const sample = await ParquetBackendService.loadPage(0, samplePageInfo, undefined);
+            const inferred = buildColumnMeta(sample.rows as any, sample.headers)
+              .filter((m) => m.isNumeric)
+              .map((m) => m.name);
+            setParquetInferredNumericColumns(inferred);
+            if (inferred.length) {
+              setValueColumns([inferred[0]]);
+            }
+          } catch (e) {
+            console.warn("Parquet 数值列采样推断失败:", e);
+            setParquetInferredNumericColumns([]);
+          }
+        }
+        // Parquet 没有分隔符概念，这里保留 UI 兼容
+        setDelimiter(",");
+        setSkippedRows(0);
+      } else {
+        console.log("📡 调用后端 csv_load_file...");
+        const [path, rowsCount, delim] = await CsvBackendService.loadFile(filePath);
+        totalRows = rowsCount;
+        displayPath = path;
+        setDelimiter(delim);
+        setParquetSchema([]);
+        setParquetInferredNumericColumns([]);
+      }
+
+      console.log("✅ 后端返回:", { path: displayPath, totalRows, format: nextFormat });
+
+      setFileName(displayPath.split(/[/\\]/).pop() || displayPath);
 
       // 判断是否需要分页
       if (totalRows > ROWS_PER_PAGE) {
@@ -304,6 +477,7 @@ const CSVV: Component = () => {
       setFileName("");
       setPagination(null);
       setThumbnails([]);
+      setParquetInferredNumericColumns([]);
       setErrorMessage(`加载失败: ${(err as Error).message}`);
       setStatus("");
     } finally {
@@ -323,21 +497,39 @@ const CSVV: Component = () => {
       console.log("✅ 分页信息:", paginationState);
       
       const pageInfo = paginationState.pages[0];
+      setLastLoadedPageInfo(pageInfo);
       console.log("📡 加载第一页数据...", pageInfo);
 
-      const parsed = await CsvBackendService.loadPage(0, pageInfo);
+      setLoadingProgress({ current: 0, total: pageInfo.row_count });
+
+      const parsed = isParquet()
+        ? await ParquetBackendService.loadPage(
+            0,
+            pageInfo,
+            selectedParquetColumns()
+          )
+        : await CsvBackendService.loadPage(0, pageInfo);
       console.log("✅ 数据解析完成:", {
         headers: parsed.headers.length,
         rows: parsed.rows.length,
         skipped: parsed.skipped_rows,
       });
 
+      const keepSchemaHeaders = isParquet() && parquetSchema().length > 0;
+
       batch(() => {
-        setHeaders(parsed.headers);
+        if (!keepSchemaHeaders) {
+          setHeaders(parsed.headers);
+        }
         setRows(parsed.rows);
         setSkippedRows(parsed.skipped_rows);
-        setValueColumns([]);
-        setXColumn(ROW_INDEX_KEY);
+        setLoadingProgress({ current: pageInfo.row_count, total: pageInfo.row_count });
+        if (!isParquet()) {
+          setValueColumns([]);
+          setXColumn(ROW_INDEX_KEY);
+        } else if (!xColumn()) {
+          setXColumn(ROW_INDEX_KEY);
+        }
         setPagination(null);
         setThumbnails([]);
         setStatus(
@@ -392,20 +584,35 @@ const CSVV: Component = () => {
     if (!pg || pageIndex < 0 || pageIndex >= pg.total_pages) return;
 
     const pageInfo = pg.pages[pageIndex];
+    setLastLoadedPageInfo(pageInfo);
 
     setIsPageLoading(true);
     setProgressMessage(`正在加载第 ${pageIndex + 1} 页...`);
     setLoadingProgress({ current: 0, total: pageInfo.row_count });
 
     try {
-      const parsed = await CsvBackendService.loadPage(pageIndex, pageInfo);
+      const parsed = isParquet()
+        ? await ParquetBackendService.loadPage(
+            pageIndex,
+            pageInfo,
+            selectedParquetColumns()
+          )
+        : await CsvBackendService.loadPage(pageIndex, pageInfo);
+
+      const keepSchemaHeaders = isParquet() && parquetSchema().length > 0;
 
       batch(() => {
-        setHeaders(parsed.headers);
+        if (!keepSchemaHeaders) {
+          setHeaders(parsed.headers);
+        }
         setRows(parsed.rows);
         setSkippedRows(parsed.skipped_rows);
-        setValueColumns([]);
-        setXColumn(ROW_INDEX_KEY);
+        if (!isParquet()) {
+          setValueColumns([]);
+          setXColumn(ROW_INDEX_KEY);
+        } else if (!xColumn()) {
+          setXColumn(ROW_INDEX_KEY);
+        }
         setPagination({ ...pg, current_page: pageIndex });
         setStatus(
           `第 ${pageIndex + 1}/${pg.total_pages} 页 · ${pageInfo.start_row.toLocaleString()} - ${pageInfo.end_row.toLocaleString()} 行`
@@ -416,7 +623,11 @@ const CSVV: Component = () => {
       // 预加载下一页
       if (pageIndex + 1 < pg.total_pages) {
         const nextPageInfo = pg.pages[pageIndex + 1];
-        CsvBackendService.loadPage(pageIndex + 1, nextPageInfo).catch(console.warn);
+        if (isParquet()) {
+          ParquetBackendService.loadPage(pageIndex + 1, nextPageInfo, selectedParquetColumns()).catch(console.warn);
+        } else {
+          CsvBackendService.loadPage(pageIndex + 1, nextPageInfo).catch(console.warn);
+        }
       }
     } catch (err) {
       setErrorMessage(`加载第 ${pageIndex + 1} 页失败: ${(err as Error).message}`);
@@ -429,7 +640,9 @@ const CSVV: Component = () => {
   const generateAllThumbnails = async (pg: BackendPaginationState) => {
     for (let i = 0; i < pg.pages.length; i++) {
       try {
-        const thumbData = await CsvBackendService.generateThumbnail(i, pg.pages[i]);
+        const thumbData = isParquet()
+          ? await ParquetBackendService.generateThumbnail(i, pg.pages[i])
+          : await CsvBackendService.generateThumbnail(i, pg.pages[i]);
 
         setThumbnails((prev) =>
           prev.map((thumb) =>
@@ -459,6 +672,11 @@ const CSVV: Component = () => {
   };
 
   const handleDelimiterChange = async (event: Event) => {
+    if (isParquet()) {
+      // Parquet 不支持分隔符；保留 UI 但禁用行为
+      setErrorMessage("Parquet 文件不支持修改分隔符");
+      return;
+    }
     const next = (event.currentTarget as HTMLSelectElement).value;
     if (!next || next === delimiter()) return;
 
@@ -601,7 +819,7 @@ const CSVV: Component = () => {
                     ? "读取中..." 
                     : dragOver() 
                     ? "释放鼠标以选择文件（或点击）" 
-                    : "点击选择 CSV 文件或拖拽文件到此处"}
+                    : "点击选择 CSV/Parquet 文件或拖拽文件到此处"}
                 </strong>
               </div>
               {errorMessage() && (
@@ -614,7 +832,7 @@ const CSVV: Component = () => {
                 {rows().length > 0 &&
                   ` · ${rows().length.toLocaleString()} 行 · ${
                     headers().length
-                  } 列 · 分隔符 "${delimiter()}"`}
+                  } 列${isParquet() ? "" : ` · 分隔符 \"${delimiter()}\"`}`}
                 {skippedRows() > 0 && ` · 忽略空行 ${skippedRows()}`}
               </div>
             </Show>
@@ -702,7 +920,7 @@ const CSVV: Component = () => {
 
               <label class={styles.inlineControls}>
                 <span>分隔符</span>
-                <select value={delimiter()} onChange={handleDelimiterChange}>
+                <select value={delimiter()} onChange={handleDelimiterChange} disabled={isParquet()}>
                   <option value=",">逗号 (,)</option>
                   <option value=";">分号 (;)</option>
                   <option value="\t">制表符 (Tab)</option>
@@ -796,4 +1014,4 @@ const CSVV: Component = () => {
   );
 };
 
-export default CSVV;
+export default Datascope;

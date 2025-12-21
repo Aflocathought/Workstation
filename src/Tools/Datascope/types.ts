@@ -1,2 +1,2 @@
-export type CSVRecord = Record<string, string>;
+export type CSVRecord = Record<string, unknown>;
 export type AxisType = "value" | "time" | "category";

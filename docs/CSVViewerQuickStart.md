@@ -172,7 +172,7 @@ Tauri Backend (Rust)
 ### 前端架构
 ```typescript
 Frontend (SolidJS)
-├── CSVVBackend.tsx       // 主组件
+├── DatascopeBackend.tsx  // 主组件
 ├── csvBackend.ts         // API 封装
 ├── ThumbnailGrid.tsx     // 缩略图
 └── ProgressBar.tsx       // 进度条
@@ -223,7 +223,7 @@ Frontend (SolidJS)
 # 启动开发服务器
 pnpm tauri dev
 
-# 打开 CSV Viewer
+# 打开 Datascope
 # 选择一个大 CSV 文件
 # 享受飞一般的速度！⚡
 ```

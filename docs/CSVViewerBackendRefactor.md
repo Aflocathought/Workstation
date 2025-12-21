@@ -262,16 +262,16 @@ try {
 |------|------|------|
 | `csv_handler.rs` | 后端核心逻辑 | ~500 行 |
 | `csvBackend.ts` | 前端 API 封装 | ~100 行 |
-| `CSVVBackend.tsx` | 新前端组件 | ~600 行 |
-| `CSVV.tsx` | 旧前端组件（保留） | ~800 行 |
+| `DatascopeBackend.tsx` | 新前端组件 | ~600 行 |
+| `Datascope.tsx` | 旧前端组件（保留） | ~800 行 |
 
 ## 迁移指南
 
 ### 切换到后端版本
 ```typescript
 // 1. 更新 Tool 配置
-export const csvViewerToolConfig: ToolConfig = {
-  component: () => import("./CSVVBackend"), // 改这里
+export const datascopeToolConfig: ToolConfig = {
+  component: () => import("./DatascopeBackend"), // 改这里
 }
 
 // 2. 编译后端
@@ -282,8 +282,8 @@ export const csvViewerToolConfig: ToolConfig = {
 
 ### 回退到前端版本
 ```typescript
-export const csvViewerToolConfig: ToolConfig = {
-  component: () => import("./CSVV"), // 改回来
+export const datascopeToolConfig: ToolConfig = {
+  component: () => import("./Datascope"), // 改回来
 }
 ```
 
@@ -297,7 +297,7 @@ export const csvViewerToolConfig: ToolConfig = {
 
 ## 总结
 
-通过使用 Tauri 后端 + Rust 多线程处理，CSV Viewer 实现了：
+通过使用 Tauri 后端 + Rust 多线程处理，Datascope 实现了：
 
 ✅ **真正的多线程**：解析和 UI 完全分离  
 ✅ **UI 永不阻塞**：所有重计算在后端  

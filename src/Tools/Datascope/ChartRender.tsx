@@ -1,6 +1,6 @@
 import { Component, createEffect, onCleanup, onMount } from "solid-js";
 import * as echarts from "echarts";
-import styles from "./CSVViewer.module.css";
+import styles from "./Datascope.module.css";
 
 type AxisType = "value" | "time" | "category";
 
@@ -9,7 +9,7 @@ interface ChartSeries {
   points: Array<[number | string, number | null]>;
 }
 
-interface CSVVRenderProps {
+interface ChartRenderProps {
   axisType: AxisType;
   series: ChartSeries[];
   downsampled: boolean;
@@ -19,7 +19,7 @@ interface CSVVRenderProps {
   isIndexAxis?: boolean;
 }
 
-const ChartRender: Component<CSVVRenderProps> = (props) => {
+const ChartRender: Component<ChartRenderProps> = (props) => {
   let chartRef: HTMLDivElement | undefined;
   type EChartsInstance = ReturnType<typeof echarts.init>;
   let chartInstance: EChartsInstance | undefined;

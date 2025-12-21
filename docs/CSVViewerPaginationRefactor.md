@@ -60,7 +60,7 @@ CSV Viewer 已成功重构以支持大数据量文件的分页加载和预览。
 
 ### 重构内容
 
-#### CSVV.tsx 主要改动
+#### Datascope.tsx 主要改动
 1. **状态管理**
    - 添加分页状态 `pagination`
    - 添加缩略图数据 `thumbnails`

@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
+use tauri::{AppHandle, Emitter};
 use tauri::State;
 
 const ROWS_PER_PAGE: usize = 200_000;
@@ -52,6 +53,13 @@ pub struct ThumbnailData {
 pub struct LoadProgress {
     pub current: usize,
     pub total: usize,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct DatascopeProgress {
+    pub current: u64,
+    pub total: u64,
     pub message: String,
 }
 
@@ -234,6 +242,67 @@ fn parse_csv_page(
     })
 }
 
+fn parse_csv_page_with_progress(
+    content: &str,
+    delimiter: char,
+    start_row: usize,
+    end_row: usize,
+    progress: &dyn Fn(u64, u64),
+) -> Result<ParsedPage, String> {
+    let mut reader = csv::ReaderBuilder::new()
+        .delimiter(delimiter as u8)
+        .from_reader(content.as_bytes());
+
+    let headers = reader
+        .headers()
+        .map_err(|e| format!("Failed to read headers: {}", e))?
+        .iter()
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>();
+
+    let total = end_row.saturating_sub(start_row) as u64;
+    progress(0, total);
+
+    let mut rows = Vec::new();
+    let mut skipped_rows = 0;
+    let mut current_row = 0;
+    let mut added: u64 = 0;
+
+    for result in reader.records() {
+        match result {
+            Ok(record) => {
+                if current_row >= start_row && current_row < end_row {
+                    let mut fields = HashMap::new();
+                    for (i, field) in record.iter().enumerate() {
+                        if let Some(header) = headers.get(i) {
+                            fields.insert(header.clone(), field.to_string());
+                        }
+                    }
+                    rows.push(CsvRecord { fields });
+                    added += 1;
+                    if added % 2000 == 0 {
+                        progress(added, total);
+                    }
+                } else if current_row >= end_row {
+                    break;
+                }
+                current_row += 1;
+            }
+            Err(_) => {
+                skipped_rows += 1;
+            }
+        }
+    }
+
+    progress(added, total);
+
+    Ok(ParsedPage {
+        headers,
+        rows,
+        skipped_rows,
+    })
+}
+
 /// 生成缩略图采样数据
 fn generate_thumbnail(
     content: &str,
@@ -394,6 +463,7 @@ pub async fn csv_get_pagination(
 pub async fn csv_load_page(
     page_index: usize,
     page_info: PageInfo,
+    app_handle: AppHandle,
     cache: State<'_, CsvCacheManager>,
 ) -> Result<ParsedPage, String> {
     println!("📄 [Backend] csv_load_page 开始, 页码: {}, 行范围: {}-{}", 
@@ -402,6 +472,14 @@ pub async fn csv_load_page(
     // 检查缓存
     if let Some(cached) = cache.get_cached_page(page_index) {
         println!("✅ [Backend] 使用缓存的页面数据");
+        let _ = app_handle.emit(
+            "datascope:progress",
+            DatascopeProgress {
+                current: cached.rows.len() as u64,
+                total: cached.rows.len() as u64,
+                message: "已从缓存加载".to_string(),
+            },
+        );
         return Ok(cached);
     }
 
@@ -417,11 +495,46 @@ pub async fn csv_load_page(
 
     // 在独立线程中解析
     println!("🔄 [Backend] 开始解析页面...");
+    let total = page_info.row_count as u64;
+    let _ = app_handle.emit(
+        "datascope:progress",
+        DatascopeProgress {
+            current: 0,
+            total,
+            message: format!("解析 CSV 第 {} 页...", page_index + 1),
+        },
+    );
+
+    let app_handle2 = app_handle.clone();
     let parsed = tokio::task::spawn_blocking(move || {
-        match parse_csv_page(&content, delimiter, page_info.start_row, page_info.end_row) {
+        let progress = |current: u64, total: u64| {
+            let _ = app_handle2.emit(
+                "datascope:progress",
+                DatascopeProgress {
+                    current,
+                    total,
+                    message: "解析中...".to_string(),
+                },
+            );
+        };
+        match parse_csv_page_with_progress(
+            &content,
+            delimiter,
+            page_info.start_row,
+            page_info.end_row,
+            &progress,
+        ) {
             Ok(result) => {
                 println!("✅ [Backend] 解析完成: {} 列, {} 行", 
                          result.headers.len(), result.rows.len());
+                let _ = app_handle2.emit(
+                    "datascope:progress",
+                    DatascopeProgress {
+                        current: result.rows.len() as u64,
+                        total,
+                        message: "加载完成".to_string(),
+                    },
+                );
                 Ok(result)
             }
             Err(e) => {

@@ -9,7 +9,7 @@ import {
   Show,
 } from "solid-js";
 import ChartRender from "./ChartRender";
-import styles from "./CSVViewer.module.css";
+import styles from "./Datascope.module.css";
 import {
   detectDelimiter,
   parseCSV,
@@ -48,7 +48,7 @@ export const MIN_POINTS = 200;
 export const MAX_POINTS = 20000;
 export const ROW_INDEX_KEY = "__auto_sequence__";
 
-const CSVV: Component = () => {
+const Datascope: Component = () => {
   const [headers, setHeaders] = createSignal<string[]>([]);
   const [rows, setRows] = createSignal<CSVRecord[]>([]);
   const [xColumn, setXColumn] = createSignal<string>("");
@@ -64,7 +64,7 @@ const CSVV: Component = () => {
   const [skippedRows, setSkippedRows] = createSignal<number>(0);
   const [dragOver, setDragOver] = createSignal<boolean>(false);
   const csvExists = createMemo(() => rows().length > 0);
-  const [isSmooth, setIsSmooth] = createSignal<boolean>(false); // 默认 false
+  const [isSmooth] = createSignal<boolean>(false); // 默认 false
   const [enableXRange, setEnableXRange] = createSignal<boolean>(true);
   const [xRange, setXRange] = createSignal<[number, number] | null>([0, 50000]); //默认50000，否则会很卡
 
@@ -836,4 +836,4 @@ const UploadSection: Component<{
   </section>
 );
 
-export default CSVV;
+export default Datascope;

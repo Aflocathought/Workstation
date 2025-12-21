@@ -140,10 +140,10 @@ pnpm tauri dev
 如果新版本有问题，可以切换回旧版本：
 
 ```typescript
-// 在 src/Tools/CSVViewer/index.ts
-export const csvViewerToolConfig: ToolConfig = {
-  component: () => import("./CSVV"), // 使用旧版本
-  // component: () => import("./CSVVBackend"), // 后端版本
+// 在 src/Tools/Datascope/index.ts
+export const datascopeToolConfig: ToolConfig = {
+  component: () => import("./Datascope"), // 使用前端版本
+  // component: () => import("./DatascopeBackend"), // 后端版本
 }
 ```
 
