@@ -29,14 +29,22 @@ use shortcut::{ForegroundWindowInfo, ModifierState, ShortcutService};
 
 // WASAPI 相关已迁入 spectrum 模块
 
+#[path = "core/app_paths.rs"]
 mod app_paths;
+#[path = "core/db.rs"]
 mod db;
 mod pdf_library;
+#[path = "services/python.rs"]
 mod python;
+#[path = "services/shortcut.rs"]
 mod shortcut;
+#[path = "features/spectrum.rs"]
 mod spectrum;
+#[path = "features/tracker.rs"]
 mod tracker;
+#[path = "handlers/csv_handler.rs"]
 mod csv_handler;
+#[path = "handlers/parquet_handler.rs"]
 mod parquet_handler;
 
 // 全局快捷键服务实例

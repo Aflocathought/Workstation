@@ -30,8 +30,8 @@ import {
   type StreamParseResult,
 } from "./csvPagination";
 import ThumbnailGrid, { type ThumbnailData } from "./ThumbnailGrid";
-import ProgressBar from "./ProgressBar";
 import type { CSVRecord, AxisType } from "./types";
+import { showProgressNotification, type ProgressNotificationHandle } from "../../services/NotificationService";
 
 export interface ChartComputationResult {
   series: ChartSeries[];
@@ -73,12 +73,7 @@ const Datascope: Component = () => {
     null
   );
   const [thumbnails, setThumbnails] = createSignal<ThumbnailData[]>([]);
-  const [loadingProgress, setLoadingProgress] = createSignal({
-    current: 0,
-    total: 0,
-  });
-  const [progressMessage, setProgressMessage] = createSignal("");
-  const [isPageLoading, setIsPageLoading] = createSignal(false);
+  let pageLoadNotification: ProgressNotificationHandle | null = null;
 
   // 缓存：预加载当前页和下一页
   const [cachedPages, setCachedPages] = createSignal<Map<number, CSVRecord[]>>(
@@ -307,9 +302,13 @@ const Datascope: Component = () => {
       return;
     }
 
-    setIsPageLoading(true);
-    setProgressMessage(`正在加载第 ${pageIndex + 1} 页...`);
-    setLoadingProgress({ current: 0, total: pageInfo.rowCount });
+    pageLoadNotification?.close();
+    pageLoadNotification = showProgressNotification({
+      title: `加载第 ${pageIndex + 1} 页`,
+      message: `正在加载...`,
+      current: 0,
+      total: pageInfo.rowCount,
+    });
 
     try {
       const parsed = await new Promise<StreamParseResult>((resolve) => {
@@ -320,7 +319,11 @@ const Datascope: Component = () => {
             startRow: pageInfo.startRow,
             endRow: pageInfo.endRow,
             onProgress: (current, total) => {
-              setLoadingProgress({ current, total });
+              pageLoadNotification?.updateProgress(
+                current,
+                total,
+                `正在加载第 ${pageIndex + 1} 页...`
+              );
             },
           });
           resolve(result);
@@ -350,12 +353,17 @@ const Datascope: Component = () => {
       if (pageIndex + 1 < pg.totalPages && !cache.has(pageIndex + 1)) {
         preloadPage(pageIndex + 1, csvContent, csvDelimiter);
       }
+      pageLoadNotification?.done("加载完成");
     } catch (err) {
       setErrorMessage(
         `加载第 ${pageIndex + 1} 页失败: ${(err as Error).message}`
       );
+      pageLoadNotification?.fail(
+        `加载第 ${pageIndex + 1} 页失败`,
+        (err as Error).message
+      );
     } finally {
-      setIsPageLoading(false);
+      pageLoadNotification = null;
     }
   };
 
@@ -773,14 +781,6 @@ const Datascope: Component = () => {
               pageInfo={pagination()?.pages || []}
             />
           </Show>
-
-          {/* 进度条 */}
-          <ProgressBar
-            current={loadingProgress().current}
-            total={loadingProgress().total}
-            message={progressMessage()}
-            visible={isPageLoading()}
-          />
 
           <Show when={dragOver()}>
             <div class={styles.dragOverlay}>

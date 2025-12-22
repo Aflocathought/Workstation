@@ -28,8 +28,8 @@ import {
 } from "./csvBackend";
 import { ParquetBackendService } from "./parquetBackend";
 import ThumbnailGrid, { type ThumbnailData } from "./ThumbnailGrid";
-import ProgressBar from "./ProgressBar";
 import type { CSVRecord, AxisType } from "./types";
+import { showProgressNotification, type ProgressNotificationHandle } from "../../services/NotificationService";
 
 export interface ChartComputationResult {
   series: ChartSeries[];
@@ -70,9 +70,8 @@ const Datascope: Component = () => {
   // 分页相关状态
   const [pagination, setPagination] = createSignal<BackendPaginationState | null>(null);
   const [thumbnails, setThumbnails] = createSignal<ThumbnailData[]>([]);
-  const [loadingProgress, setLoadingProgress] = createSignal({ current: 0, total: 0 });
-  const [progressMessage, setProgressMessage] = createSignal("");
   const [isPageLoading, setIsPageLoading] = createSignal(false);
+  let pageLoadNotification: ProgressNotificationHandle | null = null;
   const [currentFilePath, setCurrentFilePath] = createSignal<string>("");
   const [dragOver, setDragOver] = createSignal<boolean>(false);
   const [dataFormat, setDataFormat] = createSignal<DataFormat>("csv");
@@ -139,10 +138,7 @@ const Datascope: Component = () => {
         const message = typeof payload.message === "string" ? payload.message : "";
 
         if (Number.isFinite(current) && Number.isFinite(total) && total >= 0 && current >= 0) {
-          setLoadingProgress({ current, total });
-        }
-        if (message) {
-          setProgressMessage(message);
+          pageLoadNotification?.updateProgress(current, total, message);
         }
       });
     } catch (err) {
@@ -300,20 +296,30 @@ const Datascope: Component = () => {
     // 小文件模式：用最近一次加载的页信息刷新当前页
     const total = info.row_count ?? rows().length;
     setIsPageLoading(true);
-    setProgressMessage("正在更新列...");
-    setLoadingProgress({ current: 0, total });
+    pageLoadNotification?.close();
+    pageLoadNotification = showProgressNotification({
+      title: "正在更新列",
+      message: "处理中...",
+      current: 0,
+      total,
+    });
     void ParquetBackendService.loadPage(0, info as any, selectedParquetColumns())
       .then((parsed) => {
         batch(() => {
           setRows(parsed.rows);
           setSkippedRows(parsed.skipped_rows);
-          setLoadingProgress({ current: total, total });
+          pageLoadNotification?.updateProgress(total, total, "完成");
         });
       })
       .catch((err) => {
         console.warn("Parquet 重新加载列失败:", err);
+        pageLoadNotification?.fail("更新列失败", (err as Error).message);
       })
-      .finally(() => setIsPageLoading(false));
+      .finally(() => {
+        setIsPageLoading(false);
+        pageLoadNotification?.done("完成");
+        pageLoadNotification = null;
+      });
   });
 
   // 进度条改为后端真实进度上报（datascope:progress 事件）
@@ -488,8 +494,14 @@ const Datascope: Component = () => {
   // 处理小文件
   const handleSmallFile = async (totalRows: number) => {
     console.log("📦 处理小文件, 总行数:", totalRows);
-    setProgressMessage("加载数据中...");
     setIsPageLoading(true);
+    pageLoadNotification?.close();
+    pageLoadNotification = showProgressNotification({
+      title: "加载数据",
+      message: "加载中...",
+      current: 0,
+      total: 0,
+    });
 
     try {
       console.log("📡 获取分页信息...");
@@ -500,7 +512,7 @@ const Datascope: Component = () => {
       setLastLoadedPageInfo(pageInfo);
       console.log("📡 加载第一页数据...", pageInfo);
 
-      setLoadingProgress({ current: 0, total: pageInfo.row_count });
+      pageLoadNotification?.updateProgress(0, pageInfo.row_count, "加载中...");
 
       const parsed = isParquet()
         ? await ParquetBackendService.loadPage(
@@ -523,7 +535,7 @@ const Datascope: Component = () => {
         }
         setRows(parsed.rows);
         setSkippedRows(parsed.skipped_rows);
-        setLoadingProgress({ current: pageInfo.row_count, total: pageInfo.row_count });
+        pageLoadNotification?.updateProgress(pageInfo.row_count, pageInfo.row_count, "完成");
         if (!isParquet()) {
           setValueColumns([]);
           setXColumn(ROW_INDEX_KEY);
@@ -543,9 +555,12 @@ const Datascope: Component = () => {
       console.log("✅ 小文件处理完成");
     } catch (err) {
       console.error("❌ 小文件处理失败:", err);
+      pageLoadNotification?.fail("加载失败", (err as Error).message);
       throw new Error(`加载数据失败: ${(err as Error).message}`);
     } finally {
       setIsPageLoading(false);
+      pageLoadNotification?.done("加载完成");
+      pageLoadNotification = null;
     }
   };
 
@@ -587,8 +602,13 @@ const Datascope: Component = () => {
     setLastLoadedPageInfo(pageInfo);
 
     setIsPageLoading(true);
-    setProgressMessage(`正在加载第 ${pageIndex + 1} 页...`);
-    setLoadingProgress({ current: 0, total: pageInfo.row_count });
+    pageLoadNotification?.close();
+    pageLoadNotification = showProgressNotification({
+      title: `加载第 ${pageIndex + 1} 页`,
+      message: "正在加载...",
+      current: 0,
+      total: pageInfo.row_count,
+    });
 
     try {
       const parsed = isParquet()
@@ -617,7 +637,7 @@ const Datascope: Component = () => {
         setStatus(
           `第 ${pageIndex + 1}/${pg.total_pages} 页 · ${pageInfo.start_row.toLocaleString()} - ${pageInfo.end_row.toLocaleString()} 行`
         );
-        setLoadingProgress({ current: pageInfo.row_count, total: pageInfo.row_count });
+        pageLoadNotification?.updateProgress(pageInfo.row_count, pageInfo.row_count, "完成");
       });
 
       // 预加载下一页
@@ -631,8 +651,11 @@ const Datascope: Component = () => {
       }
     } catch (err) {
       setErrorMessage(`加载第 ${pageIndex + 1} 页失败: ${(err as Error).message}`);
+      pageLoadNotification?.fail(`加载第 ${pageIndex + 1} 页失败`, (err as Error).message);
     } finally {
       setIsPageLoading(false);
+      pageLoadNotification?.done("加载完成");
+      pageLoadNotification = null;
     }
   };
 
@@ -1001,13 +1024,7 @@ const Datascope: Component = () => {
             />
           </Show>
 
-          {/* 进度条 */}
-          <ProgressBar
-            current={loadingProgress().current}
-            total={loadingProgress().total}
-            message={progressMessage()}
-            visible={isPageLoading()}
-          />
+          {/* 加载/进度使用 Notification 统一展示 */}
         </div>
       </Show>
     </div>

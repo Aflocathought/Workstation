@@ -1,17 +1,21 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 
 // 声明全局路径模块
+#[path = "core/app_paths.rs"]
 pub mod app_paths;
 
 // 引入 Python 服务模块
+#[path = "services/python.rs"]
 mod python;
 use python::{PythonService, PythonResult, ScriptInfo, PythonInfo};
 
 // 引入快捷键服务模块
+#[path = "services/shortcut.rs"]
 mod shortcut;
 use shortcut::{ShortcutService, ModifierState, ForegroundWindowInfo};
 
 // 引入 CSV 处理模块
+#[path = "handlers/csv_handler.rs"]
 mod csv_handler;
 use csv_handler::{
     CsvCacheManager,
@@ -24,6 +28,7 @@ use csv_handler::{
 };
 
 // 引入 Parquet 处理模块
+#[path = "handlers/parquet_handler.rs"]
 mod parquet_handler;
 use parquet_handler::{
     ParquetCacheManager,
