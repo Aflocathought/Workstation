@@ -21,17 +21,19 @@
 .grid {
   display: flex;
   flex-direction: row;
+  overflow-x: auto;
   gap: 12px;
   padding: 8px 4px 12px 4px;
   width: 100%;
-  overflow-x: auto;
-  overflow-y: hidden;
+  /* 优化滚动条体验 */
+  scrollbar-width: thin;
+  scrollbar-color: var(--vscode-scrollbarSlider-background) transparent;
 }
 
 .thumbnail {
-  flex-shrink: 0;
-  width: 150px;
-  height: 150px;
+  flex: 0 0 auto;
+  width: 120px;
+  height: 120px;
   position: relative;
   aspect-ratio: 1;
   background: var(--vscode-input-background);

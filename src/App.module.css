@@ -21,7 +21,6 @@
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
-  padding: 1.5rem;
   text-align: center;
   background-color: var(--bg-tertiary);
 }

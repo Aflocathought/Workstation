@@ -65,8 +65,6 @@ const Datascope: Component = () => {
   const [dragOver, setDragOver] = createSignal<boolean>(false);
   const csvExists = createMemo(() => rows().length > 0);
   const [isSmooth] = createSignal<boolean>(false); // 默认 false
-  const [enableXRange, setEnableXRange] = createSignal<boolean>(true);
-  const [xRange, setXRange] = createSignal<[number, number] | null>([0, 50000]); //默认50000，否则会很卡
 
   // 分页相关状态
   const [pagination, setPagination] = createSignal<PaginationState | null>(
@@ -510,26 +508,6 @@ const Datascope: Component = () => {
     });
   };
 
-  const handleRangeInput = (val: string) => {
-    const input = val.trim();
-
-    // 空值恢复默认
-    if (input === "") {
-      setXRange([0, 50000]);
-      return;
-    }
-
-    const parts = input.split(/[,，]/); // 支持中英文逗号
-    if (parts.length !== 2) return; // 格式不对不更新
-
-    const min = parseFloat(parts[0]);
-    const max = parseFloat(parts[1]);
-
-    if (!isNaN(min) && !isNaN(max) && min < max) {
-      setXRange([min, max]);
-    }
-  };
-
   const renderStats = () => {
     const data = chartData();
     if (!data) return null;
@@ -584,8 +562,6 @@ const Datascope: Component = () => {
           series={data.series}
           downsampled={data.downsampled}
           isSmooth={isSmooth()}
-          xRange={xRange()}
-          enableXRange={enableXRange()}
           isIndexAxis={xColumn() === ROW_INDEX_KEY}
         />
       </div>
@@ -669,35 +645,6 @@ const Datascope: Component = () => {
                     </For>
                   </div>
                 </Show>
-              </div>
-
-              <div class={styles.xrange}>
-                <div class={styles.rangeModify}>
-                  <div class={styles.rangeHeader}>
-                    <input
-                      type="checkbox"
-                      checked={enableXRange()}
-                      onChange={() => setEnableXRange(!enableXRange())}
-                    />
-                    <div>预选择X轴的范围</div>
-                  </div>
-                  <div class={styles.rangeInputFont}>[</div>
-                  <input
-                    class={styles.rangeInput}
-                    disabled={!enableXRange()}
-                    type="text"
-                    value={xRange()?.join(",") || ""}
-                    placeholder="请输入 number,number 的格式（不填默认为0,50000）"
-                    onChange={(e) => handleRangeInput(e.currentTarget.value)}
-                  />
-                  <div class={styles.rangeInputFont}>]</div>
-                  <button
-                    class={styles.button}
-                    onClick={() => setXRange([0, 50000])}
-                  >
-                    重置
-                  </button>
-                </div>
               </div>
             </div>
 

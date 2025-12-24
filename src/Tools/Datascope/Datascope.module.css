@@ -61,6 +61,91 @@
   color: var(--vscode-descriptionForeground);
 }
 
+.recentFiles {
+  margin-top: 8px;
+  border-top: 1px solid var(--vscode-editorWidget-border);
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.recentHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.recentTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--vscode-foreground);
+}
+
+.recentList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.recentItem {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.recentOpenButton {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 1px solid var(--vscode-editorWidget-border);
+  background: var(--vscode-editor-background);
+  color: var(--vscode-foreground);
+  border-radius: 6px;
+  padding: 8px 10px;
+  cursor: pointer;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.recentOpenButton:hover {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.recentName {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--vscode-foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.recentPath {
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.recentJumpButton {
+  flex: 0 0 auto;
+  border: 1px solid var(--vscode-editorWidget-border);
+  background: var(--vscode-sideBar-background);
+  color: var(--vscode-foreground);
+  border-radius: 6px;
+  padding: 0 10px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.recentJumpButton:hover {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
 .controls {
   display: grid;
   grid-template-columns: 1fr;
@@ -76,7 +161,6 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  /* max-width: 500px; */
 }
 
 .section select,
@@ -178,22 +262,23 @@
   background: var(--vscode-editorWidget-background);
   border: 1px solid var(--vscode-editorWidget-border);
   border-radius: 8px;
-  height: 800px; /* 至少展示 800px 高度的图表区域 */
+  height: 60vh; /* 使用视口高度比例，更灵活 */
+  min-height: 400px;
 
   /* 布局核心 */
   position: relative;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  z-index: 1; /* 确保层级明确 */
 }
 
-/* 8. 图表容器：绝对定位填满外框 */
+/* 8. 图表容器：改为相对定位，防止遮挡外部元素 */
 .chartContainer {
-  position: absolute; /* 脱离文档流，完全依赖父容器尺寸 */
-  top: 0;
-  left: 0;
+  position: relative;
   width: 100%;
   height: 100%;
+  min-height: 400px;
 }
 
 .xHeader {
@@ -241,38 +326,128 @@
   overflow-y: auto;
 }
 
-.rangeModify {
+.mainSplit {
+  position: relative;
   display: flex;
   flex-direction: row;
-  align-items: center;
   gap: 8px;
-  /* height: 50px; */
+  align-items: stretch;
+  min-height: 0;
 }
 
-.rangeInputFont {
-  font-size: 20px;
-  color: var(--vscode-foreground);
+.chartPanel {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.rangeInput {
-  flex: 1;
-  padding: 8px;
-  border: 1px solid var(--vscode-input-border);
-  border-radius: 4px;
-  background: var(--vscode-input-background);
-  color: var(--vscode-input-foreground);
-  font-size: 14px;
-  max-width: 100px;
+.settingsPanel {
+  flex: 0 0 360px;
+  width: 360px;
+  max-width: 420px;
+  min-width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.rangeHeader {
+.settingsPanelClosed {
+  display: none;
+}
+
+.panelHeader {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  /* margin: 0 0 8px 0; */
+}
+
+.panelHeaderButton {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--vscode-icon-foreground);
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.panelHeaderButton:hover {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.fileMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--vscode-editorWidget-border);
+  background: var(--vscode-editor-background);
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.fileMetaRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.fileMetaRow strong {
   color: var(--vscode-foreground);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fileMetaPath {
+  color: var(--vscode-descriptionForeground);
+  opacity: 0.9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fileMetaActionButton {
+  border: 1px solid var(--vscode-button-border, var(--vscode-editorWidget-border));
+  background: var(--vscode-button-secondaryBackground, var(--vscode-button-background));
+  color: var(--vscode-button-secondaryForeground, var(--vscode-button-foreground));
+  border-radius: 4px;
+  padding: 2px 10px;
+  height: 24px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.fileMetaActionButton:hover {
+  background: var(--vscode-button-secondaryHoverBackground, var(--vscode-button-hoverBackground));
+}
+
+.settingsFloatingToggle {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 5;
+  border: 1px solid var(--vscode-sideBar-border);
+  background: var(--vscode-sideBar-background);
+  color: var(--vscode-foreground);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+}
+
+.settingsFloatingToggle:hover {
+  background: var(--vscode-toolbar-hoverBackground);
 }
 
 @keyframes popIn {
@@ -293,6 +468,19 @@
     align-items: stretch;
   }
 }
+
+@media (max-width: 1100px) {
+  .mainSplit {
+    flex-direction: column;
+  }
+
+  .settingsPanel {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    flex: 0 0 auto;
+  }
+}
 @media (max-width: 1500px) {
   .dropZone {
     padding: 12px;
@@ -304,7 +492,3 @@
     justify-content: center; 
   }
 } */
-.xrange{
-  display: flex;
-  flex-direction: column;
-}

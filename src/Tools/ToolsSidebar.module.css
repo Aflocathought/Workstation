@@ -1,6 +1,10 @@
 /* src/Tools/ToolsSidebar.module.css */
 
 .sidebar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
   width: 250px;
   height: 100%;
   background: var(--vscode-sideBar-background);
@@ -9,6 +13,8 @@
   flex-direction: column;
   overflow: hidden;
   transition: width 0.2s ease-in-out;
+  z-index: 20;
+  box-shadow: var(--shadow-sm);
 }
 
 .sidebar.collapsed {

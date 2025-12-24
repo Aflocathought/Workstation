@@ -12,6 +12,27 @@ import styles from './ToolsPage.module.css';
 const ToolsPage: Component = () => {
   // 当前激活的工具 ID
   const [activeTool, setActiveTool] = createSignal<string | null>(toolStateManager.getActiveTool());
+
+  const [isSidebarOpen, setIsSidebarOpen] = createSignal<boolean>(window.innerWidth >= 1000);
+
+  const [isSidebarHintVisible, setIsSidebarHintVisible] = createSignal<boolean>(true);
+  let hintHideTimer: number | null = null;
+
+  const scheduleHideHint = () => {
+    if (hintHideTimer !== null) {
+      window.clearTimeout(hintHideTimer);
+    }
+    hintHideTimer = window.setTimeout(() => {
+      setIsSidebarHintVisible(false);
+      hintHideTimer = null;
+    }, 1200);
+  };
+
+  const showHintTemporarily = () => {
+    if (isSidebarOpen()) return;
+    setIsSidebarHintVisible(true);
+    scheduleHideHint();
+  };
   
   // 当前工具的状态引用 (用于保存)
   let currentToolStateRef: any = null;
@@ -73,6 +94,11 @@ const ToolsPage: Component = () => {
   // 组件卸载时保存状态
   onCleanup(() => {
     saveCurrentToolState();
+
+    if (hintHideTimer !== null) {
+      window.clearTimeout(hintHideTimer);
+      hintHideTimer = null;
+    }
   });
 
   onMount(() => {
@@ -89,14 +115,34 @@ const ToolsPage: Component = () => {
   });
 
   return (
-    <div class={styles.toolsPage}>
-      {/* 左侧:可折叠的分类侧边栏 */}
-      <ToolsSidebar
-        tools={allToolConfigs}
-        activeTool={activeTool()}
-        onSelectTool={handleSelectTool}
-        onCloseTool={handleCloseTool}
-      />
+    <div class={styles.toolsPage} onMouseMove={showHintTemporarily}>
+      <Show when={!isSidebarOpen() && isSidebarHintVisible()}>
+        <button
+          class={styles.sidebarHint}
+          onClick={() => {
+            setIsSidebarOpen(true);
+            setIsSidebarHintVisible(false);
+          }}
+          title="打开工具箱"
+        >
+          &gt;
+        </button>
+      </Show>
+
+      <Show when={isSidebarOpen()}>
+        {/* 左侧:可折叠的分类侧边栏 */}
+        <ToolsSidebar
+          tools={allToolConfigs}
+          activeTool={activeTool()}
+          onSelectTool={handleSelectTool}
+          onCloseTool={handleCloseTool}
+          onRequestHide={() => {
+            setIsSidebarOpen(false);
+            setIsSidebarHintVisible(true);
+            scheduleHideHint();
+          }}
+        />
+      </Show>
 
       {/* 右侧:工具内容容器 */}
       <div class={styles.contentContainer}>

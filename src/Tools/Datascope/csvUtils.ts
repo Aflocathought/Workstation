@@ -366,11 +366,8 @@ export function buildChartData(params: {
   xColumn: string;
   yColumns: string[];
   axisType: AxisType;
-  autoDownsample: boolean;
-  maxPoints: number;
 }): ChartComputationResult {
-  const { rows, xColumn, yColumns, axisType, autoDownsample, maxPoints } =
-    params;
+  const { rows, xColumn, yColumns, axisType } = params;
   const baseColumn = yColumns[0];
   const processed: Array<{
     axisValue: number | string;
@@ -430,22 +427,7 @@ export function buildChartData(params: {
     };
   }
 
-  let indices = processed.map((_, idx) => idx);
-  let downsampled = false;
-  const threshold = Math.min(maxPoints, processed.length);
-
-  if (autoDownsample && processed.length > threshold && threshold > 2) {
-    if (axisType === "category") {
-      indices = evenlySampleIndices(processed.length, threshold);
-    } else {
-      const baseSeries = processed.map((item) => ({
-        x: item.axisNumeric ?? 0,
-        y: item.values[baseColumn] ?? 0,
-      }));
-      indices = largestTriangleThreeBucketsIndices(baseSeries, threshold);
-    }
-    downsampled = indices.length < processed.length;
-  }
+  const indices = processed.map((_, idx) => idx);
 
   const series: ChartSeries[] = yColumns.map((col) => ({
     name: col,
@@ -460,7 +442,7 @@ export function buildChartData(params: {
     axisType,
     rawCount: processed.length,
     sampledCount: indices.length,
-    downsampled,
+    downsampled: false,
     droppedRows,
   };
 }

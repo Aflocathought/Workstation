@@ -12,6 +12,7 @@ import {
 } from "solid-js";
 import { open } from "@tauri-apps/plugin-dialog";
 import { listen } from "@tauri-apps/api/event";
+import { invoke } from "@tauri-apps/api/core";
 import ChartRender from "./ChartRender";
 import styles from "./Datascope.module.css";
 import {
@@ -19,7 +20,6 @@ import {
   buildColumnMeta,
   buildChartData,
   ChartSeries,
-  clampPoints,
   axisTypeLabel,
 } from "./csvUtils";
 import {
@@ -47,6 +47,15 @@ export const MAX_POINTS = 20000;
 export const ROW_INDEX_KEY = "__auto_sequence__";
 const ROWS_PER_PAGE = 200000;
 
+type RecentFileEntry = {
+  path: string;
+  name: string;
+  lastOpenedAt: number;
+};
+
+const RECENT_FILES_KEY = "datascope.recentFiles.v1";
+const MAX_RECENT_FILES = 10;
+
 type DataFormat = "csv" | "parquet";
 
 const Datascope: Component = () => {
@@ -55,17 +64,16 @@ const Datascope: Component = () => {
   const [xColumn, setXColumn] = createSignal<string>("");
   const [valueColumns, setValueColumns] = createSignal<string[]>([]);
   const [fileName, setFileName] = createSignal<string>("");
+  const [totalRowCount, setTotalRowCount] = createSignal<number>(0);
   const [status, setStatus] = createSignal<string>("");
   const [errorMessage, setErrorMessage] = createSignal<string>("");
   const [isLoading, setIsLoading] = createSignal<boolean>(false);
-  const [maxPoints, setMaxPoints] = createSignal<number>(DEFAULT_MAX_POINTS);
-  const [autoDownsample, setAutoDownsample] = createSignal<boolean>(false);
   const [delimiter, setDelimiter] = createSignal<string>(",");
   const [skippedRows, setSkippedRows] = createSignal<number>(0);
   const csvExists = createMemo(() => rows().length > 0);
   const [isSmooth] = createSignal<boolean>(false);
-  const [enableXRange, setEnableXRange] = createSignal<boolean>(true);
-  const [xRange, setXRange] = createSignal<[number, number] | null>([0, 50000]);
+
+  const [isSettingsOpen, setIsSettingsOpen] = createSignal<boolean>(true);
 
   // 分页相关状态
   const [pagination, setPagination] = createSignal<BackendPaginationState | null>(null);
@@ -97,8 +105,97 @@ const Datascope: Component = () => {
   let unlistenFileDrop: (() => void) | undefined;
   let unlistenDatascopeProgress: (() => void) | undefined;
 
+  const [recentFiles, setRecentFiles] = createSignal<RecentFileEntry[]>([]);
+
+  const getBasename = (path: string) => path.split(/[/\\]/).pop() || path;
+
+  const loadRecentFiles = (): RecentFileEntry[] => {
+    try {
+      const raw = localStorage.getItem(RECENT_FILES_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw) as unknown;
+      if (!Array.isArray(parsed)) return [];
+      return parsed
+        .filter((x): x is RecentFileEntry =>
+          Boolean(x) &&
+          typeof (x as any).path === "string" &&
+          typeof (x as any).name === "string" &&
+          typeof (x as any).lastOpenedAt === "number"
+        )
+        .slice(0, MAX_RECENT_FILES);
+    } catch {
+      return [];
+    }
+  };
+
+  const persistRecentFiles = (list: RecentFileEntry[]) => {
+    try {
+      localStorage.setItem(RECENT_FILES_KEY, JSON.stringify(list));
+    } catch {
+      // ignore
+    }
+  };
+
+  const addRecentFile = (path: string) => {
+    const now = Date.now();
+    const entry: RecentFileEntry = {
+      path,
+      name: getBasename(path),
+      lastOpenedAt: now,
+    };
+
+    setRecentFiles((prev) => {
+      const next = [entry, ...prev.filter((x) => x.path !== path)].slice(
+        0,
+        MAX_RECENT_FILES
+      );
+      persistRecentFiles(next);
+      return next;
+    });
+  };
+
+  const handleRevealInExplorer = async (filepath: string) => {
+    try {
+      await invoke("pdflibrary_show_in_folder", { filepath });
+    } catch (err) {
+      setErrorMessage(`跳转失败: ${(err as Error).message}`);
+    }
+  };
+
+  const closeCurrentFile = () => {
+    setIsLoading(false);
+    setIsPageLoading(false);
+    pageLoadNotification?.close();
+
+    batch(() => {
+      setRows([]);
+      setHeaders([]);
+      setFileName("");
+      setCurrentFilePath("");
+      setTotalRowCount(0);
+      setStatus("");
+      setErrorMessage("");
+      setPagination(null);
+      setThumbnails([]);
+      setLastLoadedPageInfo(null);
+      setValueColumns([]);
+      setXColumn("");
+      setSkippedRows(0);
+      setDelimiter(",");
+      setDataFormat("csv");
+      setParquetSchema([]);
+      setParquetInferredNumericColumns([]);
+    });
+
+    void Promise.allSettled([
+      CsvBackendService.clearCache(),
+      ParquetBackendService.clearCache(),
+    ]);
+  };
+
   // 监听 Tauri v2 的拖拽事件 tauri://drag-drop，直接获取本地路径
   onMount(async () => {
+    setRecentFiles(loadRecentFiles());
     try {
       unlistenFileDrop = await listen<any>("tauri://drag-drop", async (event) => {
         console.log("[tauri://drag-drop] raw payload:", event.payload);
@@ -351,8 +448,6 @@ const Datascope: Component = () => {
       xColumn: xCol,
       yColumns: selected,
       axisType: axisType(),
-      autoDownsample: autoDownsample(),
-      maxPoints: clampPoints(maxPoints()),
     });
   });
 
@@ -383,6 +478,7 @@ const Datascope: Component = () => {
     setErrorMessage("");
     setStatus("正在加载文件...");
     setCurrentFilePath(filePath);
+    setTotalRowCount(0);
 
     // 简单按扩展名判定格式
     const ext = (filePath.split(".").pop() || "").toLowerCase();
@@ -459,7 +555,9 @@ const Datascope: Component = () => {
 
       console.log("✅ 后端返回:", { path: displayPath, totalRows, format: nextFormat });
 
+      setCurrentFilePath(displayPath);
       setFileName(displayPath.split(/[/\\]/).pop() || displayPath);
+      setTotalRowCount(totalRows);
 
       // 判断是否需要分页
       if (totalRows > ROWS_PER_PAGE) {
@@ -469,6 +567,8 @@ const Datascope: Component = () => {
         console.log(`📄 小文件模式: ${totalRows} 行, 直接加载`);
         await handleSmallFile(totalRows);
       }
+
+      addRecentFile(displayPath);
       
       console.log("✅ 文件加载完成");
     } catch (err) {
@@ -481,6 +581,7 @@ const Datascope: Component = () => {
       setRows([]);
       setHeaders([]);
       setFileName("");
+      setTotalRowCount(0);
       setPagination(null);
       setThumbnails([]);
       setParquetInferredNumericColumns([]);
@@ -738,25 +839,6 @@ const Datascope: Component = () => {
     });
   };
 
-  const handleRangeInput = (val: string) => {
-    const input = val.trim();
-
-    if (input === "") {
-      setXRange([0, 50000]);
-      return;
-    }
-
-    const parts = input.split(/[,，]/);
-    if (parts.length !== 2) return;
-
-    const min = parseFloat(parts[0]);
-    const max = parseFloat(parts[1]);
-
-    if (!isNaN(min) && !isNaN(max) && min < max) {
-      setXRange([min, max]);
-    }
-  };
-
   const renderStats = () => {
     const data = chartData();
     if (!data) return null;
@@ -811,8 +893,6 @@ const Datascope: Component = () => {
           series={data.series}
           downsampled={data.downsampled}
           isSmooth={isSmooth()}
-          xRange={xRange()}
-          enableXRange={enableXRange()}
           isIndexAxis={xColumn() === ROW_INDEX_KEY}
         />
       </div>
@@ -859,154 +939,182 @@ const Datascope: Component = () => {
                 {skippedRows() > 0 && ` · 忽略空行 ${skippedRows()}`}
               </div>
             </Show>
+
+            <Show when={recentFiles().length > 0}>
+              <div class={styles.recentFiles}>
+                <div class={styles.recentHeader}>
+                  <h4 class={styles.recentTitle}>最近打开</h4>
+                </div>
+                <div class={styles.recentList}>
+                  <For each={recentFiles()}>
+                    {(item) => (
+                      <div class={styles.recentItem}>
+                        <button
+                          class={styles.recentOpenButton}
+                          onClick={() => handleFileSelection(item.path)}
+                          title={item.path}
+                        >
+                          <span class={styles.recentName}>{item.name}</span>
+                          <span class={styles.recentPath}>{item.path}</span>
+                        </button>
+                        <button
+                          class={styles.recentJumpButton}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void handleRevealInExplorer(item.path);
+                          }}
+                          title="在资源管理器中定位"
+                        >
+                          跳转
+                        </button>
+                      </div>
+                    )}
+                  </For>
+                </div>
+              </div>
+            </Show>
           </div>
         }
       >
         <div class={styles.dashboardContent}>
-          <section class={styles.controls}>
-            <div class={styles.section}>
-              <h3 class={styles.sectionTitle}>列选择</h3>
+          <div class={styles.mainSplit}>
+            <Show when={!isSettingsOpen()}>
+              <button
+                class={styles.settingsFloatingToggle}
+                onClick={() => setIsSettingsOpen(true)}
+                title="展开设置"
+              >
+                设置
+              </button>
+            </Show>
 
-              <label class={styles.inlineControls}>
-                <div class={styles.xHeader}>
-                  <span>X 轴</span>
-                  <span>(类型: {axisTypeLabel(axisType())})</span>
-                </div>
-                <select
-                  value={xColumn()}
-                  onChange={(event) =>
-                    setXColumn((event.currentTarget as HTMLSelectElement).value)
-                  }
-                >
-                  <option value={ROW_INDEX_KEY}>1...N</option>
-                  <For each={headers()}>
-                    {(header) => <option value={header}>{header}</option>}
-                  </For>
-                </select>
-              </label>
+            <section class={styles.chartPanel}>
+              <Show when={status()}>
+                <div class={styles.message}>{status()}</div>
+              </Show>
 
-              <div>
-                <div>数值列</div>
-                <Show
-                  when={numericColumns().length > 0}
-                  fallback={<div>未检测到数值列</div>}
-                >
-                  <div class={styles.checkboxGrid}>
-                    <For each={numericColumns()}>
-                      {(col) => (
-                        <label class={styles.checkboxItem}>
-                          <input
-                            type="checkbox"
-                            checked={valueColumns().includes(col)}
-                            onChange={() => handleValueColumnToggle(col)}
-                          />
-                          {col}
-                        </label>
-                      )}
-                    </For>
-                  </div>
-                </Show>
-              </div>
+              <Show when={errorMessage()}>
+                <div class={styles.error}>{errorMessage()}</div>
+              </Show>
 
-              <div>
-                <div class={styles.rangeHeader}>
-                  <input
-                    type="checkbox"
-                    checked={enableXRange()}
-                    onChange={() => setEnableXRange(!enableXRange())}
-                  />
-                  <div>预选择X轴的范围</div>
-                </div>
-                <div class={styles.rangeModify}>
-                  <div class={styles.rangeInputFont}>[</div>
-                  <input
-                    class={styles.rangeInput}
-                    disabled={!enableXRange()}
-                    type="text"
-                    value={xRange()?.join(",") || ""}
-                    placeholder="请输入 number,number 的格式（不填默认为0,50000）"
-                    onChange={(e) => handleRangeInput(e.currentTarget.value)}
-                  />
-                  <div class={styles.rangeInputFont}>]</div>
+              {renderStats()}
+              {renderChart()}
+            </section>
+
+            <aside
+              class={styles.settingsPanel}
+              classList={{ [styles.settingsPanelClosed]: !isSettingsOpen() }}
+            >
+              <div class={styles.section}>
+                <div class={styles.panelHeader}>
+                  <h3 class={styles.sectionTitle}>设置</h3>
                   <button
-                    class={styles.button}
-                    onClick={() => setXRange([0, 50000])}
+                    class={styles.panelHeaderButton}
+                    onClick={() => setIsSettingsOpen(false)}
+                    title="收起设置"
                   >
-                    重置
+                    ✕
                   </button>
                 </div>
-              </div>
-            </div>
 
-            <div class={styles.section}>
-              <h3 class={styles.sectionTitle}>解析设置</h3>
+                <div class={styles.fileMeta}>
+                  <div class={styles.fileMetaRow}>
+                    <span>文件名</span>
+                    <strong>{fileName() || "—"}</strong>
+                  </div>
+                  <Show when={currentFilePath()}>
+                    <div class={styles.fileMetaPath} title={currentFilePath()}>
+                      {currentFilePath()}
+                    </div>
+                  </Show>
+                  <div class={styles.fileMetaRow}>
+                    <span>格式</span>
+                    <strong>{isParquet() ? "Parquet" : "CSV"}</strong>
+                  </div>
+                  <Show when={totalRowCount() > 0}>
+                    <div class={styles.fileMetaRow}>
+                      <span>总行数</span>
+                      <strong>{totalRowCount().toLocaleString()}</strong>
+                    </div>
+                  </Show>
+                  <div class={styles.fileMetaRow}>
+                    <span>列数</span>
+                    <strong>{headers().length}</strong>
+                  </div>
 
-              <label class={styles.inlineControls}>
-                <span>分隔符</span>
-                <select value={delimiter()} onChange={handleDelimiterChange} disabled={isParquet()}>
-                  <option value=",">逗号 (,)</option>
-                  <option value=";">分号 (;)</option>
-                  <option value="\t">制表符 (Tab)</option>
-                  <option value="|">竖线 (|)</option>
-                </select>
-              </label>
+                  <Show when={currentFilePath()}>
+                    <div class={styles.fileMetaRow}>
+                      <span>文件</span>
+                      <button
+                        class={styles.fileMetaActionButton}
+                        onClick={closeCurrentFile}
+                        title="关闭当前文件并返回主界面"
+                      >
+                        关闭
+                      </button>
+                    </div>
+                  </Show>
+                </div>
 
-              <label class={styles.checkboxItem}>
-                <input
-                  type="checkbox"
-                  checked={autoDownsample()}
-                  onChange={(event) =>
-                    setAutoDownsample(event.currentTarget.checked)
-                  }
-                />
-                自动下采样
-              </label>
-
-              <div class={styles.sliderInput}>
-                <span>采样点上限</span>
-                <input
-                  type="range"
-                  min={MIN_POINTS}
-                  max={MAX_POINTS}
-                  step={MIN_POINTS}
-                  value={maxPoints()}
-                  disabled={!autoDownsample()}
-                  onInput={(event) =>
-                    setMaxPoints(
-                      clampPoints(
-                        Number((event.currentTarget as HTMLInputElement).value)
+                <label class={styles.inlineControls}>
+                  <div class={styles.xHeader}>
+                    <span>X 轴</span>
+                    <span>(类型: {axisTypeLabel(axisType())})</span>
+                  </div>
+                  <select
+                    value={xColumn()}
+                    onChange={(event) =>
+                      setXColumn(
+                        (event.currentTarget as HTMLSelectElement).value
                       )
-                    )
-                  }
-                />
-                <input
-                  type="number"
-                  min={MIN_POINTS}
-                  max={MAX_POINTS}
-                  value={maxPoints()}
-                  disabled={!autoDownsample()}
-                  onInput={(event) =>
-                    setMaxPoints(
-                      clampPoints(
-                        Number((event.currentTarget as HTMLInputElement).value)
-                      )
-                    )
-                  }
-                />
+                    }
+                  >
+                    <option value={ROW_INDEX_KEY}>1...N</option>
+                    <For each={headers()}>
+                      {(header) => <option value={header}>{header}</option>}
+                    </For>
+                  </select>
+                </label>
+
+                <div>
+                  <div>数值列</div>
+                  <Show
+                    when={numericColumns().length > 0}
+                    fallback={<div>未检测到数值列</div>}
+                  >
+                    <div class={styles.checkboxGrid}>
+                      <For each={numericColumns()}>
+                        {(col) => (
+                          <label class={styles.checkboxItem}>
+                            <input
+                              type="checkbox"
+                              checked={valueColumns().includes(col)}
+                              onChange={() => handleValueColumnToggle(col)}
+                            />
+                            {col}
+                          </label>
+                        )}
+                      </For>
+                    </div>
+                  </Show>
+                </div>
+
+                <label class={styles.inlineControls}>
+                  <span>分隔符</span>
+                  <select
+                    value={delimiter()}
+                    onChange={handleDelimiterChange}
+                    disabled={isParquet()}
+                  >
+                    <option value=",">逗号 (,)</option>
+                    <option value=";">分号 (;)</option>
+                    <option value="\t">制表符 (Tab)</option>
+                    <option value="|">竖线 (|)</option>
+                  </select>
+                </label>
               </div>
-            </div>
-          </section>
-
-          <Show when={status()}>
-            <div class={styles.message}>{status()}</div>
-          </Show>
-
-          <Show when={errorMessage()}>
-            <div class={styles.error}>{errorMessage()}</div>
-          </Show>
-
-          {renderStats()}
-          {renderChart()}
+            </aside>
+          </div>
 
           {/* 分页缩略图 */}
           <Show when={pagination()}>

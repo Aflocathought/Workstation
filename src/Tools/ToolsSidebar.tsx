@@ -1,5 +1,5 @@
 // src/Tools/ToolsSidebar.tsx
-import { Component, For, createSignal, Show, onMount, onCleanup } from "solid-js";
+import { Component, For, createSignal, Show } from "solid-js";
 import type { ToolConfig } from "./types";
 import { ToolCategory } from "./types";
 import { TOOL_CATEGORIES } from "./categories";
@@ -10,6 +10,7 @@ interface ToolsSidebarProps {
   activeTool: string | null;
   onSelectTool: (toolId: string) => void;
   onCloseTool: () => void;
+  onRequestHide?: () => void;
 }
 
 /**
@@ -22,19 +23,7 @@ const ToolsSidebar: Component<ToolsSidebarProps> = (props) => {
     Set<ToolCategory>
   >(new Set());
 
-  // 控制侧边栏折叠状态
-  // 初始状态：如果屏幕宽度小于 1000px 则默认折叠
-  const [isCollapsed, setIsCollapsed] = createSignal(window.innerWidth < 1000);
-
-  onMount(() => {
-    const handleResize = () => {
-      if (window.innerWidth < 1000) {
-        setIsCollapsed(true);
-      }
-    };
-    window.addEventListener("resize", handleResize);
-    onCleanup(() => window.removeEventListener("resize", handleResize));
-  });
+  // 组件保持轻量：收起/展开由父级控制（overlay 方式）
 
   // 切换分类折叠状态
   const toggleCategory = (categoryId: ToolCategory) => {
@@ -81,26 +70,20 @@ const ToolsSidebar: Component<ToolsSidebarProps> = (props) => {
   };
 
   return (
-    <div
-      class={styles.sidebar}
-      classList={{ [styles.collapsed]: isCollapsed() }}
-    >
+    <div class={styles.sidebar}>
       <div class={styles.header}>
-        <Show when={!isCollapsed()}>
-          <h3>工具箱</h3>
-        </Show>
+        <h3>工具箱</h3>
         <button
           class={styles.collapseButton}
-          onClick={() => setIsCollapsed(!isCollapsed())}
-          title={isCollapsed() ? "展开" : "收起"}
+          onClick={() => props.onRequestHide?.()}
+          title="收起"
         >
-          {isCollapsed() ? "»" : "«"}
+          «
         </button>
       </div>
 
-      <Show when={!isCollapsed()}>
-        {/* 当有激活工具时显示工具头部栏 */}
-        <Show when={activeToolConfig()}>
+      {/* 当有激活工具时显示工具头部栏 */}
+      <Show when={activeToolConfig()}>
         {(config) => (
           <div class={styles.toolHeader}>
             <div class={styles.toolInfo}>
@@ -181,7 +164,6 @@ const ToolsSidebar: Component<ToolsSidebarProps> = (props) => {
           }}
         </For>
       </div>
-      </Show>
     </div>
   );
 };
