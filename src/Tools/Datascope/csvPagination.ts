@@ -252,11 +252,24 @@ export function sampleForThumbnail(
   }
 
   const points: Array<[number, number]> = [];
-  for (let i = 0; i < result.rows.length; i += step) {
-    const row = result.rows[i];
-    const value = parseNumeric(row[firstNumericCol]);
-    if (value !== null) {
-      points.push([startRow + i, value]);
+  // 重要：不要只取固定步长上的点。
+  // 当数据存在“开头一大段 NaN / 大段 NaN”，固定采样很容易全踩在 NaN 上，导致缩略图误判“无数据”。
+  // 改为每个采样桶内寻找第一个有效数值。
+  for (let bucketStart = 0; bucketStart < result.rows.length; bucketStart += step) {
+    const bucketEnd = Math.min(bucketStart + step, result.rows.length);
+    let picked: [number, number] | null = null;
+
+    for (let i = bucketStart; i < bucketEnd; i += 1) {
+      const row = result.rows[i];
+      const value = parseNumeric(row[firstNumericCol]);
+      if (value !== null) {
+        picked = [startRow + i, value];
+        break;
+      }
+    }
+
+    if (picked) {
+      points.push(picked);
     }
   }
 
@@ -276,16 +289,26 @@ function findFirstNumericColumn(
     let numericCount = 0;
     let nonEmpty = 0;
 
-    for (let i = 0; i < sampleSize; i++) {
-      const value = rows[i]?.[header];
+    // 不要只看开头 100 行：开头可能全是 NaN/缺失值，而后续有大量有效数值。
+    // 这里在整页范围内均匀采样。
+    for (let sampleIndex = 0; sampleIndex < sampleSize; sampleIndex += 1) {
+      const i =
+        sampleSize <= 1
+          ? 0
+          : Math.floor((sampleIndex * (rows.length - 1)) / (sampleSize - 1));
+
+      const raw = rows[i]?.[header];
+      const value = toCellString(raw);
       if (value == null) continue;
       const trimmed = value.trim();
       if (!trimmed) continue;
-      nonEmpty++;
+      if (isMissingNumericToken(trimmed)) continue;
+
+      nonEmpty += 1;
 
       const numeric = Number(trimmed);
       if (Number.isFinite(numeric)) {
-        numericCount++;
+        numericCount += 1;
       }
     }
 
@@ -300,12 +323,42 @@ function findFirstNumericColumn(
 /**
  * 解析数值
  */
-function parseNumeric(value?: string): number | null {
-  if (value == null) return null;
-  const trimmed = value.trim();
+function parseNumeric(value: unknown): number | null {
+  const str = toCellString(value);
+  if (str == null) return null;
+  const trimmed = str.trim();
   if (!trimmed) return null;
+  if (isMissingNumericToken(trimmed)) return null;
   const numeric = Number(trimmed);
   return Number.isFinite(numeric) ? numeric : null;
+}
+
+function toCellString(value: unknown): string | null {
+  if (value == null) return null;
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
+    return String(value);
+  }
+  return null;
+}
+
+function isMissingNumericToken(token: string): boolean {
+  const t = token.trim().toLowerCase();
+  // 常见缺失值表达：保持保守，只覆盖常见情况
+  return (
+    t === "nan" ||
+    t === "na" ||
+    t === "n/a" ||
+    t === "null" ||
+    t === "none" ||
+    t === "undefined" ||
+    t === "inf" ||
+    t === "+inf" ||
+    t === "-inf" ||
+    t === "infinity" ||
+    t === "+infinity" ||
+    t === "-infinity"
+  );
 }
 
 /**

@@ -1,5 +1,5 @@
 import { onMount, Show } from "solid-js";
-import { Toaster } from 'solid-toast';
+import { Toaster } from "solid-toast";
 import styles from "./App.module.css";
 import "./styles/themes.css"; // 导入主题系统
 import TitleBar from "./components/Layout/TitleBar/TitleBar";
@@ -19,16 +19,16 @@ function App() {
   onMount(async () => {
     // 初始化主题管理器 (确保在应用启动时加载)
     void themeManager.currentTheme; // 触发主题管理器初始化
-    
+
+     // 注册工具集合路由
+    registerToolsRoutes();
+
     // 注册时间追踪路由
     registerTimeTrackRoutes();
-    
-    // 注册工具集合路由
-    registerToolsRoutes();
-    
+
     // 注册设置路由
     registerSettingsRoute();
-    
+
     // 初始化应用框架
     await initializeApp();
   });
@@ -43,9 +43,9 @@ function App() {
         position="bottom-right"
         toastOptions={{
           style: {
-            background: 'var(--vscode-editorWidget-background)',
-            color: 'var(--vscode-editorWidget-foreground)',
-            border: '1px solid var(--vscode-editorWidget-border)',
+            background: "var(--vscode-editorWidget-background)",
+            color: "var(--vscode-editorWidget-foreground)",
+            border: "1px solid var(--vscode-editorWidget-border)",
           },
         }}
       />
@@ -56,18 +56,28 @@ function App() {
         <NotificationContainer />
 
         {/* 根据路由显示对应页面 */}
-        
-        {/* 时间追踪模块 */}
-        <Show when={router.current === "timetrack" || router.current === "timetrack-dashboard" || router.current === "timetrack-category"}>
+
+        {/* 工具集合模块 */}
+        <Show
+          when={
+            router.current === "tools" || router.current === "tools-spectrum"
+          }
+        >
           <div class={styles.card}>
-            <TimeTrackPage />
+            <ToolsPage />
           </div>
         </Show>
 
-        {/* 工具集合模块 */}
-        <Show when={router.current === "tools" || router.current === "tools-spectrum"}>
+        {/* 时间追踪模块 */}
+        <Show
+          when={
+            router.current === "timetrack" ||
+            router.current === "timetrack-dashboard" ||
+            router.current === "timetrack-category"
+          }
+        >
           <div class={styles.card}>
-            <ToolsPage />
+            <TimeTrackPage />
           </div>
         </Show>
 

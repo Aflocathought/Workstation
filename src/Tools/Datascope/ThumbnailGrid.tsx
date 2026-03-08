@@ -35,6 +35,11 @@ const ThumbnailGrid: Component<ThumbnailGridProps> = (props) => {
             const pageInfo = () =>
               props.pageInfo[thumbnail.pageIndex];
 
+            const hasRenderablePoints = () =>
+              thumbnail.points.some(
+                ([x, y]) => Number.isFinite(x) && Number.isFinite(y)
+              );
+
             return (
               <div
                 class={`${styles.thumbnail} ${isCurrent() ? styles.active : ""}`}
@@ -45,7 +50,7 @@ const ThumbnailGrid: Component<ThumbnailGridProps> = (props) => {
                   {thumbnail.pageIndex + 1}
                 </div>
                 <Show
-                  when={thumbnail.isLoaded && thumbnail.points.length > 0}
+                  when={thumbnail.isLoaded && hasRenderablePoints()}
                   fallback={
                     <div class={styles.placeholder}>
                       {thumbnail.isLoaded ? "无数据" : "未加载"}
@@ -71,7 +76,9 @@ const ThumbnailGrid: Component<ThumbnailGridProps> = (props) => {
  */
 const MiniChart: Component<{ points: Array<[number, number]> }> = (props) => {
   const pathData = createMemo(() => {
-    const points = props.points;
+    const points = props.points.filter(
+      ([x, y]) => Number.isFinite(x) && Number.isFinite(y)
+    );
     if (points.length === 0) return "";
 
     // 计算数据范围
@@ -85,6 +92,10 @@ const MiniChart: Component<{ points: Array<[number, number]> }> = (props) => {
       if (x > maxX) maxX = x;
       if (y < minY) minY = y;
       if (y > maxY) maxY = y;
+    }
+
+    if (!Number.isFinite(minX) || !Number.isFinite(maxX) || !Number.isFinite(minY) || !Number.isFinite(maxY)) {
+      return "";
     }
 
     // 添加一些边距

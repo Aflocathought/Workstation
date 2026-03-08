@@ -154,6 +154,21 @@ fn handle_new_file(app_handle: &AppHandle, file_path: &Path, workspace_path: &Pa
     // 提取信息
     let metadata = metadata::extract_metadata(&final_target_path)?;
     let identity = file_ops::get_file_identity(&final_target_path)?;
+
+    // 提取封面（失败不影响入库）
+    let cover_image = match metadata::extract_cover(&final_target_path) {
+        Ok(cover) => {
+            println!("[PDFLibrary] 成功提取封面(Inbox 入库): {:?}", final_target_path);
+            Some(cover)
+        }
+        Err(e) => {
+            println!(
+                "[PDFLibrary] 提取封面失败(Inbox 入库) ({:?}): {}",
+                final_target_path, e
+            );
+            None
+        }
+    };
     
     let title = final_target_path.file_stem().unwrap().to_string_lossy().to_string();
     let filename_str = final_target_path.file_name().unwrap().to_string_lossy().to_string();
@@ -172,7 +187,7 @@ fn handle_new_file(app_handle: &AppHandle, file_path: &Path, workspace_path: &Pa
         identity.file_size,
         metadata.author.as_deref(),
         metadata.page_count,
-        None
+        cover_image.as_deref(),
     ).map_err(|e| e.to_string())?;
     
     println!("[PDFLibrary] 新文件入库成功: {}", title);

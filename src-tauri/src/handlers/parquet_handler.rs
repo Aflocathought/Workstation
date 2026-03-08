@@ -457,20 +457,31 @@ fn find_first_numeric_column(page: &ParsedPage) -> Option<String> {
     for name in &page.headers {
         let mut non_empty = 0;
         let mut numeric = 0;
-        for i in 0..sample_size {
+        // 不要只看开头：开头可能全是 NaN/缺失，后续才有有效值。
+        for sample_index in 0..sample_size {
+            let i = if sample_size <= 1 {
+                0
+            } else {
+                (sample_index * (page.rows.len() - 1)) / (sample_size - 1)
+            };
             let v = page.rows[i].get(name);
             match v {
                 Some(Value::Number(n)) => {
-                    non_empty += 1;
-                    if n.as_f64().is_some() {
-                        numeric += 1;
+                    if let Some(f) = n.as_f64() {
+                        if f.is_finite() {
+                            non_empty += 1;
+                            numeric += 1;
+                        }
                     }
                 }
                 Some(Value::String(s)) => {
                     let t = s.trim();
-                    if !t.is_empty() {
-                        non_empty += 1;
-                        if t.parse::<f64>().is_ok() {
+                    if t.is_empty() || is_missing_numeric_token(t) {
+                        continue;
+                    }
+                    if let Ok(v) = t.parse::<f64>() {
+                        if v.is_finite() {
+                            non_empty += 1;
                             numeric += 1;
                         }
                     }
@@ -487,6 +498,25 @@ fn find_first_numeric_column(page: &ParsedPage) -> Option<String> {
         }
     }
     None
+}
+
+fn is_missing_numeric_token(token: &str) -> bool {
+    let t = token.trim().to_ascii_lowercase();
+    matches!(
+        t.as_str(),
+        "nan"
+            | "na"
+            | "n/a"
+            | "null"
+            | "none"
+            | "undefined"
+            | "inf"
+            | "+inf"
+            | "-inf"
+            | "infinity"
+            | "+infinity"
+            | "-infinity"
+    )
 }
 
 #[tauri::command]
@@ -547,20 +577,43 @@ pub async fn parquet_generate_thumbnail(
 
     let step = (page.rows.len() / THUMBNAIL_SAMPLE_SIZE).max(1);
     let mut points = Vec::new();
-    for (i, row) in page.rows.iter().enumerate().step_by(step) {
-        if let Some(v) = row.get(&col_name) {
-            let y = match v {
-                Value::Number(n) => n.as_f64(),
-                Value::String(s) => s.trim().parse::<f64>().ok(),
-                _ => None,
-            };
-            if let Some(y) = y {
-                points.push(ThumbnailPoint {
-                    x: (page_info.start_row + i) as f64,
-                    y,
-                });
+
+    // 固定步长可能全踩在 NaN 上；这里用采样桶内找有效值。
+    let mut bucket_start = 0usize;
+    while bucket_start < page.rows.len() {
+        let bucket_end = (bucket_start + step).min(page.rows.len());
+        let mut picked: Option<(usize, f64)> = None;
+
+        for i in bucket_start..bucket_end {
+            if let Some(v) = page.rows[i].get(&col_name) {
+                let y = match v {
+                    Value::Number(n) => n.as_f64().filter(|f| f.is_finite()),
+                    Value::String(s) => {
+                        let t = s.trim();
+                        if t.is_empty() || is_missing_numeric_token(t) {
+                            None
+                        } else {
+                            t.parse::<f64>().ok().filter(|f| f.is_finite())
+                        }
+                    }
+                    _ => None,
+                };
+
+                if let Some(y) = y {
+                    picked = Some((i, y));
+                    break;
+                }
             }
         }
+
+        if let Some((i, y)) = picked {
+            points.push(ThumbnailPoint {
+                x: (page_info.start_row + i) as f64,
+                y,
+            });
+        }
+
+        bucket_start += step;
     }
 
     let thumb = ThumbnailData { page_index, points };

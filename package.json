@@ -15,6 +15,7 @@
     "@shoelace-style/shoelace": "^2.20.1",
     "@suid/icons-material": "^0.9.0",
     "@suid/material": "^0.19.0",
+    "@tailwindcss/vite": "^4.1.18",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-autostart": "^2.5.1",
     "@tauri-apps/plugin-dialog": "^2.4.2",
@@ -25,12 +26,15 @@
     "echarts": "^6.0.0",
     "gapi-script": "^1.2.0",
     "solid-js": "^1.9.3",
-    "solid-toast": "^0.5.0"
+    "solid-toast": "^0.5.0",
+    "tailwindcss": "^4.1.18"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",
+    "baseline-browser-mapping": "^2.9.19",
     "typescript": "~5.6.2",
     "vite": "^6.0.3",
     "vite-plugin-solid": "^2.11.0"
-  }
+  },
+  "packageManager": "pnpm@10.28.2+sha256.afa99b0b4b3d11c1dad2b472f9318ae2c78673829749ded527f89f09071479a7"
 }

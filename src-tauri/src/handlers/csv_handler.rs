@@ -337,15 +337,36 @@ fn generate_thumbnail(
     let step = (parsed.rows.len() / THUMBNAIL_SAMPLE_SIZE).max(1);
 
     let mut points = Vec::new();
-    for (i, row) in parsed.rows.iter().enumerate().step_by(step) {
-        if let Some(value_str) = row.fields.get(&col_name) {
-            if let Ok(value) = value_str.trim().parse::<f64>() {
-                points.push(ThumbnailPoint {
-                    x: (page_info.start_row + i) as f64,
-                    y: value,
-                });
+    // 不要仅用固定步长采样：当存在开头/大段 NaN 时可能导致整页采样结果为空。
+    // 改为每个采样桶内寻找第一个有效值。
+    let mut bucket_start = 0usize;
+    while bucket_start < parsed.rows.len() {
+        let bucket_end = (bucket_start + step).min(parsed.rows.len());
+        let mut picked: Option<(usize, f64)> = None;
+
+        for i in bucket_start..bucket_end {
+            if let Some(value_str) = parsed.rows[i].fields.get(&col_name) {
+                let trimmed = value_str.trim();
+                if trimmed.is_empty() || is_missing_numeric_token(trimmed) {
+                    continue;
+                }
+                if let Ok(value) = trimmed.parse::<f64>() {
+                    if value.is_finite() {
+                        picked = Some((i, value));
+                        break;
+                    }
+                }
             }
         }
+
+        if let Some((i, value)) = picked {
+            points.push(ThumbnailPoint {
+                x: (page_info.start_row + i) as f64,
+                y: value,
+            });
+        }
+
+        bucket_start += step;
     }
 
     Ok(ThumbnailData {
@@ -362,12 +383,22 @@ fn find_first_numeric_column(headers: &[String], rows: &[CsvRecord]) -> Option<S
         let mut numeric_count = 0;
         let mut non_empty = 0;
 
-        for row in rows.iter().take(sample_size) {
-            if let Some(value) = row.fields.get(header) {
+        // 不要只取开头的 100 行；开头可能全是 NaN/缺失，后续有有效值。
+        // 这里在整页范围均匀抽样。
+        for sample_index in 0..sample_size {
+            let i = if sample_size <= 1 {
+                0
+            } else {
+                (sample_index * (rows.len() - 1)) / (sample_size - 1)
+            };
+            if let Some(value) = rows[i].fields.get(header) {
                 let trimmed = value.trim();
-                if !trimmed.is_empty() {
-                    non_empty += 1;
-                    if trimmed.parse::<f64>().is_ok() {
+                if trimmed.is_empty() || is_missing_numeric_token(trimmed) {
+                    continue;
+                }
+                non_empty += 1;
+                if let Ok(v) = trimmed.parse::<f64>() {
+                    if v.is_finite() {
                         numeric_count += 1;
                     }
                 }
@@ -380,6 +411,25 @@ fn find_first_numeric_column(headers: &[String], rows: &[CsvRecord]) -> Option<S
     }
 
     None
+}
+
+fn is_missing_numeric_token(token: &str) -> bool {
+    let t = token.trim().to_ascii_lowercase();
+    matches!(
+        t.as_str(),
+        "nan"
+            | "na"
+            | "n/a"
+            | "null"
+            | "none"
+            | "undefined"
+            | "inf"
+            | "+inf"
+            | "-inf"
+            | "infinity"
+            | "+infinity"
+            | "-infinity"
+    )
 }
 
 /// 计算分页信息
