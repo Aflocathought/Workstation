@@ -14,6 +14,11 @@ use python::{PythonService, PythonResult, ScriptInfo, PythonInfo};
 mod shortcut;
 use shortcut::{ShortcutService, ModifierState, ForegroundWindowInfo};
 
+// 引入 SSH 服务模块
+#[path = "services/ssh.rs"]
+mod ssh;
+use ssh::{SshService, SshResult, SshTestResult, WorkerDeployResult};
+
 // 引入 CSV 处理模块
 #[path = "handlers/csv_handler.rs"]
 mod csv_handler;
@@ -48,6 +53,9 @@ static PYTHON_SERVICE: OnceCell<Mutex<PythonService>> = OnceCell::new();
 // 全局快捷键服务实例
 static SHORTCUT_SERVICE: OnceCell<Mutex<ShortcutService>> = OnceCell::new();
 
+// 全局 SSH 服务实例
+static SSH_SERVICE: OnceCell<Mutex<SshService>> = OnceCell::new();
+
 /// 获取 Python 服务实例
 fn get_python_service(_app_handle: &tauri::AppHandle) -> Result<std::sync::MutexGuard<'static, PythonService>, String> {
     PYTHON_SERVICE
@@ -66,6 +74,16 @@ fn get_shortcut_service() -> Result<std::sync::MutexGuard<'static, ShortcutServi
         })
         .lock()
         .map_err(|e| format!("Failed to lock Shortcut service: {}", e))
+}
+
+/// 获取 SSH 服务实例
+fn get_ssh_service() -> Result<std::sync::MutexGuard<'static, SshService>, String> {
+    SSH_SERVICE
+        .get_or_init(|| {
+            Mutex::new(SshService::new())
+        })
+        .lock()
+        .map_err(|e| format!("Failed to lock SSH service: {}", e))
 }
 
 #[tauri::command]
@@ -153,6 +171,68 @@ async fn is_key_pressed(key_code: i32) -> Result<bool, String> {
         .map_err(|e| format!("检查按键状态失败: {}", e))
 }
 
+// ==================== SSH 命令 ====================
+
+/// 测试 SSH 连接 — 返回主机名、Python 版本、GPU 信息
+#[tauri::command]
+async fn ssh_test_connection(
+    host: String,
+    user: String,
+    key_path: Option<String>,
+) -> Result<SshTestResult, String> {
+    let service = get_ssh_service()?;
+    service.test_connection(&host, &user, key_path.as_deref())
+}
+
+/// 执行远程 SSH 命令
+#[tauri::command]
+async fn ssh_exec_remote(
+    host: String,
+    user: String,
+    key_path: Option<String>,
+    command: String,
+) -> Result<SshResult, String> {
+    let service = get_ssh_service()?;
+    service.exec_remote(&host, &user, key_path.as_deref(), &command)
+}
+
+/// 上传文件到远程机器 (SCP)
+#[tauri::command]
+async fn ssh_upload_file(
+    host: String,
+    user: String,
+    key_path: Option<String>,
+    local_path: String,
+    remote_path: String,
+) -> Result<SshResult, String> {
+    let service = get_ssh_service()?;
+    service.upload_file(&host, &user, key_path.as_deref(), &local_path, &remote_path)
+}
+
+/// 部署 Worker 到远程机器 (上传 + 安装依赖 + 启动)
+#[tauri::command]
+async fn ssh_deploy_worker(
+    host: String,
+    user: String,
+    key_path: Option<String>,
+    worker_dir: String,
+    remote_dir: String,
+) -> Result<WorkerDeployResult, String> {
+    let service = get_ssh_service()?;
+    service.deploy_worker(&host, &user, key_path.as_deref(), &worker_dir, &remote_dir)
+}
+
+/// 停止远程 Worker
+#[tauri::command]
+async fn ssh_stop_worker(
+    host: String,
+    user: String,
+    key_path: Option<String>,
+) -> Result<SshResult, String> {
+    let service = get_ssh_service()?;
+    service.stop_worker(&host, &user, key_path.as_deref())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -171,6 +251,11 @@ pub fn run() {
             get_modifier_state,
             get_foreground_window,
             is_key_pressed,
+            ssh_test_connection,
+            ssh_exec_remote,
+            ssh_upload_file,
+            ssh_deploy_worker,
+            ssh_stop_worker,
             csv_load_file,
             csv_get_pagination,
             csv_load_page,
