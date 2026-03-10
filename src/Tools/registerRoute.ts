@@ -6,7 +6,6 @@ import type { ToolConfig } from './types';
 import { spectrumToolConfig } from './Spectrum';
 import { pythonToolConfig } from './Python';
 import { calendarToolConfig } from './Calendar';
-import { shortcutReminderConfig } from './ShortcutReminder';
 import { datascopeToolConfig } from './Datascope';
 import pdfLibraryToolConfig from './PDFLibrary';
 
@@ -18,7 +17,6 @@ export const allToolConfigs: ToolConfig[] = [
   spectrumToolConfig,
   pythonToolConfig,
   calendarToolConfig,
-  shortcutReminderConfig,
   datascopeToolConfig,
   pdfLibraryToolConfig,
   // 未来新增工具配置添加在这里...

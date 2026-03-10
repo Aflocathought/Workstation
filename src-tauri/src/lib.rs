@@ -9,11 +9,6 @@ pub mod app_paths;
 mod python;
 use python::{PythonService, PythonResult, ScriptInfo, PythonInfo};
 
-// 引入快捷键服务模块
-#[path = "services/shortcut.rs"]
-mod shortcut;
-use shortcut::{ShortcutService, ModifierState, ForegroundWindowInfo};
-
 // 引入 SSH 服务模块
 #[path = "services/ssh.rs"]
 mod ssh;
@@ -50,9 +45,6 @@ use std::sync::Mutex;
 // 全局 Python 服务实例
 static PYTHON_SERVICE: OnceCell<Mutex<PythonService>> = OnceCell::new();
 
-// 全局快捷键服务实例
-static SHORTCUT_SERVICE: OnceCell<Mutex<ShortcutService>> = OnceCell::new();
-
 // 全局 SSH 服务实例
 static SSH_SERVICE: OnceCell<Mutex<SshService>> = OnceCell::new();
 
@@ -64,16 +56,6 @@ fn get_python_service(_app_handle: &tauri::AppHandle) -> Result<std::sync::Mutex
         })
         .lock()
         .map_err(|e| format!("Failed to lock Python service: {}", e))
-}
-
-/// 获取快捷键服务实例
-fn get_shortcut_service() -> Result<std::sync::MutexGuard<'static, ShortcutService>, String> {
-    SHORTCUT_SERVICE
-        .get_or_init(|| {
-            Mutex::new(ShortcutService::new())
-        })
-        .lock()
-        .map_err(|e| format!("Failed to lock Shortcut service: {}", e))
 }
 
 /// 获取 SSH 服务实例
@@ -145,30 +127,6 @@ async fn delete_python_script(
 async fn get_python_info(app_handle: tauri::AppHandle) -> Result<PythonInfo, String> {
     let service = get_python_service(&app_handle)?;
     service.get_python_info()
-}
-
-/// 获取当前修饰键状态
-#[tauri::command]
-async fn get_modifier_state() -> Result<ModifierState, String> {
-    let service = get_shortcut_service()?;
-    service.get_modifier_state()
-        .map_err(|e| format!("获取修饰键状态失败: {}", e))
-}
-
-/// 获取前台窗口信息
-#[tauri::command]
-async fn get_foreground_window() -> Result<ForegroundWindowInfo, String> {
-    let service = get_shortcut_service()?;
-    service.get_foreground_window_info()
-        .map_err(|e| format!("获取前台窗口信息失败: {}", e))
-}
-
-/// 检查指定按键是否被按下
-#[tauri::command]
-async fn is_key_pressed(key_code: i32) -> Result<bool, String> {
-    let service = get_shortcut_service()?;
-    service.is_key_pressed(key_code)
-        .map_err(|e| format!("检查按键状态失败: {}", e))
 }
 
 // ==================== SSH 命令 ====================
@@ -248,9 +206,6 @@ pub fn run() {
             read_python_script,
             delete_python_script,
             get_python_info,
-            get_modifier_state,
-            get_foreground_window,
-            is_key_pressed,
             ssh_test_connection,
             ssh_exec_remote,
             ssh_upload_file,

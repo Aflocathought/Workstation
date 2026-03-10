@@ -6,14 +6,12 @@
 
 // chrono 仅在模块内部使用，这里无需导入
 use rusqlite::Connection;
-use serde::Deserialize;
-use std::mem::size_of;
 use std::sync::{
     atomic::{AtomicBool, AtomicUsize, Ordering},
     Arc, Mutex,
 };
 use std::thread;
-use tauri::{Manager, PhysicalPosition, PhysicalSize, Position};
+use tauri::Manager;
 
 use once_cell::sync::OnceCell;
 use tauri_plugin_autostart::Builder as AutostartBuilder;
@@ -24,9 +22,6 @@ use tauri_plugin_autostart::Builder as AutostartBuilder;
 use python::PythonService;
 pub use python::{PythonInfo, PythonResult, ScriptInfo};
 
-// 快捷键服务
-use shortcut::{ForegroundWindowInfo, ModifierState, ShortcutService};
-
 // WASAPI 相关已迁入 spectrum 模块
 
 #[path = "core/app_paths.rs"]
@@ -36,8 +31,6 @@ mod db;
 mod pdf_library;
 #[path = "services/python.rs"]
 mod python;
-#[path = "services/shortcut.rs"]
-mod shortcut;
 #[path = "features/spectrum.rs"]
 mod spectrum;
 #[path = "features/tracker.rs"]
@@ -46,9 +39,6 @@ mod tracker;
 mod csv_handler;
 #[path = "handlers/parquet_handler.rs"]
 mod parquet_handler;
-
-// 全局快捷键服务实例
-static SHORTCUT_SERVICE: OnceCell<Mutex<ShortcutService>> = OnceCell::new();
 
 // 全局 Python 服务实例
 static PYTHON_SERVICE: OnceCell<Mutex<PythonService>> = OnceCell::new();
@@ -59,362 +49,6 @@ pub use db::DbState;
 
 // PDF Library 状态
 use pdf_library::PdfLibraryState;
-
-// ============ 快捷键提示窗口 ============
-
-/// 创建快捷键提示悬浮窗口
-fn create_shortcut_hint_window(
-    manager: &tauri::AppHandle,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let mut builder = tauri::WebviewWindowBuilder::new(
-        manager,
-        "shortcut_hint",
-        tauri::WebviewUrl::App("shortcut-hint.html".into()),
-    );
-
-    builder = builder
-        .title("")
-        .resizable(false)
-        .decorations(false)
-        .transparent(true)
-        .always_on_top(true)
-        .skip_taskbar(true)
-        .focused(false)
-        .visible(true)
-        .drag_and_drop(false)
-        .initialization_script(
-            r#"
-                document.addEventListener('DOMContentLoaded', () => {
-                    document.documentElement.style.background = 'transparent';
-                    document.documentElement.style.pointerEvents = 'none';
-                    document.documentElement.style.margin = '0';
-                    document.documentElement.style.padding = '0';
-                    document.documentElement.style.height = '100%';
-
-                    document.body.style.background = 'transparent';
-                    document.body.style.pointerEvents = 'none';
-                    document.body.style.margin = '0';
-                    document.body.style.padding = '0';
-                    document.body.style.height = '100%';
-                });
-            "#,
-        );
-    // 创建全屏窗口会出现app启动过于缓慢的问题，现在限制窗口宽度但不限制窗口高度
-    let win = builder.build()?;
-
-    const TARGET_WIDTH: i32 = 640;
-    const MIN_WIDTH: i32 = 320;
-    const TARGET_HEIGHT: i32 = 380;
-    const MIN_HEIGHT: i32 = 220;
-    const MAX_HEIGHT: i32 = 1000;
-    const MARGIN: i32 = 24;
-
-    if let Ok(Some(monitor)) = manager.primary_monitor() {
-        let monitor_size = monitor.size();
-        let monitor_position = monitor.position();
-        let scale_factor = monitor.scale_factor();
-
-        let margin = scale_value(MARGIN, scale_factor);
-        let min_width = scale_value(MIN_WIDTH, scale_factor);
-        let target_width = scale_value(TARGET_WIDTH, scale_factor);
-        let min_height = scale_value(MIN_HEIGHT, scale_factor);
-        let target_height = scale_value(TARGET_HEIGHT, scale_factor);
-        let max_height = scale_value(MAX_HEIGHT, scale_factor);
-
-        let available_width = (monitor_size.width as i32 - margin * 2).max(min_width);
-        let available_height = (monitor_size.height as i32 - margin * 2).max(min_height);
-
-        let window_width = available_width.min(target_width).max(min_width) as u32;
-        let window_height_i32 = available_height
-            .min(target_height)
-            .max(min_height)
-            .min(max_height);
-        let window_height = window_height_i32 as u32;
-        let _ = win.set_size(PhysicalSize::new(window_width, window_height));
-
-        let target_x =
-            monitor_position.x + monitor_size.width as i32 - window_width as i32 - margin;
-        let target_y =
-            monitor_position.y + monitor_size.height as i32 - window_height as i32 - margin;
-        let final_x = target_x.max(monitor_position.x + margin);
-        let final_y = target_y.max(monitor_position.y + margin);
-        let _ = win.set_position(Position::Physical(PhysicalPosition::new(final_x, final_y)));
-    } else {
-        let _ = win.set_size(PhysicalSize::new(TARGET_WIDTH as u32, TARGET_HEIGHT as u32));
-    }
-
-    let _ = win.set_ignore_cursor_events(true);
-
-    configure_shortcut_hint_window_styles(&win, true);
-    Ok(())
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct MonitorBounds {
-    left: i32,
-    top: i32,
-    width: i32,
-    height: i32,
-    work_left: i32,
-    work_top: i32,
-    work_width: i32,
-    work_height: i32,
-}
-
-fn scale_value(base: i32, scale: f64) -> i32 {
-    if scale <= 0.0 {
-        return base;
-    }
-    let scaled = (base as f64 * scale).round() as i32;
-    scaled.max(1)
-}
-
-fn resolve_scale_factor(app: &tauri::AppHandle, bounds: &MonitorBounds) -> f64 {
-    if let Ok(monitors) = app.available_monitors() {
-        for monitor in monitors {
-            let position = monitor.position();
-            let size = monitor.size();
-            if position.x == bounds.left
-                && position.y == bounds.top
-                && size.width as i32 == bounds.width
-                && size.height as i32 == bounds.height
-            {
-                return monitor.scale_factor();
-            }
-        }
-    }
-    1.0
-}
-
-#[tauri::command]
-async fn move_shortcut_hint_window(
-    app: tauri::AppHandle,
-    bounds: MonitorBounds,
-) -> Result<(), String> {
-    const TARGET_WIDTH: i32 = 640;
-    const MIN_WIDTH: i32 = 320;
-    const TARGET_HEIGHT: i32 = 380;
-    const MIN_HEIGHT: i32 = 620;
-    const MAX_HEIGHT: i32 = 1200;
-    const MARGIN: i32 = 24;
-
-    let scale_factor = resolve_scale_factor(&app, &bounds);
-    let margin = scale_value(MARGIN, scale_factor);
-    let min_width = scale_value(MIN_WIDTH, scale_factor);
-    let target_width = scale_value(TARGET_WIDTH, scale_factor);
-    let min_height = scale_value(MIN_HEIGHT, scale_factor);
-    let target_height = scale_value(TARGET_HEIGHT, scale_factor);
-    let max_height = scale_value(MAX_HEIGHT, scale_factor);
-
-    let area_left = if bounds.work_width > 0 {
-        bounds.work_left
-    } else {
-        bounds.left
-    };
-    let area_top = if bounds.work_height > 0 {
-        bounds.work_top
-    } else {
-        bounds.top
-    };
-    let area_width = if bounds.work_width > 0 {
-        bounds.work_width
-    } else {
-        bounds.width
-    };
-    let area_height = if bounds.work_height > 0 {
-        bounds.work_height
-    } else {
-        bounds.height
-    };
-
-    let area_right = area_left + area_width;
-    let area_bottom = area_top + area_height;
-
-    let available_width = (area_width - margin * 2).max(min_width);
-    let available_height = (area_height - margin * 2).max(min_height);
-
-    if available_width <= 0 || available_height <= 0 {
-        return Err("monitor bounds too small".to_string());
-    }
-
-    let window_width = available_width.min(target_width).max(min_width) as u32;
-    let window_height_i32 = available_height
-        .min(target_height)
-        .max(min_height)
-        .min(max_height);
-    let window_height = window_height_i32 as u32;
-
-    if let Some(win) = app.get_webview_window("shortcut_hint") {
-        win.set_size(PhysicalSize::new(window_width, window_height))
-            .map_err(|e| e.to_string())?;
-
-        let actual_size = win
-            .outer_size()
-            .unwrap_or(PhysicalSize::new(window_width, window_height));
-
-        let actual_width = actual_size.width as i32;
-        let actual_height = actual_size.height as i32;
-
-        let target_x = area_right - actual_width - margin;
-        let target_y = area_bottom - actual_height - margin;
-
-        let min_x = area_left + margin;
-        let max_x = area_right - margin - actual_width;
-        let min_y = area_top + margin;
-        let max_y = area_bottom - margin - actual_height;
-
-        let final_x = if min_x > max_x {
-            min_x
-        } else {
-            target_x.clamp(min_x, max_x)
-        };
-        let final_y = if min_y > max_y {
-            min_y
-        } else {
-            target_y.clamp(min_y, max_y)
-        };
-
-        win.set_position(Position::Physical(PhysicalPosition::new(final_x, final_y)))
-            .map_err(|e| e.to_string())?;
-
-        Ok(())
-    } else {
-        Err("shortcut hint window not available".to_string())
-    }
-}
-
-#[cfg(target_os = "windows")]
-fn configure_shortcut_hint_window_styles(
-    win: &tauri::WebviewWindow,
-    enforce_no_activate_show: bool,
-) {
-    use windows::Win32::Foundation::HWND;
-    use windows::Win32::Graphics::Dwm::{
-        DwmEnableBlurBehindWindow, DwmSetWindowAttribute, DWMNCRP_ENABLED, DWMWA_BORDER_COLOR,
-        DWMWA_NCRENDERING_POLICY, DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_DONOTROUND,
-        DWM_BB_BLURREGION, DWM_BB_ENABLE, DWM_BLURBEHIND,
-    };
-    use windows::Win32::Graphics::Gdi::{CreateRectRgn, DeleteObject};
-    use windows::Win32::UI::WindowsAndMessaging::{
-        GetWindowLongPtrW, SetWindowLongPtrW, SetWindowPos, ShowWindow, GWL_EXSTYLE, GWL_STYLE,
-        SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SW_SHOWNOACTIVATE,
-        WS_BORDER, WS_CAPTION, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW,
-        WS_EX_TRANSPARENT, WS_MAXIMIZEBOX, WS_MINIMIZEBOX, WS_SYSMENU, WS_THICKFRAME,
-    };
-
-    if let Ok(hwnd) = win.hwnd() {
-        unsafe {
-            let hwnd = HWND(hwnd.0);
-
-            let mut ex_style = GetWindowLongPtrW(hwnd, GWL_EXSTYLE) as i32;
-            ex_style |=
-                (WS_EX_TRANSPARENT | WS_EX_LAYERED | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE).0 as i32;
-            SetWindowLongPtrW(hwnd, GWL_EXSTYLE, ex_style as _);
-
-            let mut base_style = GetWindowLongPtrW(hwnd, GWL_STYLE) as i32;
-            base_style &= !((WS_CAPTION
-                | WS_THICKFRAME
-                | WS_BORDER
-                | WS_SYSMENU
-                | WS_MAXIMIZEBOX
-                | WS_MINIMIZEBOX)
-                .0 as i32);
-            SetWindowLongPtrW(hwnd, GWL_STYLE, base_style as _);
-
-            let nc_policy = DWMNCRP_ENABLED;
-            let _ = DwmSetWindowAttribute(
-                hwnd,
-                DWMWA_NCRENDERING_POLICY,
-                &nc_policy as *const _ as _,
-                size_of::<i32>() as u32,
-            );
-
-            let corner_pref = DWMWCP_DONOTROUND;
-            let _ = DwmSetWindowAttribute(
-                hwnd,
-                DWMWA_WINDOW_CORNER_PREFERENCE,
-                &corner_pref as *const _ as _,
-                size_of::<i32>() as u32,
-            );
-
-            let border_color: u32 = 0;
-            let _ = DwmSetWindowAttribute(
-                hwnd,
-                DWMWA_BORDER_COLOR,
-                &border_color as *const _ as _,
-                size_of::<u32>() as u32,
-            );
-
-            let _ = SetWindowPos(
-                hwnd,
-                None,
-                0,
-                0,
-                0,
-                0,
-                SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED,
-            );
-
-            let region = CreateRectRgn(0, 0, -1, -1);
-            if !region.is_invalid() {
-                let blur = DWM_BLURBEHIND {
-                    dwFlags: DWM_BB_ENABLE | DWM_BB_BLURREGION,
-                    fEnable: true.into(),
-                    hRgnBlur: region,
-                    fTransitionOnMaximized: false.into(),
-                };
-
-                let _ = DwmEnableBlurBehindWindow(hwnd, &blur);
-                let _ = DeleteObject(region.into());
-            }
-
-            if enforce_no_activate_show {
-                let _ = ShowWindow(hwnd, SW_SHOWNOACTIVATE);
-            }
-        }
-    }
-
-    let _ = win.set_shadow(false);
-}
-
-#[cfg(not(target_os = "windows"))]
-fn configure_shortcut_hint_window_styles(
-    _win: &tauri::WebviewWindow,
-    _enforce_no_activate_show: bool,
-) {
-}
-
-fn get_shortcut_service() -> Result<std::sync::MutexGuard<'static, ShortcutService>, String> {
-    SHORTCUT_SERVICE
-        .get_or_init(|| Mutex::new(ShortcutService::new()))
-        .lock()
-        .map_err(|e| format!("Failed to lock Shortcut service: {}", e))
-}
-
-#[tauri::command]
-async fn get_modifier_state() -> Result<ModifierState, String> {
-    let service = get_shortcut_service()?;
-    service
-        .get_modifier_state()
-        .map_err(|e| format!("获取修饰键状态失败: {}", e))
-}
-
-#[tauri::command]
-async fn get_foreground_window() -> Result<ForegroundWindowInfo, String> {
-    let service = get_shortcut_service()?;
-    service
-        .get_foreground_window_info()
-        .map_err(|e| format!("获取前台窗口信息失败: {}", e))
-}
-
-#[tauri::command]
-async fn is_key_pressed(key_code: i32) -> Result<bool, String> {
-    let service = get_shortcut_service()?;
-    service
-        .is_key_pressed(key_code)
-        .map_err(|e| format!("检查按键状态失败: {}", e))
-}
 
 // 全局追踪器停止标志
 pub struct TrackerStop {
@@ -529,9 +163,6 @@ fn main() {
                 });
             }
 
-            // 创建快捷键提示悬浮窗口
-            create_shortcut_hint_window(&app.handle())?;
-
             Ok(())
         })
         // 保留原来的前端命令，并添加新的数据库查询命令
@@ -554,11 +185,6 @@ fn main() {
             read_python_script,
             delete_python_script,
             get_python_info,
-            // 快捷键提示命令
-            get_modifier_state,
-            get_foreground_window,
-            is_key_pressed,
-            move_shortcut_hint_window,
             // CSV Viewer 后端命令
             csv_load_file,
             csv_get_pagination,
