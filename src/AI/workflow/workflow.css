@@ -1,0 +1,389 @@
+/* AI Workflow — 工作流样式 */
+
+.wf-page {
+  position: relative;
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.wf-node {
+  position: relative;
+  width: 280px;
+  border-radius: 12px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  padding: 12px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wf-node--config {
+  border-left: 4px solid #2563eb;
+}
+
+.wf-node--train {
+  border-left: 4px solid #9333ea;
+}
+
+.wf-node--validate {
+  border-left: 4px solid #0891b2;
+}
+
+.wf-node--output {
+  border-left: 4px solid #059669;
+}
+
+.wf-node--data {
+  border-left: 4px solid #06b6d4;
+}
+
+.wf-node--build {
+  border-left: 4px solid #7c3aed;
+}
+
+.wf-node--evaluate {
+  border-left: 4px solid #10b981;
+}
+
+.wf-node--optimize {
+  border-left: 4px solid #f59e0b;
+}
+
+.wf-node--convert {
+  border-left: 4px solid #ec4899;
+}
+
+.wf-node--utility {
+  border-left: 4px solid #64748b;
+}
+
+.wf-node__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.wf-status {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.wf-status--idle {
+  background: #f3f4f6;
+}
+
+.wf-status--queued {
+  background: #fef3c7;
+}
+
+.wf-status--running {
+  background: #dbeafe;
+}
+
+.wf-status--success {
+  background: #d1fae5;
+}
+
+.wf-status--error {
+  background: #fee2e2;
+}
+
+.wf-status--skipped {
+  background: #e2e8f0;
+  color: #64748b;
+}
+
+.wf-node__meta {
+  display: flex;
+  justify-content: space-between;
+  color: #4b5563;
+  font-size: 11px;
+}
+
+.wf-node__description {
+  font-size: 12px;
+  color: #374151;
+}
+
+.wf-node__params {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wf-node__params label,
+.wf-node__param-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: #4b5563;
+}
+
+.wf-node__params input,
+.wf-node__param-grid input {
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 5px 7px;
+  font-size: 12px;
+}
+
+.wf-node__param-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.wf-node__metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: #1f2937;
+}
+
+.wf-node__port-actions {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 5px;
+}
+
+.wf-node__port-actions button {
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #f8fafc;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+
+.wf-panel {
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.93);
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  padding: 10px;
+  font-size: 12px;
+}
+
+.wf-panel--ops {
+  width: 360px;
+}
+
+.wf-panel__btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.wf-btn {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.wf-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.wf-btn--ghost {
+  background: #ffffff;
+}
+
+.wf-panel--inspect label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.wf-panel--inspect input,
+.wf-panel--inspect textarea,
+.wf-panel--payload textarea {
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 8px;
+  font-size: 12px;
+  resize: vertical;
+}
+
+.wf-kv {
+  display: flex;
+  justify-content: space-between;
+  color: #4b5563;
+}
+
+.wf-panel--payload {
+  width: 430px;
+}
+
+.wf-panel--logs {
+  width: 420px;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.wf-log-line {
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+    monospace;
+  font-size: 11px;
+  color: #1f2937;
+  border-bottom: 1px dashed #e5e7eb;
+  padding: 4px 0;
+}
+
+/* ── 端口标签 ── */
+.wf-port-label {
+  position: absolute;
+  font-size: 9px;
+  color: #6b7280;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.wf-port-label--left {
+  left: 12px;
+}
+
+.wf-port-label--right {
+  right: 12px;
+  text-align: right;
+}
+
+/* ── 节点头部增强 ── */
+.wf-node__icon {
+  font-size: 15px;
+  margin-right: 4px;
+}
+
+.wf-node__progress-bar {
+  height: 3px;
+  background: #e5e7eb;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.wf-node__progress-fill {
+  height: 100%;
+  background: #3b82f6;
+  transition: width 0.3s ease;
+}
+
+/* ── 参数面板 ── */
+.wf-node__params select {
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 5px 7px;
+  font-size: 12px;
+  background: #fff;
+}
+
+.wf-node__params .wf-param-checkbox {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+
+.wf-node__params .wf-param-checkbox input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+}
+
+/* ── 节点目录面板 ── */
+.wf-panel--catalog {
+  width: 260px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.wf-catalog-group {
+  margin-bottom: 6px;
+}
+
+.wf-catalog-group__title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #6b7280;
+  text-transform: uppercase;
+  padding: 4px 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.wf-catalog-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px;
+  cursor: pointer;
+  border-radius: 6px;
+  font-size: 12px;
+  transition: background 0.15s;
+}
+
+.wf-catalog-item:hover {
+  background: #f0f4ff;
+}
+
+.wf-catalog-item__icon {
+  font-size: 14px;
+  width: 20px;
+  text-align: center;
+}
+
+.wf-catalog-item__info {
+  display: flex;
+  flex-direction: column;
+}
+
+.wf-catalog-item__name {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.wf-catalog-item__desc {
+  font-size: 10px;
+  color: #9ca3af;
+}
+
+/* ── 脚本预览面板 ── */
+.wf-panel--script {
+  width: 520px;
+  max-height: 400px;
+}
+
+.wf-panel--script pre {
+  max-height: 300px;
+  overflow: auto;
+  background: #1e293b;
+  color: #e2e8f0;
+  padding: 8px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+    monospace;
+  white-space: pre;
+  line-height: 1.4;
+}
+
+.wf-panel--script .wf-script-errors {
+  color: #ef4444;
+  font-size: 11px;
+}

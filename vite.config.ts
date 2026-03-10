@@ -34,7 +34,6 @@ export default defineConfig(async () => ({
     rollupOptions: {
       input: {
         main: "index.html",
-        "shortcut-hint": "shortcut-hint.html",
       },
     },
   },

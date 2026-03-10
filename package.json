@@ -12,6 +12,7 @@
   },
   "license": "MIT",
   "dependencies": {
+    "@dschz/solid-flow": "link:..\\solid-flow",
     "@shoelace-style/shoelace": "^2.20.1",
     "@suid/icons-material": "^0.9.0",
     "@suid/material": "^0.19.0",

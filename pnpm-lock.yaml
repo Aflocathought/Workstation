@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@dschz/solid-flow':
+        specifier: link:..\solid-flow
+        version: link:../solid-flow
       '@shoelace-style/shoelace':
         specifier: ^2.20.1
         version: 2.20.1(@floating-ui/utils@0.2.10)(@types/react@19.1.16)

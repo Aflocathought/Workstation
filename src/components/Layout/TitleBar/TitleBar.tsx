@@ -17,18 +17,19 @@ const TitleBar: Component = () => {
   const [isFocused, setIsFocused] = createSignal(true);
   const appWindow = getCurrentWindow();
 
-  // 将路由转换为导航项,设置路由放在最后
+  // 将路由转换为导航项,固定顺序: 工具 → AI → 时间追踪 → 设置
   const mainNavItems = (): NavItem[] => {
     const routes = router.visibleRoutes;
-    const settingsRoute = routes.find((r) => r.id === "settings");
-    const otherRoutes = routes.filter((r) => r.id !== "settings");
+    const order = ["tools", "ai", "timetrack", "settings"];
     
-    // 将设置路由放在最后
-    const orderedRoutes = settingsRoute 
-      ? [...otherRoutes, settingsRoute] 
-      : otherRoutes;
+    const orderedRoutes = order
+      .map((id) => routes.find((r) => r.id === id))
+      .filter((r): r is NonNullable<typeof r> => r != null);
     
-    return orderedRoutes.map((route) => ({
+    // 追加不在固定顺序中的路由
+    const remaining = routes.filter((r) => !order.includes(r.id));
+    
+    return [...orderedRoutes, ...remaining].map((route) => ({
       id: route.id,
       label: route.name,
       icon: route.icon,
