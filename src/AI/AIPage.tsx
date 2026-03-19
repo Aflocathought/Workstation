@@ -1,7 +1,4 @@
-import "@dschz/solid-flow/styles";
-import "./workflow/workflow.css";
-
-import { createMemo, createSignal, Show } from "solid-js";
+import { createMemo, createSignal, Show, onMount, createEffect, onCleanup } from "solid-js";
 import {
   addEdge,
   Background,
@@ -15,6 +12,11 @@ import {
   SolidFlow,
   useSolidFlow,
 } from "@dschz/solid-flow";
+
+import type { FlowSnapshot } from "./workflow/workflow-store";
+import { getTimeline } from "./workflow/workflow-store";
+import { createHistory, bindUndoRedoKeys } from "./workflow/history";
+import { captureWorkflowThumbnail } from "./workflow/screenshot";
 
 import {
   type WorkflowNodeInstanceData,
@@ -37,6 +39,7 @@ import NodeCatalog from "./components/NodeCatalog";
 import NodeInspector from "./components/NodeInspector";
 import LogPanel from "./components/LogPanel";
 import ScriptPreview from "./components/ScriptPreview";
+import Timeline, { type TimelineEntry } from "./components/Timeline";
 
 // ─── Node Types ──────────────────────────────────────────
 
@@ -93,11 +96,30 @@ const initialEdges = [
 
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
+// ─── Props ───────────────────────────────────────────────
+
+interface AIPageProps {
+  initialFlowData: FlowSnapshot | null;
+  workflowName: string;
+  workflowId: string | null;
+  isDirty: boolean;
+  onFlowChange: (snapshot: FlowSnapshot) => void;
+  onSave: () => void;
+  onSaveAs: () => void;
+  onBackToPortal: () => void;
+  /** 用于截图后保存缩略图 */
+  onThumbnailCaptured?: (dataUrl: string) => void;
+}
+
 // ─── Main Component ──────────────────────────────────────
 
-const AIPage = () => {
-  const [nodes, setNodes] = createNodeStore<typeof nodeTypes>(initialNodes);
-  const [edges, setEdges] = createEdgeStore(initialEdges);
+const AIPage = (props: AIPageProps) => {
+  // 如果有外部传入的 flowData 就用它，否则用默认示例
+  const initNodes = (props.initialFlowData?.nodes as Node<WorkflowNodeInstanceData, typeof NODE_TYPE>[] | undefined) ?? initialNodes;
+  const initEdges = (props.initialFlowData?.edges as typeof initialEdges | undefined) ?? initialEdges;
+
+  const [nodes, setNodes] = createNodeStore<typeof nodeTypes>(initNodes);
+  const [edges, setEdges] = createEdgeStore(initEdges);
 
   const [selectedNodeId, setSelectedNodeId] = createSignal<string | null>("config-1");
   const [taskPayload, setTaskPayload] = createSignal("");
@@ -106,8 +128,140 @@ const AIPage = () => {
   const [showCatalog, setShowCatalog] = createSignal(false);
   const [compiledScript, setCompiledScript] = createSignal<CompileResult | null>(null);
   const [showScript, setShowScript] = createSignal(false);
+  const [showTimeline, setShowTimeline] = createSignal(false);
+  const [timelineEntries, setTimelineEntries] = createSignal<TimelineEntry[]>([]);
 
   const { addNodes, fitView, toObject, updateNodeData } = useSolidFlow();
+
+  // ── Undo / Redo 历史 ──────────────────────────────
+
+  const history = createHistory(props.initialFlowData);
+
+  const restoreSnapshot = (snap: FlowSnapshot) => {
+    const n = snap.nodes as Node<WorkflowNodeInstanceData, typeof NODE_TYPE>[];
+    const e = snap.edges as typeof initialEdges;
+    setNodes(n);
+    setEdges(e);
+    reportChange();
+    appendLog("已恢复到历史快照");
+  };
+
+  const handleUndo = () => {
+    const snap = history.undo();
+    if (snap) restoreSnapshot(snap);
+  };
+
+  const handleRedo = () => {
+    const snap = history.redo();
+    if (snap) restoreSnapshot(snap);
+  };
+
+  bindUndoRedoKeys(handleUndo, handleRedo);
+
+  // ── 时间线 ────────────────────────────────────────
+
+  const refreshTimeline = () => {
+    if (!props.workflowId) {
+      setTimelineEntries([]);
+      return;
+    }
+    const snapshots = getTimeline(props.workflowId);
+    setTimelineEntries(
+      snapshots.map((s) => ({
+        id: s.id,
+        label: s.label,
+        timestamp: s.timestamp,
+        thumbnail: s.thumbnail,
+        nodeCount: s.nodeCount,
+        edgeCount: s.edgeCount,
+      })),
+    );
+  };
+
+  const handleTimelineRestore = (entry: TimelineEntry) => {
+    if (!props.workflowId) return;
+    const snapshots = getTimeline(props.workflowId);
+    const snap = snapshots.find((s) => s.id === entry.id);
+    if (!snap) return;
+    restoreSnapshot(snap.flowData);
+    appendLog(`已恢复到时间线快照: ${entry.label}`);
+  };
+
+  // ── 截图 ──────────────────────────────────────────
+
+  const takeScreenshot = async () => {
+    const dataUrl = await captureWorkflowThumbnail();
+    if (dataUrl) {
+      props.onThumbnailCaptured?.(dataUrl);
+    }
+    return dataUrl;
+  };
+
+  // ── 变更上报（节点/边变化时通知容器） ──────────
+
+  const reportChange = () => {
+    const obj = toObject();
+    const snap: FlowSnapshot = {
+      nodes: obj.nodes as unknown[],
+      edges: obj.edges as unknown[],
+      viewport: obj.viewport,
+    };
+    props.onFlowChange(snap);
+    history.push(snap);
+  };
+
+  // 统一监听图变化（含参数编辑），做一次防抖上报，保证持久化完整。
+  let reportTimer: number | undefined;
+  const scheduleReportChange = () => {
+    if (reportTimer !== undefined) {
+      window.clearTimeout(reportTimer);
+    }
+    reportTimer = window.setTimeout(() => {
+      reportChange();
+      reportTimer = undefined;
+    }, 120);
+  };
+
+  createEffect(() => {
+    // 读取依赖：节点位置/参数/连线变化都纳入追踪。
+    const nodeDigest = nodes.map((n) => ({
+      id: n.id,
+      position: n.position,
+      data: n.data,
+    }));
+    const edgeDigest = edges.map((e) => ({
+      id: e.id,
+      source: e.source,
+      sourceHandle: e.sourceHandle,
+      target: e.target,
+      targetHandle: e.targetHandle,
+    }));
+    void nodeDigest;
+    void edgeDigest;
+    scheduleReportChange();
+  });
+
+  onCleanup(() => {
+    if (reportTimer !== undefined) {
+      window.clearTimeout(reportTimer);
+    }
+  });
+
+  // 初始加载后如果有 viewport 信息则恢复
+  onMount(() => {
+    if (props.initialFlowData?.viewport) {
+      // fitView 会覆盖 viewport，如果有保存的 viewport 就不 fitView
+    } else {
+      void fitView({ padding: 0.25 });
+    }
+
+    // 首次进入画布就上报一次快照，确保“新建后立即保存”也有数据可存。
+    queueMicrotask(reportChange);
+    // 打开时如果没有缩略图，延迟截一张
+    setTimeout(() => void takeScreenshot(), 800);
+
+    // 加载时间线
+    refreshTimeline();  });
 
   const selectedNode = createMemo(
     () =>
@@ -159,6 +313,55 @@ const AIPage = () => {
       compatible: false,
       message: `类型不兼容: ${sourcePort.label}(${sourcePort.dataType}) → ${targetPort.label}(${targetPort.dataType})`,
     };
+  };
+
+  const validateConnection = (connection: {
+    source?: string | null;
+    sourceHandle?: string | null;
+    target?: string | null;
+    targetHandle?: string | null;
+  }) => {
+    if (!connection.source || !connection.target || connection.source === connection.target) {
+      return { ok: false, message: "不能自连接或空连接" };
+    }
+    const compat = checkConnectionCompatibility(
+      connection.source,
+      connection.sourceHandle ?? "",
+      connection.target,
+      connection.targetHandle ?? "",
+    );
+    if (!compat.compatible) {
+      return { ok: false, message: compat.message };
+    }
+    return { ok: true, message: compat.message };
+  };
+
+  const handleReconnect = (oldEdge: any, newConnection: any) => {
+    const check = validateConnection(newConnection);
+    if (!check.ok) {
+      appendLog(`重连被拒绝: ${check.message}`);
+      return;
+    }
+
+    setEdges((allEdges) =>
+      allEdges.map((edge) =>
+        edge.id === oldEdge.id
+          ? {
+              ...edge,
+              source: newConnection.source,
+              sourceHandle: newConnection.sourceHandle,
+              target: newConnection.target,
+              targetHandle: newConnection.targetHandle,
+              animated: true,
+            }
+          : edge,
+      ),
+    );
+
+    appendLog(
+      `重连成功：${newConnection.source}:${newConnection.sourceHandle ?? "source"} -> ${newConnection.target}:${newConnection.targetHandle ?? "target"} (${check.message})`,
+    );
+    reportChange();
   };
 
   // ── 模拟流水线执行 ────────────────────────────────
@@ -242,6 +445,7 @@ const AIPage = () => {
       setSelectedNodeId(parsed.nodes[0]?.id ?? null);
       appendLog("远程任务已解析并注入画布");
       void fitView({ padding: 0.25 });
+      reportChange();
     } catch {
       appendLog("任务解析失败：JSON 无法解析");
     }
@@ -275,6 +479,7 @@ const AIPage = () => {
     setSelectedNodeId(id);
     setShowCatalog(false);
     appendLog(`新增节点 ${def.icon} ${def.label} (${id})`);
+    reportChange();
   };
 
   // ── 节点详情面板回调 ──────────────────────────────
@@ -283,6 +488,7 @@ const AIPage = () => {
     const id = selectedNodeId();
     if (!id) return;
     updateNodeData(id, () => ({ [field]: value }));
+    reportChange();
   };
 
   return (
@@ -296,22 +502,29 @@ const AIPage = () => {
         minZoom={0.2}
         connectionMode="strict"
         defaultEdgeOptions={{ animated: true }}
+        onNodeDragStop={() => reportChange()}
         onNodeClick={({ node }) => setSelectedNodeId(node.id)}
-        onConnect={(connection) => {
-          if (!connection.source || !connection.target || connection.source === connection.target) {
-            appendLog("连接失败：不能自连接或空连接");
-            return;
+        onBeforeConnect={(connection) => {
+          const result = validateConnection(connection);
+          if (!result.ok) {
+            appendLog(`连接被拒绝: ${result.message}`);
+            return undefined;
           }
-
-          const compat = checkConnectionCompatibility(
-            connection.source,
-            connection.sourceHandle ?? "",
-            connection.target,
-            connection.targetHandle ?? "",
-          );
-
-          if (!compat.compatible) {
-            appendLog(`连接被拒绝: ${compat.message}`);
+          return connection;
+        }}
+        onBeforeReconnect={(newEdge) => {
+          const result = validateConnection(newEdge);
+          if (!result.ok) {
+            appendLog(`重连被拒绝: ${result.message}`);
+            return undefined;
+          }
+          return newEdge;
+        }}
+        onReconnect={handleReconnect}
+        onConnect={(connection) => {
+          const check = validateConnection(connection);
+          if (!check.ok) {
+            appendLog(`连接被拒绝: ${check.message}`);
             return;
           }
 
@@ -327,8 +540,9 @@ const AIPage = () => {
           );
 
           appendLog(
-            `连接成功：${connection.source}:${connection.sourceHandle ?? "source"} -> ${connection.target}:${connection.targetHandle ?? "target"} (${compat.message})`,
+            `连接成功：${connection.source}:${connection.sourceHandle ?? "source"} -> ${connection.target}:${connection.targetHandle ?? "target"} (${check.message})`,
           );
+          reportChange();
         }}
       >
         <Background variant="dots" gap={18} size={1} />
@@ -338,7 +552,18 @@ const AIPage = () => {
         {/* ── 左上: 操作面板 ── */}
         <Panel position="top-left">
           <div class="wf-panel wf-panel--ops">
-            <strong>AI Workflow Orchestrator</strong>
+            <div style={{ display: "flex", "align-items": "center", gap: "8px", "margin-bottom": "2px" }}>
+              <button class="wf-back-btn" onClick={props.onBackToPortal} title="返回门户">
+                ← 门户
+              </button>
+              <strong style={{ flex: 1 }}>AI Workflow Orchestrator</strong>
+              <span class={`wf-save-indicator ${props.isDirty ? "wf-save-indicator--dirty" : "wf-save-indicator--saved"}`}>
+                {props.isDirty ? "● 未保存" : "✓ 已保存"}
+              </span>
+            </div>
+            <div style={{ "font-size": "11px", color: "#6b7280", "margin-bottom": "4px" }}>
+              {props.workflowName}{props.workflowId ? "" : " (新建)"}
+            </div>
             <div class="wf-panel__btn-row">
               <button class="wf-btn" disabled={isRunning()} onClick={() => void runPipeline()}>
                 {isRunning() ? "执行中..." : "▶ 执行流程"}
@@ -354,6 +579,23 @@ const AIPage = () => {
               <button class="wf-btn wf-btn--ghost" onClick={() => setShowCatalog(!showCatalog())}>
                 {showCatalog() ? "✕ 关闭目录" : "＋ 添加节点"}
               </button>
+              <button class="wf-btn" onClick={props.onSave}>
+                💾 保存
+              </button>
+              <button class="wf-btn wf-btn--ghost" onClick={props.onSaveAs}>
+                另存为
+              </button>
+              <button class="wf-btn wf-btn--icon" onClick={handleUndo} disabled={!history.canUndo()} title="撤销 (Ctrl+Z)">
+                ↩
+              </button>
+              <button class="wf-btn wf-btn--icon" onClick={handleRedo} disabled={!history.canRedo()} title="重做 (Ctrl+Shift+Z)">
+                ↪
+              </button>
+              <button class="wf-btn wf-btn--ghost" onClick={() => { refreshTimeline(); setShowTimeline(!showTimeline()); }}>
+                {showTimeline() ? "✕ 关闭时间线" : "📜 时间线"}
+              </button>
+            </div>
+            <div class="wf-panel__btn-row">
               <button class="wf-btn wf-btn--ghost" onClick={exportTask}>
                 导出
               </button>
@@ -400,6 +642,13 @@ const AIPage = () => {
         {/* ── 右下: 执行日志 ── */}
         <Panel position="bottom-right">
           <LogPanel logs={logs} />
+          <Show when={showTimeline()}>
+            <Timeline
+              entries={timelineEntries}
+              onRestore={handleTimelineRestore}
+              onClose={() => setShowTimeline(false)}
+            />
+          </Show>
         </Panel>
       </SolidFlow>
     </div>

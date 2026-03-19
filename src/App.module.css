@@ -28,8 +28,6 @@
 .card {
   background-color: var(--bg-elevated);
   border-radius: 6px;
-  padding: 16px;
-  margin-bottom: 16px;
   box-shadow: var(--shadow-sm);
   border: 1px solid var(--border-primary);
   flex: 1;

@@ -1,13 +1,12 @@
 import { onMount, Show } from "solid-js";
 import { Toaster } from "solid-toast";
-import { SolidFlowProvider } from "@dschz/solid-flow";
 import styles from "./App.module.css";
 import "./styles/themes.css"; // 导入主题系统
 import TitleBar from "./components/Layout/TitleBar/TitleBar";
 import TimeTrackPage from "./Timetrack/TimeTrackPage";
 import ToolsPage from "./Tools/ToolsPage";
 import SettingsPage from "./Settings/SettingsPage";
-import AIPage from "./AI/AIPage";
+import AIContainer from "./AI/AIContainer";
 import NotificationContainer from "./components/Layout/NotificationContainer/NotificationContainer";
 import { initializeApp } from "./core/AppFramework";
 import { router } from "./core/Router/Router";
@@ -90,9 +89,7 @@ function App() {
         {/* AI 工作流模块 */}
         <Show when={router.current === "ai"}>
           <div class={styles.card}>
-            <SolidFlowProvider>
-              <AIPage />
-            </SolidFlowProvider>
+            <AIContainer />
           </div>
         </Show>
 
