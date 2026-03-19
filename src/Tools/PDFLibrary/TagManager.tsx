@@ -2,6 +2,7 @@
 import { Component, createSignal, onMount, For, Show } from 'solid-js';
 import { pdfLibraryService } from './PDFLibraryService';
 import type { Tag } from './types';
+import { confirmAction } from '../../core/ui/confirm';
 import styles from './TagManager.module.css';
 
 interface TagManagerProps {
@@ -70,7 +71,13 @@ const TagManager: Component<TagManagerProps> = (props) => {
   };
 
   const handleDelete = async (tag: Tag) => {
-    if (!confirm(`确定要删除标签 "${tag.name}" 吗？这将同时移除所有书籍的此标签。`)) {
+    const ok = await confirmAction(`确定要删除标签 "${tag.name}" 吗？这将同时移除所有书籍的此标签。`, {
+      title: '删除标签',
+      kind: 'warning',
+      okLabel: '删除',
+      cancelLabel: '取消',
+    });
+    if (!ok) {
       return;
     }
 

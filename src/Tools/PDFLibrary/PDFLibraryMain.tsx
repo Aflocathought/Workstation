@@ -4,6 +4,7 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { listen } from '@tauri-apps/api/event';
 import { pdfLibraryService } from './PDFLibraryService';
 import type { Book, Tag, Directory, Category, ViewType, SortField, SortOrder } from './types';
+import { confirmAction } from '../../core/ui/confirm';
 import TagManager from './TagManager';
 import { loadState, saveState } from './PDFLibraryState';
 import styles from './PDFLibrary.module.css';
@@ -407,9 +408,19 @@ const PDFLibrary: Component = () => {
 
   const handleRemoveMissing = async () => {
     // 双重确认，避免误删
-    const first = window.confirm('将移除所有“文件不存在”的记录，文件本身不会被删除。继续吗？');
+    const first = await confirmAction('将移除所有“文件不存在”的记录，文件本身不会被删除。继续吗？', {
+      title: '清理缺失记录',
+      kind: 'warning',
+      okLabel: '继续',
+      cancelLabel: '取消',
+    });
     if (!first) return;
-    const second = window.confirm('再次确认：立即清理缺失文件记录？');
+    const second = await confirmAction('再次确认：立即清理缺失文件记录？', {
+      title: '二次确认',
+      kind: 'warning',
+      okLabel: '立即清理',
+      cancelLabel: '取消',
+    });
     if (!second) return;
 
     try {
@@ -664,8 +675,13 @@ const PDFLibrary: Component = () => {
 
   const handleRescanAll = async () => {
     if (isRescanning()) return;
-    const confirm = window.confirm('将重新检查 Inbox 及所有记录文件的存在状态，继续吗？');
-    if (!confirm) return;
+    const ok = await confirmAction('将重新检查 Inbox 及所有记录文件的存在状态，继续吗？', {
+      title: '重新检查文件',
+      kind: 'warning',
+      okLabel: '继续',
+      cancelLabel: '取消',
+    });
+    if (!ok) return;
     setIsRescanning(true);
     try {
       const stats = await pdfLibraryService.rescanFiles();
@@ -699,7 +715,12 @@ const PDFLibrary: Component = () => {
         setSelectedBook(refreshed);
 
         if (result.suggestMove) {
-          const move = window.confirm('文件已重新关联，但不在 Workspace。是否将文件移动到 Workspace?');
+          const move = await confirmAction('文件已重新关联，但不在 Workspace。是否将文件移动到 Workspace?', {
+            title: '移动到 Workspace',
+            kind: 'info',
+            okLabel: '移动',
+            cancelLabel: '不移动',
+          });
           if (move) {
             await pdfLibraryService.moveBookToWorkspace(book.id);
             await loadData();
@@ -711,7 +732,12 @@ const PDFLibrary: Component = () => {
       }
 
       if (result.needsConfirmation) {
-        const forceConfirm = window.confirm('未找到唯一标识，仅匹配名称/大小。是否强制关联？');
+        const forceConfirm = await confirmAction('未找到唯一标识，仅匹配名称/大小。是否强制关联？', {
+          title: '强制关联',
+          kind: 'warning',
+          okLabel: '强制关联',
+          cancelLabel: '取消',
+        });
         if (forceConfirm) {
           return attempt(true);
         }
@@ -1115,13 +1141,18 @@ const PDFLibrary: Component = () => {
               <button
                 class={`${styles.toolbarButton} ${styles.dangerButton}`}
                 onClick={async () => {
-                  if (confirm(`确定要删除选中的 ${selectedBookIds().length} 本书籍吗?（仅删除记录，不删除文件）`)) {
-                    for (const bookId of selectedBookIds()) {
-                      await pdfLibraryService.deleteBook(bookId, false);
-                    }
-                    await loadData();
-                    setSelectedBookIds([]);
+                  const ok = await confirmAction(`确定要删除选中的 ${selectedBookIds().length} 本书籍吗?（仅删除记录，不删除文件）`, {
+                    title: '批量删除书籍记录',
+                    kind: 'warning',
+                    okLabel: '删除',
+                    cancelLabel: '取消',
+                  });
+                  if (!ok) return;
+                  for (const bookId of selectedBookIds()) {
+                    await pdfLibraryService.deleteBook(bookId, false);
                   }
+                  await loadData();
+                  setSelectedBookIds([]);
                 }}
                 title="批量删除"
               >
