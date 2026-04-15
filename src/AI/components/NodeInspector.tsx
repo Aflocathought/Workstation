@@ -1,6 +1,6 @@
 import { For, Show, createEffect, createSignal, onCleanup } from "solid-js";
 import { type Node, useSolidFlow, useUpdateNodeInternals } from "@dschz/solid-flow";
-import { type WorkflowNodeInstanceData, type NodeStatus } from "../workflow/types";
+import { type WorkflowNodeInstanceData } from "../workflow/types";
 import { getNodeDefinition } from "../workflow/node-registry";
 import { statusText } from "./WorkflowCardNode";
 
