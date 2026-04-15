@@ -1,6 +1,7 @@
 // src/Tools/registerRoute.ts
 import { router } from '../core/Router';
 import type { ToolConfig } from './types';
+import Build from '@suid/icons-material/Build';
 
 // 自动导入所有工具配置
 import { spectrumToolConfig } from './Spectrum';
@@ -33,7 +34,7 @@ export function registerToolsRoutes() {
     id: 'tools',
     name: '工具',
     path: '/tools',
-    icon: '🔧',
+    icon: Build,
     description: '实用工具集合',
     component: () => import('./ToolsPage'),
   });

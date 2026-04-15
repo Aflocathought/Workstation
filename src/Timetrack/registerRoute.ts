@@ -1,5 +1,8 @@
 // src/Timeline/registerRoute.ts
 import { router } from '../core/Router';
+import AccessTime from "@suid/icons-material/AccessTime";
+import InsertChart from "@suid/icons-material/InsertChart";
+import Label from "@suid/icons-material/Label";
 
 /**
  * 注册时间追踪功能路由
@@ -11,7 +14,7 @@ export function registerTimeTrackRoutes() {
     id: 'timetrack',
     name: '时间追踪',
     path: '/timetrack',
-    icon: '⏱️',
+    icon: AccessTime,
     description: '时间追踪和分类管理',
     component: () => import('./TimeTrackPage'),
   });
@@ -21,7 +24,7 @@ export function registerTimeTrackRoutes() {
     id: 'timetrack-dashboard',
     name: '时间轴',
     path: '/timetrack/dashboard',
-    icon: '📊',
+    icon: InsertChart,
     description: '查看时间追踪时间轴',
     hidden: true,  // 隐藏，只在 TimeTrack 内部导航显示
   });
@@ -31,7 +34,7 @@ export function registerTimeTrackRoutes() {
     id: 'timetrack-category',
     name: '分类管理',
     path: '/timetrack/category',
-    icon: '🏷️',
+    icon: Label,
     description: '管理应用分类和配置',
     hidden: true,  // 隐藏，只在 TimeTrack 内部导航显示
   });

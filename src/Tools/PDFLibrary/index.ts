@@ -1,5 +1,6 @@
 // src/Tools/PDFLibrary/index.ts
 import { ToolCategory, type ToolConfig } from '../types';
+import LibraryBooks from '@suid/icons-material/LibraryBooks';
 
 /**
  * PDF Library 工具配置
@@ -8,7 +9,7 @@ import { ToolCategory, type ToolConfig } from '../types';
 const pdfLibraryToolConfig: ToolConfig = {
   id: 'tools-pdf-library',
   name: 'PDF 图书馆',
-  icon: '📚',
+  icon: LibraryBooks,
   description: 'PDF 文件管理和阅读工具，支持标签、元数据管理',
   category: ToolCategory.PRODUCTIVITY,
   component: () => import('./PDFLibraryMain'),
