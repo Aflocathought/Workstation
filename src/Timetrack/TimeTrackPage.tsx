@@ -3,6 +3,8 @@ import { Component, Show, lazy, Suspense } from 'solid-js';
 import { router } from '../core/Router';
 import { NavBar, type NavItem } from '../components/Layout/Navigation';
 import styles from './TimeTrackPage.module.css';
+import InsertChart from '@suid/icons-material/InsertChart';
+import Label from '@suid/icons-material/Label';
 
 // 懒加载子页面
 const Dashboard = lazy(() => import('./Dashboard/Dashboard'));
@@ -18,13 +20,13 @@ const TimeTrackPage: Component = () => {
     {
       id: 'timetrack-dashboard',
       label: '时间轴',
-      icon: '📊',
+      icon: InsertChart,
       description: '查看时间追踪时间轴',
     },
     {
       id: 'timetrack-category',
       label: '分类管理',
-      icon: '🏷️',
+      icon: Label,
       description: '管理应用分类配置',
     },
   ];
