@@ -10,6 +10,7 @@ import {
 } from "solid-js";
 import ChartRender from "./ChartRender";
 import styles from "./Datascope.module.css";
+import { SplitPane } from "../../components/core-ui/SplitPane";
 import {
   detectDelimiter,
   parseCSV,
@@ -155,8 +156,6 @@ const Datascope: Component = () => {
       xColumn: xCol,
       yColumns: selected,
       axisType: axisType(),
-      autoDownsample: autoDownsample(),
-      maxPoints: clampPoints(maxPoints()),
     });
   });
 
@@ -601,149 +600,157 @@ const Datascope: Component = () => {
           </div>
         }
       >
-        <div class={styles.dashboardContent}>
-          <section class={styles.controls}>
-            <div class={styles.section}>
-              <h3 class={styles.sectionTitle}>列选择</h3>
+        <SplitPane
+          defaultRightWidth={280}
+          leftPane={
+            <div class={styles.leftContent}>
+              {renderStats()}
+              {renderChart()}
 
-              <label class={styles.inlineControls}>
-                <div class={styles.xHeader}>
-                  <span>X 轴</span>
-                  <span>(类型: {axisTypeLabel(axisType())})</span>
-                </div>
-                <select
-                  value={xColumn()}
-                  onChange={(event) =>
-                    setXColumn((event.currentTarget as HTMLSelectElement).value)
-                  }
-                >
-                  <option value={ROW_INDEX_KEY}>1...N</option>
-                  <For each={headers()}>
-                    {(header) => <option value={header}>{header}</option>}
-                  </For>
-                </select>
-              </label>
+              {/* ��ҳ����ͼ */}
+              <Show when={pagination()}>
+                <ThumbnailGrid
+                  thumbnails={thumbnails()}
+                  currentPage={pagination()?.currentPage || 0}
+                  totalPages={pagination()?.totalPages || 0}
+                  onPageClick={handlePageClick}
+                  pageInfo={pagination()?.pages || []}
+                />
+              </Show>
 
-              <div>
-                <div>数值列</div>
-                <Show
-                  when={numericColumns().length > 0}
-                  fallback={<div>未检测到数值列</div>}
-                >
-                  <div class={styles.checkboxGrid}>
-                    <For each={numericColumns()}>
-                      {(col) => (
-                        <label class={styles.checkboxItem}>
-                          <input
-                            type="checkbox"
-                            checked={valueColumns().includes(col)}
-                            onChange={() => handleValueColumnToggle(col)}
-                          />
-                          {col}
-                        </label>
-                      )}
-                    </For>
+              <Show when={dragOver()}>
+                <div class={styles.dragOverlay}>
+                  <div class={styles.overlayContent}>
+                    <UploadSection
+                      isLoading={isLoading}
+                      setRef={(el) => (fileInputRef = el)}
+                      handleInputChange={handleInputChange}
+                      errorMessage={null}
+                      isOverlay={true}
+                      onClickUpload={() => fileInputRef?.click()}
+                    />
                   </div>
-                </Show>
-              </div>
+                </div>
+              </Show>
             </div>
+          }
+          rightPane={
+            <div class={styles.rightControls}>
+              <section class={styles.controls}>
+                          <div class={styles.section}>
+                            <h3 class={styles.sectionTitle}>列选择</h3>
+              
+                            <label class={styles.inlineControls}>
+                              <div class={styles.xHeader}>
+                                <span>X 轴</span>
+                                <span>(类型: {axisTypeLabel(axisType())})</span>
+                              </div>
+                              <select
+                                value={xColumn()}
+                                onChange={(event) =>
+                                  setXColumn((event.currentTarget as HTMLSelectElement).value)
+                                }
+                              >
+                                <option value={ROW_INDEX_KEY}>1...N</option>
+                                <For each={headers()}>
+                                  {(header) => <option value={header}>{header}</option>}
+                                </For>
+                              </select>
+                            </label>
+              
+                            <div>
+                              <div>数值列</div>
+                              <Show
+                                when={numericColumns().length > 0}
+                                fallback={<div>未检测到数值列</div>}
+                              >
+                                <div class={styles.checkboxGrid}>
+                                  <For each={numericColumns()}>
+                                    {(col) => (
+                                      <label class={styles.checkboxItem}>
+                                        <input
+                                          type="checkbox"
+                                          checked={valueColumns().includes(col)}
+                                          onChange={() => handleValueColumnToggle(col)}
+                                        />
+                                        {col}
+                                      </label>
+                                    )}
+                                  </For>
+                                </div>
+                              </Show>
+                            </div>
+                          </div>
+              
+                          <div class={styles.section}>
+                            <h3 class={styles.sectionTitle}>解析设置</h3>
+              
+                            <label class={styles.inlineControls}>
+                              <span>分隔符</span>
+                              <select value={delimiter()} onChange={handleDelimiterChange}>
+                                <option value=",">逗号 (,)</option>
+                                <option value=";">分号 (;)</option>
+                                <option value="\t">制表符 (Tab)</option>
+                                <option value="|">竖线 (|)</option>
+                              </select>
+                            </label>
+              
+                            <label class={styles.checkboxItem}>
+                              <input
+                                type="checkbox"
+                                checked={autoDownsample()}
+                                onChange={(event) =>
+                                  setAutoDownsample(event.currentTarget.checked)
+                                }
+                              />
+                              自动下采样
+                            </label>
+              
+                            <div class={styles.sliderInput}>
+                              <span>采样点上限</span>
+                              <input
+                                type="range"
+                                min={MIN_POINTS}
+                                max={MAX_POINTS}
+                                step={MIN_POINTS}
+                                value={maxPoints()}
+                                disabled={!autoDownsample()}
+                                onInput={(event) =>
+                                  setMaxPoints(
+                                    clampPoints(
+                                      Number((event.currentTarget as HTMLInputElement).value)
+                                    )
+                                  )
+                                }
+                              />
+                              <input
+                                type="number"
+                                min={MIN_POINTS}
+                                max={MAX_POINTS}
+                                value={maxPoints()}
+                                disabled={!autoDownsample()}
+                                onInput={(event) =>
+                                  setMaxPoints(
+                                    clampPoints(
+                                      Number((event.currentTarget as HTMLInputElement).value)
+                                    )
+                                  )
+                                }
+                              />
+                            </div>
+                          </div>
+                        </section>
 
-            <div class={styles.section}>
-              <h3 class={styles.sectionTitle}>解析设置</h3>
-
-              <label class={styles.inlineControls}>
-                <span>分隔符</span>
-                <select value={delimiter()} onChange={handleDelimiterChange}>
-                  <option value=",">逗号 (,)</option>
-                  <option value=";">分号 (;)</option>
-                  <option value="\t">制表符 (Tab)</option>
-                  <option value="|">竖线 (|)</option>
-                </select>
-              </label>
-
-              <label class={styles.checkboxItem}>
-                <input
-                  type="checkbox"
-                  checked={autoDownsample()}
-                  onChange={(event) =>
-                    setAutoDownsample(event.currentTarget.checked)
-                  }
-                />
-                自动下采样
-              </label>
-
-              <div class={styles.sliderInput}>
-                <span>采样点上限</span>
-                <input
-                  type="range"
-                  min={MIN_POINTS}
-                  max={MAX_POINTS}
-                  step={MIN_POINTS}
-                  value={maxPoints()}
-                  disabled={!autoDownsample()}
-                  onInput={(event) =>
-                    setMaxPoints(
-                      clampPoints(
-                        Number((event.currentTarget as HTMLInputElement).value)
-                      )
-                    )
-                  }
-                />
-                <input
-                  type="number"
-                  min={MIN_POINTS}
-                  max={MAX_POINTS}
-                  value={maxPoints()}
-                  disabled={!autoDownsample()}
-                  onInput={(event) =>
-                    setMaxPoints(
-                      clampPoints(
-                        Number((event.currentTarget as HTMLInputElement).value)
-                      )
-                    )
-                  }
-                />
-              </div>
-            </div>
-          </section>
-
-          <Show when={status()}>
+              <Show when={status()}>
             <div class={styles.message}>{status()}</div>
           </Show>
 
-          <Show when={errorMessage()}>
+              <Show when={errorMessage()}>
             <div class={styles.error}>{errorMessage()}</div>
           </Show>
-
-          {renderStats()}
-          {renderChart()}
-
-          {/* 分页缩略图 */}
-          <Show when={pagination()}>
-            <ThumbnailGrid
-              thumbnails={thumbnails()}
-              currentPage={pagination()?.currentPage || 0}
-              totalPages={pagination()?.totalPages || 0}
-              onPageClick={handlePageClick}
-              pageInfo={pagination()?.pages || []}
-            />
-          </Show>
-
-          <Show when={dragOver()}>
-            <div class={styles.dragOverlay}>
-              <div class={styles.overlayContent}>
-                <UploadSection
-                  isLoading={isLoading}
-                  setRef={(el) => (fileInputRef = el)}
-                  handleInputChange={handleInputChange}
-                  errorMessage={null}
-                  isOverlay={true}
-                  onClickUpload={() => fileInputRef?.click()}
-                />
-              </div>
             </div>
-          </Show>
-        </div>
+          }
+        />
       </Show>
     </div>
   );

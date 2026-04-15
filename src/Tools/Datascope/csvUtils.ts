@@ -257,7 +257,7 @@ function parseNumeric(value?: unknown): number | null {
  * @param threshold 
  * @returns 
  */
-function evenlySampleIndices(length: number, threshold: number): number[] {
+export function evenlySampleIndices(length: number, threshold: number): number[] {
   if (threshold >= length) {
     return Array.from({ length }, (_, idx) => idx);
   }
@@ -289,7 +289,7 @@ function evenlySampleIndices(length: number, threshold: number): number[] {
  * @param threshold 
  * @returns 
  */
-function largestTriangleThreeBucketsIndices(
+export function largestTriangleThreeBucketsIndices(
   data: Array<{ x: number; y: number }>,
   threshold: number
 ): number[] {
