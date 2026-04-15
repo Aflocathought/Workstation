@@ -1,5 +1,6 @@
 // src/components/Layout/Navigation/NavBar.tsx
 import { Component, For } from "solid-js";
+import { Dynamic } from "solid-js/web";
 import styles from "./NavBar.module.css";
 
 /**
@@ -91,7 +92,7 @@ export const NavBar: Component<NavBarProps> = (props) => {
             >
               {showIcon() && item.icon && (
                 <span class={styles.icon}>
-                  {typeof item.icon === "string" ? item.icon : <item.icon />}
+                  {typeof item.icon === "string" ? item.icon : <Dynamic component={item.icon} />}
                 </span>
               )}
               {showLabel() && <span class={styles.label}>{item.label}</span>}

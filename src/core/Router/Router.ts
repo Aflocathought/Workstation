@@ -1,5 +1,6 @@
 // src/core/Router.ts
 import { createSignal } from "solid-js";
+import Settings from "@suid/icons-material/Settings";
 
 // 默认路由配置
 export const defaultRoutes: Route[] = [
@@ -13,7 +14,7 @@ export const defaultRoutes: Route[] = [
     id: "settings",
     name: "设置",
     path: "/settings",
-    icon: "⚙️",
+    icon: Settings,
     description: "应用设置和配置",
   },
 ];
@@ -23,7 +24,7 @@ export interface Route {
   name: string;
   path: string;
   component?: () => any; // 懒加载组件
-  icon?: string;
+  icon?: any; // 可以是 emoji 字符串，也可以是 Solid 组件
   description?: string;
   hidden?: boolean;
 }
