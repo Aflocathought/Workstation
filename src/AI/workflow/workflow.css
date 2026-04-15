@@ -440,8 +440,8 @@
 }
 
 .wf-save-dialog {
-  background: var(--vscode-editorWidget-background, #1e1e22);
-  border: 1px solid var(--vscode-panel-border, #3a3a3e);
+  background: var(--editorWidget-background, #1e1e22);
+  border: 1px solid var(--panel-border, #3a3a3e);
   border-radius: 12px;
   padding: 24px;
   min-width: 360px;
@@ -461,16 +461,16 @@
 .wf-save-dialog p {
   margin: 0;
   font-size: 13px;
-  color: var(--vscode-descriptionForeground, #888);
+  color: var(--descriptionForeground, #888);
 }
 
 .wf-save-dialog__input {
   width: 100%;
   padding: 8px 12px;
-  border: 1px solid var(--vscode-input-border, #3a3a3e);
+  border: 1px solid var(--input-border, #3a3a3e);
   border-radius: 8px;
-  background: var(--vscode-input-background, #1a1a1e);
-  color: var(--vscode-input-foreground, #e0e0e0);
+  background: var(--input-background, #1a1a1e);
+  color: var(--input-foreground, #e0e0e0);
   font-size: 13px;
   outline: none;
   box-sizing: border-box;

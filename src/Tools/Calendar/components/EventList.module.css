@@ -32,9 +32,9 @@
   margin: 0 0 12px 0;
   font-size: 18px;
   font-weight: 600;
-  color: var(--vscode-foreground);
+  color: var(--foreground);
   padding: 8px 12px;
-  background: var(--vscode-sideBarSectionHeader-background);
+  background: var(--sideBarSectionHeader-background);
   border-radius: 6px;
   position: sticky;
   top: 0;
@@ -45,10 +45,10 @@
 .emptyColumnState {
   padding: 32px 24px;
   text-align: center;
-  background: var(--vscode-editor-background);
-  border: 1px solid var(--vscode-panel-border);
+  background: var(--editor-background);
+  border: 1px solid var(--panel-border);
   border-radius: 6px;
-  color: var(--vscode-descriptionForeground);
+  color: var(--descriptionForeground);
   font-size: 14px;
 }
 
@@ -56,14 +56,14 @@
 .emptyState {
   padding: 48px;
   text-align: center;
-  background: var(--vscode-editor-background);
-  border: 1px solid var(--vscode-panel-border);
+  background: var(--editor-background);
+  border: 1px solid var(--panel-border);
   border-radius: 6px;
 }
 
 .emptyState p {
   margin: 8px 0;
-  color: var(--vscode-descriptionForeground);
+  color: var(--descriptionForeground);
   font-size: 14px;
 }
 
@@ -75,8 +75,8 @@
 .hint {
   margin-top: 16px;
   padding: 16px;
-  background: var(--vscode-textBlockQuote-background);
-  border-left: 3px solid var(--vscode-textBlockQuote-border);
+  background: var(--textBlockQuote-background);
+  border-left: 3px solid var(--textBlockQuote-border);
   font-size: 13px;
   text-align: left;
 }
@@ -89,8 +89,8 @@
 .dateHeader {
   font-size: 15px;
   font-weight: 600;
-  color: var(--vscode-sideBar-foreground);
-  background-color: var(--vscode-sideBar-background);
+  color: var(--sideBar-foreground);
+  background-color: var(--sideBar-background);
   padding: 8px 16px;
   border-radius: 4px;
   margin-bottom: 12px;

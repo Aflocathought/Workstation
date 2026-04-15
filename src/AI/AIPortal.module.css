@@ -7,8 +7,8 @@
   flex-direction: column;
   width: 100%;
   height: 100%;
-  background: var(--vscode-editor-background, #0e0e10);
-  color: var(--vscode-editor-foreground, #e0e0e0);
+  background: var(--editor-background, #0e0e10);
+  color: var(--editor-foreground, #e0e0e0);
   overflow: hidden;
 }
 
@@ -19,7 +19,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 16px 24px 12px;
-  border-bottom: 1px solid var(--vscode-panel-border, #2a2a2e);
+  border-bottom: 1px solid var(--panel-border, #2a2a2e);
   flex-shrink: 0;
 }
 
@@ -51,10 +51,10 @@
 .search {
   width: 220px;
   padding: 6px 12px;
-  border: 1px solid var(--vscode-input-border, #3a3a3e);
+  border: 1px solid var(--input-border, #3a3a3e);
   border-radius: 8px;
-  background: var(--vscode-input-background, #1e1e22);
-  color: var(--vscode-input-foreground, #e0e0e0);
+  background: var(--input-background, #1e1e22);
+  color: var(--input-foreground, #e0e0e0);
   font-size: 13px;
   outline: none;
   transition: border-color 0.15s;
@@ -65,7 +65,7 @@
 }
 
 .search::placeholder {
-  color: var(--vscode-input-placeholderForeground, #666);
+  color: var(--input-placeholderForeground, #666);
 }
 
 /* ── 3-Column Layout ── */
@@ -82,7 +82,7 @@
 .column {
   display: flex;
   flex-direction: column;
-  border-right: 1px solid var(--vscode-panel-border, #2a2a2e);
+  border-right: 1px solid var(--panel-border, #2a2a2e);
   overflow: hidden;
 }
 
@@ -98,9 +98,9 @@
   font-weight: 600;
   margin: 0;
   padding: 12px 16px 10px;
-  border-bottom: 1px solid var(--vscode-panel-border, #222);
+  border-bottom: 1px solid var(--panel-border, #222);
   flex-shrink: 0;
-  color: var(--vscode-foreground, #ccc);
+  color: var(--foreground, #ccc);
   background: rgba(255, 255, 255, 0.02);
 }
 
@@ -115,7 +115,7 @@
   padding: 1px 7px;
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.08);
-  color: var(--vscode-descriptionForeground, #888);
+  color: var(--descriptionForeground, #888);
 }
 
 .columnBody {
@@ -135,7 +135,7 @@
   align-items: center;
   justify-content: center;
   padding: 40px 16px;
-  color: var(--vscode-descriptionForeground, #777);
+  color: var(--descriptionForeground, #777);
   text-align: center;
   gap: 6px;
   flex: 1;
@@ -153,7 +153,7 @@
 
 .empty small {
   font-size: 11px;
-  color: var(--vscode-descriptionForeground, #666);
+  color: var(--descriptionForeground, #666);
 }
 
 /* ── Card ── */
@@ -161,9 +161,9 @@
 .card {
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--vscode-panel-border, #2a2a2e);
+  border: 1px solid var(--panel-border, #2a2a2e);
   border-radius: 10px;
-  background: var(--vscode-editorWidget-background, #1a1a1e);
+  background: var(--editorWidget-background, #1a1a1e);
   overflow: hidden;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
@@ -183,7 +183,7 @@
 .cardThumb {
   position: relative;
   height: 100px;
-  background: var(--vscode-editor-background, #0e0e10);
+  background: var(--editor-background, #0e0e10);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -201,7 +201,7 @@
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  color: var(--vscode-descriptionForeground, #555);
+  color: var(--descriptionForeground, #555);
 }
 
 .cardThumbPlaceholder span {
@@ -246,7 +246,7 @@
 
 .cardDesc {
   font-size: 11px;
-  color: var(--vscode-descriptionForeground, #888);
+  color: var(--descriptionForeground, #888);
   margin: 0;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -258,7 +258,7 @@
   display: flex;
   justify-content: space-between;
   font-size: 10px;
-  color: var(--vscode-descriptionForeground, #777);
+  color: var(--descriptionForeground, #777);
   margin-top: 2px;
 }
 
@@ -274,7 +274,7 @@
   border-radius: 3px;
   background: rgba(255, 255, 255, 0.07);
   font-size: 9px;
-  color: var(--vscode-descriptionForeground, #aaa);
+  color: var(--descriptionForeground, #aaa);
 }
 
 /* ── Card Actions ── */
@@ -283,17 +283,17 @@
   display: flex;
   gap: 5px;
   padding: 7px 12px 10px;
-  border-top: 1px solid var(--vscode-panel-border, #2a2a2e);
+  border-top: 1px solid var(--panel-border, #2a2a2e);
 }
 
 /* ── Buttons ── */
 
 .btn {
   padding: 5px 12px;
-  border: 1px solid var(--vscode-button-border, #3a3a3e);
+  border: 1px solid var(--button-border, #3a3a3e);
   border-radius: 7px;
-  background: var(--vscode-button-secondaryBackground, #2a2a2e);
-  color: var(--vscode-button-secondaryForeground, #e0e0e0);
+  background: var(--button-secondaryBackground, #2a2a2e);
+  color: var(--button-secondaryForeground, #e0e0e0);
   font-size: 12px;
   cursor: pointer;
   transition: all 0.15s;
@@ -301,7 +301,7 @@
 }
 
 .btn:hover {
-  background: var(--vscode-button-secondaryHoverBackground, #3a3a3e);
+  background: var(--button-secondaryHoverBackground, #3a3a3e);
 }
 
 .btnPrimary {

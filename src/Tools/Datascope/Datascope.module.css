@@ -8,15 +8,15 @@
   gap: 8px;
   padding: 12px 16px;
   box-sizing: border-box;
-  background: var(--vscode-editor-background);
-  color: var(--vscode-foreground);
+  background: var(--editor-background);
+  color: var(--foreground);
   /* 由内部内容区负责滚动，这里只裁剪溢出 */
   overflow: hidden;
 }
 
 .uploadArea {
-  background: var(--vscode-editorWidget-background);
-  border: 1px dashed var(--vscode-editorWidget-border);
+  background: var(--editorWidget-background);
+  border: 1px dashed var(--editorWidget-border);
   border-radius: 8px;
   padding: 16px;
   display: flex;
@@ -34,13 +34,13 @@
   padding: 16px;
   border-radius: 6px;
   border: 3px dashed #aaa;
-  background: var(--vscode-editor-background);
+  background: var(--editor-background);
   text-align: center;
   cursor: pointer;
 }
 
 .dropZone.dragOver {
-  border: 1px solid var(--vscode-focusBorder);
+  border: 1px solid var(--focusBorder);
   background: rgba(30, 144, 255, 0.08);
 }
 
@@ -58,12 +58,12 @@
 
 .fileInfo {
   font-size: 13px;
-  color: var(--vscode-descriptionForeground);
+  color: var(--descriptionForeground);
 }
 
 .recentFiles {
   margin-top: 8px;
-  border-top: 1px solid var(--vscode-editorWidget-border);
+  border-top: 1px solid var(--editorWidget-border);
   padding-top: 10px;
   display: flex;
   flex-direction: column;
@@ -80,7 +80,7 @@
   margin: 0;
   font-size: 13px;
   font-weight: 600;
-  color: var(--vscode-foreground);
+  color: var(--foreground);
 }
 
 .recentList {
@@ -98,9 +98,9 @@
 .recentOpenButton {
   flex: 1 1 auto;
   min-width: 0;
-  border: 1px solid var(--vscode-editorWidget-border);
-  background: var(--vscode-editor-background);
-  color: var(--vscode-foreground);
+  border: 1px solid var(--editorWidget-border);
+  background: var(--editor-background);
+  color: var(--foreground);
   border-radius: 6px;
   padding: 8px 10px;
   cursor: pointer;
@@ -111,13 +111,13 @@
 }
 
 .recentOpenButton:hover {
-  background: var(--vscode-toolbar-hoverBackground);
+  background: var(--toolbar-hoverBackground);
 }
 
 .recentName {
   font-size: 13px;
   font-weight: 600;
-  color: var(--vscode-foreground);
+  color: var(--foreground);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -125,7 +125,7 @@
 
 .recentPath {
   font-size: 12px;
-  color: var(--vscode-descriptionForeground);
+  color: var(--descriptionForeground);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -133,9 +133,9 @@
 
 .recentJumpButton {
   flex: 0 0 auto;
-  border: 1px solid var(--vscode-editorWidget-border);
-  background: var(--vscode-sideBar-background);
-  color: var(--vscode-foreground);
+  border: 1px solid var(--editorWidget-border);
+  background: var(--sideBar-background);
+  color: var(--foreground);
   border-radius: 6px;
   padding: 0 10px;
   cursor: pointer;
@@ -143,7 +143,7 @@
 }
 
 .recentJumpButton:hover {
-  background: var(--vscode-toolbar-hoverBackground);
+  background: var(--toolbar-hoverBackground);
 }
 
 .controls {
@@ -154,8 +154,8 @@
 }
 
 .section {
-  background: var(--vscode-editorWidget-background);
-  border: 1px solid var(--vscode-editorWidget-border);
+  background: var(--editorWidget-background);
+  border: 1px solid var(--editorWidget-border);
   border-radius: 8px;
   padding: 10px 12px;
   display: flex;
@@ -169,23 +169,23 @@
   padding: 2px 6px;
   font-size: 12px;
   height: 26px;
-  border: 1px solid var(--vscode-input-border);
-  background: var(--vscode-input-background);
-  color: var(--vscode-input-foreground);
+  border: 1px solid var(--input-border);
+  background: var(--input-background);
+  color: var(--input-foreground);
   border-radius: 4px;
 }
 
 .section select:focus,
 .section input:focus {
-  outline: 1px solid var(--vscode-focusBorder);
-  border-color: var(--vscode-focusBorder);
+  outline: 1px solid var(--focusBorder);
+  border-color: var(--focusBorder);
 }
 
 .sectionTitle {
   font-size: 14px;
   font-weight: 600;
   margin: 0;
-  color: var(--vscode-foreground);
+  color: var(--foreground);
 }
 
 .inlineControls {
@@ -199,7 +199,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   gap: 8px 12px;
-  /* 确保复选框多的时候能滚 */
+  /* 确保复选框多的时候能�?*/
   overflow-y: auto;
 }
 
@@ -208,11 +208,11 @@
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  color: var(--vscode-foreground);
+  color: var(--foreground);
 }
 
 .checkboxItem input {
-  accent-color: var(--vscode-focusBorder);
+  accent-color: var(--focusBorder);
 }
 
 .sliderInput {
@@ -231,36 +231,36 @@
   flex-wrap: wrap;
   gap: 4px 12px;
   font-size: 12px;
-  color: var(--vscode-descriptionForeground);
+  color: var(--descriptionForeground);
 }
 
 .stats strong {
-  color: var(--vscode-foreground);
+  color: var(--foreground);
 }
 
 .error {
   padding: 6px 10px;
   border-radius: 6px;
-  border: 1px solid var(--vscode-inputValidation-errorBorder);
+  border: 1px solid var(--inputValidation-errorBorder);
   background: rgba(255, 59, 48, 0.1);
-  color: var(--vscode-inputValidation-errorForeground);
+  color: var(--inputValidation-errorForeground);
   font-size: 12px;
 }
 
 .message {
   padding: 6px 10px;
   border-radius: 6px;
-  background: var(--vscode-editorWidget-background);
-  border: 1px solid var(--vscode-editorWidget-border);
+  background: var(--editorWidget-background);
+  border: 1px solid var(--editorWidget-border);
   font-size: 12px;
-  color: var(--vscode-descriptionForeground);
+  color: var(--descriptionForeground);
 }
 
 .chartWrapper {
-  flex-shrink: 0; /* 防止被压缩 */
+  flex-shrink: 0; /* 防止被压�?*/
   width: 100%;
-  background: var(--vscode-editorWidget-background);
-  border: 1px solid var(--vscode-editorWidget-border);
+  background: var(--editorWidget-background);
+  border: 1px solid var(--editorWidget-border);
   border-radius: 8px;
   height: 60vh; /* 使用视口高度比例，更灵活 */
   min-height: 400px;
@@ -315,15 +315,25 @@
   pointer-events: none;
 }
 
-.dashboardContent {
+.leftContent {
   display: flex;
   flex-direction: column;
-  /* 允许作为滚动容器，填满父级剩余空间 */
+  /* 允许作为滚动容器，填满父级剩余空�?*/
   flex: 1 1 auto;
   min-height: 0;
   gap: 8px;
-  /* 允许内容溢出，不再在内部产生滚动条 */
+  /* 允许内容溢出，不再在内部产生滚动�?*/
   overflow-y: auto;
+  height: 100%;
+}
+
+.rightControls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .mainSplit {
@@ -369,7 +379,7 @@
   height: 28px;
   border: none;
   background: transparent;
-  color: var(--vscode-icon-foreground);
+  color: var(--icon-foreground);
   cursor: pointer;
   border-radius: 4px;
   display: flex;
@@ -378,7 +388,7 @@
 }
 
 .panelHeaderButton:hover {
-  background: var(--vscode-toolbar-hoverBackground);
+  background: var(--toolbar-hoverBackground);
 }
 
 .fileMeta {
@@ -387,10 +397,10 @@
   gap: 4px;
   padding: 8px 10px;
   border-radius: 6px;
-  border: 1px solid var(--vscode-editorWidget-border);
-  background: var(--vscode-editor-background);
+  border: 1px solid var(--editorWidget-border);
+  background: var(--editor-background);
   font-size: 12px;
-  color: var(--vscode-descriptionForeground);
+  color: var(--descriptionForeground);
 }
 
 .fileMetaRow {
@@ -401,7 +411,7 @@
 }
 
 .fileMetaRow strong {
-  color: var(--vscode-foreground);
+  color: var(--foreground);
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
@@ -409,7 +419,7 @@
 }
 
 .fileMetaPath {
-  color: var(--vscode-descriptionForeground);
+  color: var(--descriptionForeground);
   opacity: 0.9;
   white-space: nowrap;
   overflow: hidden;
@@ -417,9 +427,9 @@
 }
 
 .fileMetaActionButton {
-  border: 1px solid var(--vscode-button-border, var(--vscode-editorWidget-border));
-  background: var(--vscode-button-secondaryBackground, var(--vscode-button-background));
-  color: var(--vscode-button-secondaryForeground, var(--vscode-button-foreground));
+  border: 1px solid var(--button-border, var(--editorWidget-border));
+  background: var(--button-secondaryBackground, var(--button-background));
+  color: var(--button-secondaryForeground, var(--button-foreground));
   border-radius: 4px;
   padding: 2px 10px;
   height: 24px;
@@ -428,7 +438,7 @@
 }
 
 .fileMetaActionButton:hover {
-  background: var(--vscode-button-secondaryHoverBackground, var(--vscode-button-hoverBackground));
+  background: var(--button-secondaryHoverBackground, var(--button-hoverBackground));
 }
 
 .settingsFloatingToggle {
@@ -436,9 +446,9 @@
   top: 8px;
   right: 8px;
   z-index: 5;
-  border: 1px solid var(--vscode-sideBar-border);
-  background: var(--vscode-sideBar-background);
-  color: var(--vscode-foreground);
+  border: 1px solid var(--sideBar-border);
+  background: var(--sideBar-background);
+  color: var(--foreground);
   border-radius: 6px;
   padding: 6px 10px;
   font-size: 12px;
@@ -447,7 +457,7 @@
 }
 
 .settingsFloatingToggle:hover {
-  background: var(--vscode-toolbar-hoverBackground);
+  background: var(--toolbar-hoverBackground);
 }
 
 @keyframes popIn {
@@ -461,34 +471,9 @@
   }
 }
 
-@media (min-width: 1000px) {
-  .controls {
-    /* 默认两列布局：左侧列选择占 2份，右侧设置占 1份 */
-    grid-template-columns: 1fr 1fr;
-    align-items: stretch;
-  }
-}
-
-@media (max-width: 1100px) {
-  .mainSplit {
-    flex-direction: column;
-  }
-
-  .settingsPanel {
-    width: 100%;
-    min-width: 0;
-    max-width: none;
-    flex: 0 0 auto;
-  }
-}
 @media (max-width: 1500px) {
   .dropZone {
     padding: 12px;
   }
 }
-/* @media (min-width: 1921px) { 
-  .controls {
-    grid-template-columns: auto auto; 
-    justify-content: center; 
-  }
-} */
+

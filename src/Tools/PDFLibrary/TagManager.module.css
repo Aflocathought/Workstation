@@ -4,8 +4,8 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--vscode-editor-background);
-  color: var(--vscode-foreground);
+  background: var(--editor-background);
+  color: var(--foreground);
   overflow: hidden;
 }
 
@@ -14,15 +14,15 @@
   justify-content: space-between;
   align-items: center;
   padding: 20px 24px;
-  border-bottom: 1px solid var(--vscode-panel-border);
+  border-bottom: 1px solid var(--panel-border);
   gap: 16px;
 }
 
 .backButton {
   padding: 8px 16px;
   background: transparent;
-  color: var(--vscode-foreground);
-  border: 1px solid var(--vscode-input-border);
+  color: var(--foreground);
+  border: 1px solid var(--input-border);
   border-radius: 4px;
   cursor: pointer;
   font-size: 14px;
@@ -30,8 +30,8 @@
 }
 
 .backButton:hover {
-  background: var(--vscode-list-hoverBackground);
-  border-color: var(--vscode-focusBorder);
+  background: var(--list-hoverBackground);
+  border-color: var(--focusBorder);
 }
 
 .title {
@@ -43,8 +43,8 @@
 
 .addButton {
   padding: 8px 16px;
-  background: var(--vscode-button-background);
-  color: var(--vscode-button-foreground);
+  background: var(--button-background);
+  color: var(--button-foreground);
   border: none;
   border-radius: 4px;
   cursor: pointer;
@@ -53,7 +53,7 @@
 }
 
 .addButton:hover {
-  background: var(--vscode-button-hoverBackground);
+  background: var(--button-hoverBackground);
 }
 
 .loading {
@@ -76,15 +76,15 @@
 }
 
 .tagCard {
-  background: var(--vscode-editor-background);
-  border: 1px solid var(--vscode-panel-border);
+  background: var(--editor-background);
+  border: 1px solid var(--panel-border);
   border-radius: 6px;
   padding: 16px;
   transition: all 0.15s;
 }
 
 .tagCard:hover {
-  border-color: var(--vscode-focusBorder);
+  border-color: var(--focusBorder);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
@@ -129,17 +129,17 @@
 }
 
 .editButton {
-  background: var(--vscode-button-secondaryBackground);
-  color: var(--vscode-button-secondaryForeground);
+  background: var(--button-secondaryBackground);
+  color: var(--button-secondaryForeground);
 }
 
 .editButton:hover {
-  background: var(--vscode-button-secondaryHoverBackground);
+  background: var(--button-secondaryHoverBackground);
 }
 
 .deleteButton {
-  background: var(--vscode-statusBarItem-errorBackground);
-  color: var(--vscode-statusBarItem-errorForeground);
+  background: var(--statusBarItem-errorBackground);
+  color: var(--statusBarItem-errorForeground);
 }
 
 .deleteButton:hover {
@@ -166,8 +166,8 @@
 
 .parentTag {
   padding: 2px 8px;
-  background: var(--vscode-badge-background);
-  color: var(--vscode-badge-foreground);
+  background: var(--badge-background);
+  color: var(--badge-foreground);
   border-radius: 8px;
   font-size: 11px;
 }
@@ -179,7 +179,7 @@
 
 .bookCount {
   font-weight: 600;
-  color: var(--vscode-textLink-foreground);
+  color: var(--textLink-foreground);
 }
 
 /* 模态框 */
@@ -197,8 +197,8 @@
 }
 
 .modalContent {
-  background: var(--vscode-editor-background);
-  border: 1px solid var(--vscode-panel-border);
+  background: var(--editor-background);
+  border: 1px solid var(--panel-border);
   border-radius: 8px;
   padding: 24px;
   min-width: 400px;
@@ -228,9 +228,9 @@
 .select {
   width: 100%;
   padding: 8px 12px;
-  background: var(--vscode-input-background);
-  color: var(--vscode-input-foreground);
-  border: 1px solid var(--vscode-input-border);
+  background: var(--input-background);
+  color: var(--input-foreground);
+  border: 1px solid var(--input-border);
   border-radius: 4px;
   font-size: 13px;
   outline: none;
@@ -238,15 +238,15 @@
 
 .input:focus,
 .select:focus {
-  border-color: var(--vscode-focusBorder);
+  border-color: var(--focusBorder);
 }
 
 .colorInput {
   width: 60px;
   height: 40px;
   padding: 4px;
-  background: var(--vscode-input-background);
-  border: 1px solid var(--vscode-input-border);
+  background: var(--input-background);
+  border: 1px solid var(--input-border);
   border-radius: 4px;
   cursor: pointer;
 }
@@ -269,19 +269,19 @@
 }
 
 .cancelButton {
-  background: var(--vscode-button-secondaryBackground);
-  color: var(--vscode-button-secondaryForeground);
+  background: var(--button-secondaryBackground);
+  color: var(--button-secondaryForeground);
 }
 
 .cancelButton:hover {
-  background: var(--vscode-button-secondaryHoverBackground);
+  background: var(--button-secondaryHoverBackground);
 }
 
 .saveButton {
-  background: var(--vscode-button-background);
-  color: var(--vscode-button-foreground);
+  background: var(--button-background);
+  color: var(--button-foreground);
 }
 
 .saveButton:hover {
-  background: var(--vscode-button-hoverBackground);
+  background: var(--button-hoverBackground);
 }

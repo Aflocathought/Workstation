@@ -70,21 +70,21 @@
 .progressTrack {
   flex: 1;
   height: 8px;
-  background: var(--vscode-input-background);
-  border: 1px solid var(--vscode-panel-border);
+  background: var(--input-background);
+  border: 1px solid var(--panel-border);
   border-radius: 999px;
   overflow: hidden;
 }
 
 .progressBar {
   height: 100%;
-  background: var(--vscode-progressBar-background);
+  background: var(--progressBar-background);
   transition: width 0.2s ease;
 }
 
 .progressLabel {
   font-size: 12px;
-  color: var(--vscode-foreground);
+  color: var(--foreground);
   min-width: 36px;
   text-align: right;
 }
@@ -92,7 +92,7 @@
 .progressDetail {
   margin-top: 4px;
   font-size: 12px;
-  color: var(--vscode-descriptionForeground);
+  color: var(--descriptionForeground);
 }
 
 .actionButton {

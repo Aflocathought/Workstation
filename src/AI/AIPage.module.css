@@ -8,7 +8,7 @@
 
 .placeholder {
   text-align: center;
-  color: var(--vscode-foreground, #ccc);
+  color: var(--foreground, #ccc);
 }
 
 .icon {
@@ -19,6 +19,6 @@
 
 .hint {
   font-size: 13px;
-  color: var(--vscode-descriptionForeground, #888);
+  color: var(--descriptionForeground, #888);
   margin-top: 8px;
 }

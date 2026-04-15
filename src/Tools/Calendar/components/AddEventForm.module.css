@@ -29,8 +29,8 @@
 /* 模态框容器 */
 .modalContainer {
   background-color: #1e1e1e; /* 深色主题回退色 */
-  background: var(--vscode-editor-background, #1e1e1e);
-  border: 1px solid var(--vscode-panel-border, #3c3c3c);
+  background: var(--editor-background, #1e1e1e);
+  border: 1px solid var(--panel-border, #3c3c3c);
   border-radius: 8px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
   width: 600px;
@@ -44,8 +44,8 @@
 @media (prefers-color-scheme: light) {
   .modalContainer {
     background-color: #ffffff;
-    background: var(--vscode-editor-background, #ffffff);
-    border: 1px solid var(--vscode-panel-border, #e0e0e0);
+    background: var(--editor-background, #ffffff);
+    border: 1px solid var(--panel-border, #e0e0e0);
   }
 }
 
@@ -55,17 +55,17 @@
 }
 
 .modalContainer::-webkit-scrollbar-track {
-  background: var(--vscode-scrollbarSlider-background);
+  background: var(--scrollbarSlider-background);
   border-radius: 4px;
 }
 
 .modalContainer::-webkit-scrollbar-thumb {
-  background: var(--vscode-scrollbarSlider-hoverBackground);
+  background: var(--scrollbarSlider-hoverBackground);
   border-radius: 4px;
 }
 
 .modalContainer::-webkit-scrollbar-thumb:hover {
-  background: var(--vscode-scrollbarSlider-activeBackground);
+  background: var(--scrollbarSlider-activeBackground);
 }
 
 @keyframes slideIn {
@@ -89,7 +89,7 @@
   margin: 0 0 24px 0;
   font-size: 18px;
   font-weight: 600;
-  color: var(--vscode-foreground);
+  color: var(--foreground);
 }
 
 .formGroup {
@@ -128,16 +128,16 @@
 .label {
   font-size: 14px;
   font-weight: 500;
-  color: var(--vscode-foreground);
+  color: var(--foreground);
 }
 
 .input,
 .textarea {
   padding: 8px 12px;
   background-color: #2d2d2d; /* 深色主题回退色 */
-  background: var(--vscode-input-background, #2d2d2d);
-  color: var(--vscode-input-foreground, #cccccc);
-  border: 1px solid var(--vscode-input-border, #3c3c3c);
+  background: var(--input-background, #2d2d2d);
+  color: var(--input-foreground, #cccccc);
+  border: 1px solid var(--input-border, #3c3c3c);
   border-radius: 4px;
   font-size: 14px;
   font-family: inherit;
@@ -149,16 +149,16 @@
   .input,
   .textarea {
     background-color: #ffffff;
-    background: var(--vscode-input-background, #ffffff);
-    color: var(--vscode-input-foreground, #000000);
-    border: 1px solid var(--vscode-input-border, #cccccc);
+    background: var(--input-background, #ffffff);
+    color: var(--input-foreground, #000000);
+    border: 1px solid var(--input-border, #cccccc);
   }
 }
 
 .input:focus,
 .textarea:focus {
   outline: none;
-  border-color: var(--vscode-focusBorder);
+  border-color: var(--focusBorder);
 }
 
 .textarea {
@@ -171,7 +171,7 @@
   align-items: center;
   gap: 8px;
   font-size: 14px;
-  color: var(--vscode-foreground);
+  color: var(--foreground);
   cursor: pointer;
   padding: 8px 0;
 }
@@ -214,12 +214,12 @@
 }
 
 .cancelButton {
-  background: var(--vscode-button-secondaryBackground);
-  color: var(--vscode-button-secondaryForeground);
+  background: var(--button-secondaryBackground);
+  color: var(--button-secondaryForeground);
 }
 
 .cancelButton:hover:not(:disabled) {
-  background: var(--vscode-button-secondaryHoverBackground);
+  background: var(--button-secondaryHoverBackground);
 }
 
 .submitButton {
