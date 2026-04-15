@@ -1,0 +1,45 @@
+.container {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+.leftPane {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  overflow: auto;
+}
+
+.resizer {
+  width: 4px;
+  background-color: var(--editorGroup-border, #444);
+  cursor: col-resize;
+  transition: background-color 0.2s;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.resizer:hover, .resizer.dragging {
+  background-color: var(--sash-hoverBorder, #007fd4);
+}
+
+.resizer.collapsed {
+  width: 8px;
+  cursor: pointer;
+  background-color: var(--sideBar-border, var(--editorGroup-border, #444));
+}
+
+.resizer.collapsed:hover {
+  background-color: var(--sash-hoverBorder, #007fd4);
+}
+
+.rightPane {
+  height: 100%;
+  overflow: auto;
+  flex-shrink: 0;
+}

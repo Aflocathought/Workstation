@@ -1,0 +1,33 @@
+.select {
+  background-color: var(--dropdown-background, #3c3c3c);
+  color: var(--dropdown-foreground, #f0f0f0);
+  border: 1px solid var(--dropdown-border, #3c3c3c);
+  padding: 4px 8px;
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+  cursor: pointer;
+  min-width: 120px;
+  border-radius: 2px;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg width='16' height='16' viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M4.53 5.47a.75.75 0 0 0-1.06 1.06l4 4a.75.75 0 0 0 1.06 0l4-4a.75.75 0 0 0-1.06-1.06L8 8.94 4.53 5.47z' fill='%23cccccc'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 4px center;
+  padding-right: 24px;
+}
+
+.select:focus {
+  border-color: var(--focusBorder, #007fd4);
+  outline: 1px solid var(--focusBorder, #007fd4);
+  outline-offset: -1px;
+}
+
+.select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.select option {
+  background-color: var(--dropdown-background, #3c3c3c);
+  color: var(--dropdown-foreground, #f0f0f0);
+}
