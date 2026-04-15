@@ -3,12 +3,12 @@
 .sidebar {
   position: absolute;
   top: 0;
-  left: 0;
+  left: 48px;
   bottom: 0;
   width: 250px;
   height: 100%;
-  background: var(--vscode-sideBar-background);
-  border-right: 1px solid var(--vscode-sideBar-border);
+  background: var(--sideBar-background);
+  border-right: 1px solid var(--sideBar-border);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -23,8 +23,8 @@
 
 .header {
   padding: 12px 16px;
-  border-bottom: 1px solid var(--vscode-sideBar-border);
-  background: var(--vscode-sideBarSectionHeader-background);
+  border-bottom: 1px solid var(--sideBar-border);
+  background: var(--sideBarSectionHeader-background);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -40,7 +40,7 @@
 .collapseButton {
   background: transparent;
   border: none;
-  color: var(--vscode-icon-foreground);
+  color: var(--icon-foreground);
   cursor: pointer;
   padding: 4px;
   border-radius: 4px;
@@ -52,14 +52,14 @@
 }
 
 .collapseButton:hover {
-  background-color: var(--vscode-toolbar-hoverBackground);
+  background-color: var(--toolbar-hoverBackground);
 }
 
 .header h3 {
   margin: 0;
   font-size: 13px;
   font-weight: 600;
-  color: var(--vscode-sideBarTitle-foreground);
+  color: var(--sideBarTitle-foreground);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -70,8 +70,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  background: var(--vscode-editorGroupHeader-tabsBackground);
-  border-bottom: 1px solid var(--vscode-sideBar-border);
+  background: var(--editorGroupHeader-tabsBackground);
+  border-bottom: 1px solid var(--sideBar-border);
   flex-shrink: 0;
   gap: 8px;
 }
@@ -101,7 +101,7 @@
   margin: 0 0 2px 0;
   font-size: 14px;
   font-weight: 600;
-  color: var(--vscode-foreground);
+  color: var(--foreground);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -110,7 +110,7 @@
 .toolHeaderDescription {
   margin: 0;
   font-size: 11px;
-  color: var(--vscode-descriptionForeground);
+  color: var(--descriptionForeground);
   opacity: 0.8;
   white-space: nowrap;
   overflow: hidden;
@@ -122,7 +122,7 @@
   height: 28px;
   border: none;
   background: transparent;
-  color: var(--vscode-icon-foreground);
+  color: var(--icon-foreground);
   cursor: pointer;
   border-radius: 4px;
   font-size: 16px;
@@ -134,11 +134,11 @@
 }
 
 .closeButton:hover {
-  background: var(--vscode-toolbar-hoverBackground);
+  background: var(--toolbar-hoverBackground);
 }
 
 .closeButton:active {
-  background: var(--vscode-toolbar-activeBackground);
+  background: var(--toolbar-activeBackground);
 }
 
 .categories {
@@ -158,23 +158,23 @@
   padding: 8px 12px;
   cursor: pointer;
   user-select: none;
-  background: var(--vscode-sideBarSectionHeader-background);
-  border-bottom: 1px solid var(--vscode-sideBar-border);
+  background: var(--sideBarSectionHeader-background);
+  border-bottom: 1px solid var(--sideBar-border);
   font-size: 12px;
   font-weight: 600;
-  color: var(--vscode-sideBarSectionHeader-foreground);
+  color: var(--sideBarSectionHeader-foreground);
   transition: background-color 0.15s;
 }
 
 .categoryHeader:hover {
-  background: var(--vscode-list-hoverBackground);
+  background: var(--list-hoverBackground);
 }
 
 .categoryIcon {
   margin-right: 6px;
   font-size: 10px;
   transition: transform 0.2s;
-  color: var(--vscode-icon-foreground);
+  color: var(--icon-foreground);
 }
 
 .categoryEmoji {
@@ -194,7 +194,7 @@
 
 /* 工具列表 */
 .toolsList {
-  background: var(--vscode-sideBar-background);
+  background: var(--sideBar-background);
 }
 
 .toolItem {
@@ -204,18 +204,18 @@
   cursor: pointer;
   user-select: none;
   font-size: 13px;
-  color: var(--vscode-foreground);
+  color: var(--foreground);
   transition: background-color 0.15s;
   position: relative;
 }
 
 .toolItem:hover {
-  background: var(--vscode-list-hoverBackground);
+  background: var(--list-hoverBackground);
 }
 
 .toolItem.active {
-  background: var(--vscode-list-activeSelectionBackground);
-  color: var(--vscode-list-activeSelectionForeground);
+  background: var(--list-activeSelectionBackground);
+  color: var(--list-activeSelectionForeground);
 }
 
 .toolItem.active::before {
@@ -225,7 +225,7 @@
   top: 0;
   bottom: 0;
   width: 3px;
-  background: var(--vscode-activityBarBadge-background);
+  background: var(--activityBarBadge-background);
 }
 
 .toolIcon {
@@ -249,14 +249,14 @@
 }
 
 .categories::-webkit-scrollbar-track {
-  background: var(--vscode-scrollbarSlider-background);
+  background: var(--scrollbarSlider-background);
 }
 
 .categories::-webkit-scrollbar-thumb {
-  background: var(--vscode-scrollbarSlider-background);
+  background: var(--scrollbarSlider-background);
   border-radius: 5px;
 }
 
 .categories::-webkit-scrollbar-thumb:hover {
-  background: var(--vscode-scrollbarSlider-hoverBackground);
+  background: var(--scrollbarSlider-hoverBackground);
 }

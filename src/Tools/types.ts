@@ -1,4 +1,6 @@
-// src/Tools/types.ts
+﻿// src/Tools/types.ts
+
+import type { Component } from 'solid-js';
 
 /**
  * 工具分类枚举
@@ -16,7 +18,7 @@ export enum ToolCategory {
 export interface CategoryInfo {
   id: ToolCategory;
   name: string;
-  icon: string;
+  icon: Component<{ class?: string }>;
   description: string;
 }
 
@@ -29,8 +31,8 @@ export interface ToolConfig {
   id: string;
   /** 工具显示名称 */
   name: string;
-  /** 工具图标 (emoji 或图标类名) */
-  icon: string;
+  /** 工具图标 (SolidJS Component - @suid/icons-material) */
+  icon: Component<{ class?: string }>;
   /** 工具描述 */
   description: string;
   /** 所属分类 */

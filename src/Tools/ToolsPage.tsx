@@ -1,9 +1,16 @@
 // src/Tools/ToolsPage.tsx
-import { Component, Show, Suspense, createSignal, onCleanup, onMount, lazy } from 'solid-js';
+import { Component, Show, Suspense, createSignal, onCleanup, onMount, For, lazy } from 'solid-js';
+import { Dynamic } from 'solid-js/web';
+import Build from '@suid/icons-material/Build';
 import { allToolConfigs } from './registerRoute';
 import { toolStateManager } from './ToolStateManager';
 import ToolsSidebar from './ToolsSidebar';
+import { TOOL_CATEGORIES } from './categories';
 import styles from './ToolsPage.module.css';
+
+// 懒加载组件包装器 (为了类型推断,因为现在这部分被移到了 registerRoute.ts 中。所以无需额外引入,这里我们假定内部会用到 lazy)
+// 但在这个组件中, 渲染真实工具的主件是从 allToolConfigs 里拿到的 component。
+// 这个文件里已经有一个内部使用的 <ToolRenderer> 组件,虽然在上面并没有看到,但可能通过 import 引入或是本身就有的。
 
 /**
  * Tools 主容器组件
@@ -15,25 +22,6 @@ const ToolsPage: Component = () => {
 
   const [isSidebarOpen, setIsSidebarOpen] = createSignal<boolean>(window.innerWidth >= 1000);
 
-  const [isSidebarHintVisible, setIsSidebarHintVisible] = createSignal<boolean>(true);
-  let hintHideTimer: number | null = null;
-
-  const scheduleHideHint = () => {
-    if (hintHideTimer !== null) {
-      window.clearTimeout(hintHideTimer);
-    }
-    hintHideTimer = window.setTimeout(() => {
-      setIsSidebarHintVisible(false);
-      hintHideTimer = null;
-    }, 1200);
-  };
-
-  const showHintTemporarily = () => {
-    if (isSidebarOpen()) return;
-    setIsSidebarHintVisible(true);
-    scheduleHideHint();
-  };
-  
   // 当前工具的状态引用 (用于保存)
   let currentToolStateRef: any = null;
 
@@ -94,11 +82,6 @@ const ToolsPage: Component = () => {
   // 组件卸载时保存状态
   onCleanup(() => {
     saveCurrentToolState();
-
-    if (hintHideTimer !== null) {
-      window.clearTimeout(hintHideTimer);
-      hintHideTimer = null;
-    }
   });
 
   onMount(() => {
@@ -115,34 +98,38 @@ const ToolsPage: Component = () => {
   });
 
   return (
-    <div class={styles.toolsPage} onMouseMove={showHintTemporarily}>
-      <Show when={!isSidebarOpen() && isSidebarHintVisible()}>
-        <button
-          class={styles.sidebarHint}
-          onClick={() => {
-            setIsSidebarOpen(true);
-            setIsSidebarHintVisible(false);
-          }}
-          title="打开工具箱"
-        >
-          &gt;
-        </button>
-      </Show>
-
-      <Show when={isSidebarOpen()}>
-        {/* 左侧:可折叠的分类侧边栏 */}
-        <ToolsSidebar
-          tools={allToolConfigs}
-          activeTool={activeTool()}
-          onSelectTool={handleSelectTool}
-          onCloseTool={handleCloseTool}
-          onRequestHide={() => {
-            setIsSidebarOpen(false);
-            setIsSidebarHintVisible(true);
-            scheduleHideHint();
-          }}
-        />
-      </Show>
+    <div class={styles.toolsPage}>
+      
+      <div 
+        class={styles.drawerContainer} 
+        onMouseLeave={() => setIsSidebarOpen(false)}
+      >
+        <div class={styles.activityBar}>
+          <For each={TOOL_CATEGORIES}>
+            {(category) => (
+              <div
+                class={styles.activityIcon}
+                onMouseEnter={() => setIsSidebarOpen(true)}
+                title={category.name}
+              >
+                <Dynamic component={category.icon} />
+              </div>
+            )}
+          </For>
+        </div>
+        
+        <Show when={isSidebarOpen()}>
+          <ToolsSidebar
+            tools={allToolConfigs}
+            activeTool={activeTool()}
+            onSelectTool={handleSelectTool}
+            onCloseTool={handleCloseTool}
+            onRequestHide={() => {
+              setIsSidebarOpen(false);
+            }}
+          />
+        </Show>
+      </div>
 
       {/* 右侧:工具内容容器 */}
       <div class={styles.contentContainer}>
@@ -152,7 +139,7 @@ const ToolsPage: Component = () => {
           keyed
           fallback={
             <div class={styles.emptyState}>
-              <div class={styles.emptyIcon}>🔧</div>
+              <div class={styles.emptyIcon}><Build sx={{ fontSize: 64, color: 'var(--vscode-descriptionForeground)' }} /></div>
               <h3>选择一个工具开始使用</h3>
               <p>从左侧侧边栏选择一个工具来开始</p>
             </div>

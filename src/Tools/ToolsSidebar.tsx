@@ -1,5 +1,6 @@
 // src/Tools/ToolsSidebar.tsx
 import { Component, For, createSignal, Show } from "solid-js";
+import { Dynamic } from "solid-js/web";
 import type { ToolConfig } from "./types";
 import { ToolCategory } from "./types";
 import { TOOL_CATEGORIES } from "./categories";
@@ -87,7 +88,7 @@ const ToolsSidebar: Component<ToolsSidebarProps> = (props) => {
         {(config) => (
           <div class={styles.toolHeader}>
             <div class={styles.toolInfo}>
-              <span class={styles.toolHeaderIcon}>{config().icon}</span>
+              <Dynamic component={config().icon} class={styles.toolHeaderIcon} />
               <div class={styles.toolHeaderContent}>
                 <h2 class={styles.toolHeaderTitle}>{config().name}</h2>
                 <p class={styles.toolHeaderDescription}>
@@ -125,7 +126,7 @@ const ToolsSidebar: Component<ToolsSidebarProps> = (props) => {
                     <span class={styles.categoryIcon}>
                       {isCollapsed() ? "▶" : "▼"}
                     </span>
-                    <span class={styles.categoryEmoji}>{category.icon}</span>
+                    <Dynamic component={category.icon} class={styles.categoryEmoji} />
                     <span class={styles.categoryName}>{category.name}</span>
                     <span class={styles.categoryCount}>
                       ({categoryTools().length})
@@ -151,7 +152,7 @@ const ToolsSidebar: Component<ToolsSidebarProps> = (props) => {
                             }}
                             title={tool.description}
                           >
-                            <span class={styles.toolIcon}>{tool.icon}</span>
+                            <Dynamic component={tool.icon} class={styles.toolIcon} />
                             <span class={styles.toolName}>{tool.name}</span>
                           </div>
                         )}
