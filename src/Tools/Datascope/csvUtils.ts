@@ -368,7 +368,6 @@ export function buildChartData(params: {
   axisType: AxisType;
 }): ChartComputationResult {
   const { rows, xColumn, yColumns, axisType } = params;
-  const baseColumn = yColumns[0];
   const processed: Array<{
     axisValue: number | string;
     axisNumeric: number | null;
@@ -378,25 +377,12 @@ export function buildChartData(params: {
   let droppedRows = 0;
 
   rows.forEach((row, index) => {
-    const baseValue = parseNumeric(row[baseColumn]);
-    if (baseValue === null) {
-      droppedRows += 1;
-      return;
-    }
-
     let axis: AxisConversionResult;
     if (xColumn === ROW_INDEX_KEY) {
-      // 如果选择了自动序列，直接使用 index + 1
       const seqVal = index + 1;
       axis = { valid: true, value: seqVal, numeric: seqVal };
     } else {
-      // 否则使用原来的逻辑从 CSV 列中读取
       axis = convertAxisValue(row[xColumn], axisType, index);
-    }
-
-    if (!axis.valid) {
-      droppedRows += 1;
-      return;
     }
 
     if (!axis.valid) {
@@ -408,6 +394,13 @@ export function buildChartData(params: {
     yColumns.forEach((col) => {
       valueMap[col] = parseNumeric(row[col]);
     });
+
+    // 仅当所有 Y 列均为 null 时跳过，避免无意义数据点
+    const hasAnyValue = yColumns.some((col) => valueMap[col] !== null);
+    if (!hasAnyValue) {
+      droppedRows += 1;
+      return;
+    }
 
     processed.push({
       axisValue: axis.value,

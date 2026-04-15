@@ -141,15 +141,9 @@ fn main() {
             // 监听主窗口关闭/销毁，通知后台线程退出
             if let Some(main_win) = app.get_webview_window("main") {
                 // 启动时不抢焦点：去掉置顶并直接最小化
-                let _ = main_win.set_always_on_top(false);
-                let _ = main_win.minimize();
+                // let _ = main_win.set_always_on_top(false);
+                // let _ = main_win.minimize();
 
-                // #[cfg(target_os = "windows")]
-                // {
-                //     apply_mica(&main_win, Some(true)).expect(
-                //         "Unsupported platform! 'apply_mica' is only supported on Windows 11",
-                //     );
-                // }
                 let stop_state: tauri::State<TrackerStop> = app.state();
                 let stop_flag = stop_state.stop.clone();
                 let spectrum_state: tauri::State<SpectrumStop> = app.state();

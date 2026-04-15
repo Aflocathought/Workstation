@@ -55,7 +55,7 @@ const ChartRender: Component<ChartRenderProps> = (props) => {
         left: 48,
         right: 24,
         top: 48,
-        bottom: props.axisType === "category" ? 72 : 56,
+        bottom: props.axisType === "category" ? 72 : props.axisType === "time" ? 76 : 56,
       },
       // DataZoom
       dataZoom: [
@@ -84,7 +84,11 @@ const ChartRender: Component<ChartRenderProps> = (props) => {
 
         axisLabel: {
           color: "var(--vscode-descriptionForeground)",
-          formatter: (value: unknown) => formatValue(value, props.isIndexAxis),
+          formatter: (value: unknown) =>
+            formatXAxisLabel(value, props.axisType, props.isIndexAxis),
+          hideOverlap: true,
+          interval: "auto",
+          rotate: props.axisType === "time" ? 28 : 0,
         },
         axisLine: {
           lineStyle: { color: "var(--vscode-editorWidget-border)" },
@@ -110,16 +114,22 @@ const ChartRender: Component<ChartRenderProps> = (props) => {
           },
         },
       },
-      series: props.series.map((series) => ({
-        name: series.name,
-        type: "line",
-        showSymbol: false,
-        smooth: props.isSmooth,
-        data: series.points,
-        connectNulls: false,
-        sampling: props.downsampled ? undefined : "lttb",
-        emphasis: { focus: "series" },
-      })),
+      series: props.series.map((series) => {
+        // ECharts 内置 LTTB 采样不能正确处理 null 间隙，会跳过 null 点
+        // 导致相隔很远的非 null 数据点被直接连线
+        const hasNulls = series.points.some((p) => p[1] === null);
+        return {
+          name: series.name,
+          type: "line",
+          showSymbol: false,
+          smooth: props.isSmooth,
+          data: series.points,
+          connectNulls: false,
+          sampling:
+            props.downsampled || hasNulls ? undefined : "lttb",
+          emphasis: { focus: "series" },
+        };
+      }),
     };
   };
 
@@ -181,6 +191,35 @@ function formatValue(value: unknown, isIndexAxis: boolean = false): string {
     return value.toString();
   }
   return String(value);
+}
+
+function formatXAxisLabel(
+  value: unknown,
+  axisType: AxisType,
+  isIndexAxis: boolean = false
+): string {
+  if (axisType === "time") {
+    return formatTimestamp(value);
+  }
+  return formatValue(value, isIndexAxis);
+}
+
+function formatTimestamp(value: unknown): string {
+  const numeric = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(numeric)) return "";
+
+  const dt = new Date(numeric);
+  if (Number.isNaN(dt.getTime())) return "";
+
+  const yyyy = dt.getFullYear();
+  const mm = String(dt.getMonth() + 1).padStart(2, "0");
+  const dd = String(dt.getDate()).padStart(2, "0");
+  const hh = String(dt.getHours()).padStart(2, "0");
+  const mi = String(dt.getMinutes()).padStart(2, "0");
+  const ss = String(dt.getSeconds()).padStart(2, "0");
+
+  // 双行显示：减少横向占用，避免长时间戳挤在一起
+  return `${yyyy}-${mm}-${dd}\n${hh}:${mi}:${ss}`;
 }
 
 function formatNumber(value: number): string {
