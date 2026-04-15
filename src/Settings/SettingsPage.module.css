@@ -3,38 +3,64 @@
 .settingsPage {
   width: 100%;
   height: 100%;
-  overflow-y: auto;
-  background: var(--bg-tertiary);
+  display: flex;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  overflow: hidden;
 }
 
-.container {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 32px 24px;
+/* 侧边栏 */
+.sidebar {
+  width: 250px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 20px 0;
+  border-right: 1px solid var(--border-secondary);
+  background: var(--bg-secondary);
 }
 
-/* 标题 */
-.title {
-  margin: 0 0 8px 0;
-  font-size: 32px;
-  font-weight: 700;
+.sidebarHeader {
+  padding: 0 20px 16px;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.navList {
+  list-style: none;
+  padding: 0 10px;
+  margin: 0;
+}
+
+.navItem {
+  padding: 8px 10px;
+  margin-bottom: 2px;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 14px;
   color: var(--text-primary);
 }
 
-.subtitle {
-  margin: 0 0 32px 0;
-  font-size: 16px;
-  color: var(--text-secondary);
+.navItem:hover {
+  background: var(--interactive-hover);
 }
 
-/* 区块 */
+.navItem.navItemActive {
+  background: var(--interactive-active);
+  font-weight: 500;
+}
+
+/* 右侧内容区域 */
+.content {
+  flex: 1;
+  padding: 32px 48px;
+  overflow-y: auto;
+  max-width: 800px;
+}
+
 .section {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-primary);
-  border-radius: 12px;
-  padding: 24px;
+  padding-bottom: 24px;
   margin-bottom: 24px;
-  box-shadow: var(--shadow-sm);
 }
 
 .sectionTitle {
@@ -50,13 +76,14 @@
 .settingItem {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   padding: 16px 0;
   gap: 24px;
+  border-bottom: 1px solid var(--border-secondary);
 }
 
-.settingItem:not(:last-child) {
-  border-bottom: 1px solid var(--border-secondary);
+.settingItem:last-child {
+  border-bottom: none;
 }
 
 .settingLabel {
@@ -66,11 +93,9 @@
 
 .settingLabel label {
   display: block;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
-  color: var(--text-primary);
   margin-bottom: 4px;
-  cursor: pointer;
 }
 
 .settingDescription {
@@ -82,6 +107,9 @@
 
 .settingControl {
   flex-shrink: 0;
+  min-width: 200px;
+  display: flex;
+  justify-content: flex-end;
 }
 
 /* 主题按钮 */
@@ -91,21 +119,17 @@
 }
 
 .themeButton {
-  padding: 8px 16px;
-  background: var(--bg-secondary);
+  padding: 6px 12px;
+  background: transparent;
   color: var(--text-primary);
   border: 1px solid var(--border-primary);
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 500;
+  border-radius: 4px;
+  font-size: 13px;
   cursor: pointer;
-  transition: all 0.2s ease;
-  outline: none;
 }
 
 .themeButton:hover {
   background: var(--interactive-hover);
-  border-color: var(--border-focus);
 }
 
 .themeButton.active {
@@ -114,95 +138,13 @@
   border-color: var(--primary);
 }
 
-/* 下拉选择框 */
-.select {
-  min-width: 200px;
-  padding: 8px 12px;
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  border: 1px solid var(--border-primary);
-  border-radius: 6px;
-  font-size: 14px;
-  cursor: pointer;
-  outline: none;
-  transition: all 0.2s ease;
-}
-
-.select:hover {
-  border-color: var(--border-focus);
-}
-
-.select:focus {
-  border-color: var(--border-focus);
-  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
-}
-
-/* 开关按钮 */
-.switch {
-  position: relative;
-  display: inline-block;
-  width: 48px;
-  height: 28px;
-  cursor: pointer;
-}
-
-.switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.slider {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-primary);
-  border-radius: 14px;
-  transition: all 0.2s ease;
-}
-
-.slider:before {
-  position: absolute;
-  content: '';
-  height: 20px;
-  width: 20px;
-  left: 3px;
-  bottom: 3px;
-  background: var(--text-inverse);
-  border-radius: 50%;
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-.switch input:checked + .slider {
-  background: var(--primary);
-  border-color: var(--primary);
-}
-
-.switch input:checked + .slider:before {
-  transform: translateX(20px);
-}
-
-.switch:hover .slider {
-  border-color: var(--border-focus);
-}
-
 /* 数据库大小显示 */
 .dbSize {
-  padding: 8px 16px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-primary);
-  border-radius: 6px;
   font-size: 14px;
-  min-width: 120px;
-  text-align: center;
+  padding: 6px 0;
 }
 
 .dbSize strong {
-  color: var(--primary);
   font-weight: 600;
 }
 
@@ -213,14 +155,12 @@
 
 /* 关于 */
 .about {
-  text-align: center;
-  padding: 24px;
+  padding: 24px 0;
 }
 
 .appName {
   font-size: 24px;
   font-weight: 700;
-  color: var(--text-primary);
   margin: 0 0 8px 0;
 }
 
@@ -238,37 +178,25 @@
 
 /* 响应式 */
 @media (max-width: 768px) {
-  .container {
+  .settingsPage {
+    flex-direction: column;
+  }
+  .sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--border-secondary);
+    padding: 16px;
+  }
+  .content {
     padding: 24px 16px;
   }
-
-  .title {
-    font-size: 28px;
-  }
-
-  .section {
-    padding: 20px 16px;
-  }
-
   .settingItem {
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
   }
-
   .settingControl {
     width: 100%;
-  }
-
-  .select {
-    width: 100%;
-  }
-
-  .themeButtons {
-    width: 100%;
-  }
-
-  .themeButton {
-    flex: 1;
+    justify-content: flex-start;
   }
 }
