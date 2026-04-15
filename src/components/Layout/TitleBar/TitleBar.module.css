@@ -5,8 +5,8 @@
   justify-content: space-between;
   align-items: center;
   height: 32px;
-  background: var(--vscode-sideBar-background);
-  border-bottom: 1px solid var(--vscode-sideBar-border);
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--sideBar-border);
   user-select: none;
   -webkit-user-select: none;
   flex-shrink: 0;
@@ -17,25 +17,25 @@
 
 /* 窗口失焦状态 */
 .titleBar.unfocused {
-  background: var(--vscode-sideBar-background);
-  border-bottom-color: var(--vscode-sideBar-border);
+  background: var(--bg-primary);
+  border-bottom-color: var(--sideBar-border);
   opacity: 0.8;
 }
 
 .titleBar.unfocused .title {
-  color: var(--vscode-descriptionForeground);
+  color: var(--descriptionForeground);
 }
 
 .titleBar.unfocused .appIcon {
-  color: var(--vscode-descriptionForeground);
+  color: var(--descriptionForeground);
 }
 
 .titleBar.unfocused .actionButton {
-  color: var(--vscode-descriptionForeground);
+  color: var(--descriptionForeground);
 }
 
 .titleBar.unfocused .actionButton.active {
-  color: var(--vscode-button-background);
+  color: var(--button-background);
 }
 
 .titleSection {
@@ -49,14 +49,14 @@
 .appIcon {
   display: flex;
   align-items: center;
-  color: var(--vscode-button-background);
+  color: var(--text-secondary);
 }
 
 /* 分隔线 */
 .divider {
   width: 1px;
   height: 20px;
-  background: var(--vscode-sideBar-border);
+  background: var(--sideBar-border);
   margin: 0 8px;
 }
 
@@ -87,19 +87,19 @@
   cursor: pointer;
   transition: background-color 0.15s ease;
   font-size: 12px;
-  color: var(--vscode-foreground);
+  color: var(--foreground);
   font-weight: 400;
   border-bottom: 2px solid transparent;
 }
 
 .actionButton:hover {
-  background-color: var(--vscode-toolbar-hoverBackground);
+  background-color: var(--toolbar-hoverBackground);
 }
 
 .actionButton.active {
-  background-color: var(--vscode-toolbar-activeBackground);
-  color: var(--vscode-button-background);
-  border-bottom-color: var(--vscode-button-background);
+  background-color: var(--toolbar-activeBackground);
+  color: var(--button-background);
+  border-bottom-color: var(--button-background);
   font-weight: 500;
 }
 
@@ -117,7 +117,7 @@
 .title {
   font-size: 13px;
   font-weight: 500;
-  color: var(--vscode-foreground);
+  color: var(--foreground);
   letter-spacing: 0.3px;
 }
 
@@ -134,7 +134,7 @@
   height: 100%;
   border: none;
   background: transparent;
-  color: var(--vscode-foreground);
+  color: var(--foreground);
   cursor: pointer;
   transition: background-color 0.15s ease;
   padding: 0;
@@ -142,11 +142,11 @@
 }
 
 .controlButton:hover {
-  background-color: var(--vscode-toolbar-hoverBackground);
+  background-color: var(--toolbar-hoverBackground);
 }
 
 .controlButton:active {
-  background-color: var(--vscode-toolbar-activeBackground);
+  background-color: var(--toolbar-activeBackground);
 }
 
 .closeButton:hover {
