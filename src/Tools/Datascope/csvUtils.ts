@@ -24,6 +24,11 @@ interface AxisConversionResult {
   numeric: number | null;
 }
 
+const MIN_REASONABLE_TIMESTAMP_MS = Date.UTC(1970, 0, 1);
+const MAX_REASONABLE_TIMESTAMP_MS = Date.UTC(2500, 0, 1);
+const TEMPORAL_COLUMN_NAME_PATTERN =
+  /(^|[_\-\s])(time|date|timestamp|datetime|created|updated|occurred|event|ts)([_\-\s]|$)/i;
+
 function toText(value: unknown): string {
   if (value == null) return "";
   if (typeof value === "string") return value;
@@ -44,6 +49,58 @@ function toNumber(value: unknown): number | null {
   if (!text) return null;
   const numeric = Number(text);
   return Number.isFinite(numeric) ? numeric : null;
+}
+
+function isReasonableTimestampMs(value: number): boolean {
+  return (
+    Number.isFinite(value) &&
+    value >= MIN_REASONABLE_TIMESTAMP_MS &&
+    value <= MAX_REASONABLE_TIMESTAMP_MS
+  );
+}
+
+function normalizeIntegerTimestampToMs(text: string): number | null {
+  const raw = text.trim();
+  if (!/^[+-]?\d+$/.test(raw)) return null;
+
+  const numeric = Number(raw);
+  if (!Number.isFinite(numeric)) return null;
+
+  const abs = Math.abs(numeric);
+  const candidates: number[] = [];
+
+  // 19+ 位一般是纳秒时间戳
+  if (abs >= 1e17) candidates.push(numeric / 1_000_000);
+  // 16-18 位一般是微秒时间戳
+  if (abs >= 1e14) candidates.push(numeric / 1_000);
+  // 11-13 位通常可视为毫秒时间戳
+  if (abs >= 1e11) candidates.push(numeric);
+  // 10 位通常是秒时间戳
+  if (abs >= 1e8) candidates.push(numeric * 1_000);
+
+  for (const candidate of candidates) {
+    if (isReasonableTimestampMs(candidate)) {
+      return candidate;
+    }
+  }
+
+  return null;
+}
+
+function parseTimestampToMs(value: unknown): number | null {
+  const raw = toText(value).trim();
+  if (!raw) return null;
+
+  const integerMs = normalizeIntegerTimestampToMs(raw);
+  if (integerMs !== null) return integerMs;
+
+  const parsed = Date.parse(raw);
+  if (Number.isNaN(parsed)) return null;
+  return isReasonableTimestampMs(parsed) ? parsed : null;
+}
+
+function hasTemporalNameHint(columnName: string): boolean {
+  return TEMPORAL_COLUMN_NAME_PATTERN.test(columnName);
 }
 
 /**
@@ -177,6 +234,7 @@ export function buildColumnMeta(
     let numericCount = 0;
     let temporalCount = 0;
     let nonEmpty = 0;
+    const temporalNameHint = hasTemporalNameHint(name);
 
     for (let i = 0; i < sampleSize; i += 1) {
       const value = dataRows[i]?.[name];
@@ -188,10 +246,9 @@ export function buildColumnMeta(
       const numeric = Number(trimmed);
       if (Number.isFinite(numeric)) {
         numericCount += 1;
-        continue;
       }
 
-      if (!Number.isNaN(Date.parse(trimmed))) {
+      if (parseTimestampToMs(trimmed) !== null) {
         temporalCount += 1;
       }
     }
@@ -199,10 +256,19 @@ export function buildColumnMeta(
     const numericRatio = nonEmpty === 0 ? 0 : numericCount / nonEmpty;
     const temporalRatio = nonEmpty === 0 ? 0 : temporalCount / nonEmpty;
 
+    const isTemporalByText = numericRatio < 0.7 && temporalRatio >= 0.6;
+    const isTemporalByNumericTimestamp =
+      temporalNameHint && numericRatio >= 0.7 && temporalRatio >= 0.7;
+    const isTemporalByStrongSignal =
+      !temporalNameHint && numericRatio >= 0.9 && temporalRatio >= 0.95;
+
     return {
       name,
       isNumeric: numericRatio >= 0.7,
-      isTemporal: numericRatio < 0.7 && temporalRatio >= 0.6,
+      isTemporal:
+        isTemporalByText ||
+        isTemporalByNumericTimestamp ||
+        isTemporalByStrongSignal,
       sampleCount: nonEmpty,
     };
   });
@@ -235,11 +301,11 @@ function convertAxisValue(
     return { valid: true, value: numeric, numeric };
   }
 
-  const timestamp = Date.parse(raw);
-  if (Number.isNaN(timestamp)) {
+  const timestampMs = parseTimestampToMs(raw);
+  if (timestampMs === null) {
     return { valid: false, value: 0, numeric: null };
   }
-  return { valid: true, value: timestamp, numeric: timestamp };
+  return { valid: true, value: timestampMs, numeric: timestampMs };
 }
 
 /**
@@ -463,7 +529,7 @@ export function determineAxisType(
   if (!columnName) return "category";
   const info = meta.find((item) => item.name === columnName);
   if (!info) return "category";
-  if (info.isNumeric) return "value";
   if (info.isTemporal) return "time";
+  if (info.isNumeric) return "value";
   return "category";
 }

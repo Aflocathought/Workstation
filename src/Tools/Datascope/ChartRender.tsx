@@ -25,6 +25,30 @@ const ChartRender: Component<ChartRenderProps> = (props) => {
   let chartInstance: EChartsInstance | undefined;
   let resizeObserver: ResizeObserver | undefined;
 
+  const resolveThemeColor = (
+    varNames: string[],
+    fallback: string
+  ): string => {
+    const readFrom = (target: Element): string | null => {
+      const style = getComputedStyle(target);
+      for (const name of varNames) {
+        const value = style.getPropertyValue(name).trim();
+        if (value) return value;
+      }
+      return null;
+    };
+
+    if (typeof window === "undefined") return fallback;
+
+    if (chartRef) {
+      const local = readFrom(chartRef);
+      if (local) return local;
+    }
+
+    const root = readFrom(document.documentElement);
+    return root || fallback;
+  };
+
   const getOption = () => {
     // ✅ 必须在这里计算，才能在每次重绘时获取最新的 props
     // 同时加上 enableXRange 的判断
@@ -32,6 +56,10 @@ const ChartRender: Component<ChartRenderProps> = (props) => {
       props.enableXRange && props.xRange ? props.xRange[0] : undefined;
     const rangeR =
       props.enableXRange && props.xRange ? props.xRange[1] : undefined;
+    const legendTextColor = resolveThemeColor(
+      ["--text-tertiary", "--descriptionForeground", "--vscode-descriptionForeground"],
+      "#8a8a8a"
+    );
 
     return {
       backgroundColor: "transparent",
@@ -48,7 +76,7 @@ const ChartRender: Component<ChartRenderProps> = (props) => {
       legend: {
         top: 0,
         textStyle: {
-          color: "var(--vscode-descriptionForeground)",
+          color: legendTextColor,
         },
       },
       grid: {
@@ -205,10 +233,10 @@ function formatXAxisLabel(
 }
 
 function formatTimestamp(value: unknown): string {
-  const numeric = typeof value === "number" ? value : Number(value);
-  if (!Number.isFinite(numeric)) return "";
+  const timestampMs = parseDisplayTimestampToMs(value);
+  if (timestampMs === null) return "";
 
-  const dt = new Date(numeric);
+  const dt = new Date(timestampMs);
   if (Number.isNaN(dt.getTime())) return "";
 
   const yyyy = dt.getFullYear();
@@ -220,6 +248,38 @@ function formatTimestamp(value: unknown): string {
 
   // 双行显示：减少横向占用，避免长时间戳挤在一起
   return `${yyyy}-${mm}-${dd}\n${hh}:${mi}:${ss}`;
+}
+
+function parseDisplayTimestampToMs(value: unknown): number | null {
+  const text = typeof value === "string" ? value.trim() : String(value ?? "").trim();
+  if (!text) return null;
+
+  if (/^[+-]?\d+$/.test(text)) {
+    const numeric = Number(text);
+    if (!Number.isFinite(numeric)) return null;
+    const abs = Math.abs(numeric);
+
+    const candidates: number[] = [];
+    if (abs >= 1e17) candidates.push(numeric / 1_000_000); // ns
+    if (abs >= 1e14) candidates.push(numeric / 1_000); // us
+    if (abs >= 1e11) candidates.push(numeric); // ms
+    if (abs >= 1e8) candidates.push(numeric * 1_000); // s
+
+    for (const candidate of candidates) {
+      if (
+        Number.isFinite(candidate) &&
+        candidate >= Date.UTC(1970, 0, 1) &&
+        candidate <= Date.UTC(2500, 0, 1)
+      ) {
+        return candidate;
+      }
+    }
+    return null;
+  }
+
+  const parsed = Date.parse(text);
+  if (Number.isNaN(parsed)) return null;
+  return parsed;
 }
 
 function formatNumber(value: number): string {
