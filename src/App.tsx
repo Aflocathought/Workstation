@@ -4,14 +4,14 @@ import styles from "./App.module.css";
 import "./styles/themes.css"; // 导入主题系统
 import TitleBar from "./components/Layout/TitleBar/TitleBar";
 import TimeTrackPage from "./Timetrack/TimeTrackPage";
-import ToolsPage from "./Tools/ToolsPage";
+import ToolsPage from "./Plugins/ToolsPage";
 import SettingsPage from "./Settings/SettingsPage";
 import AIContainer from "./AI/AIContainer";
 import NotificationContainer from "./components/Layout/NotificationContainer/NotificationContainer";
 import { initializeApp } from "./core/AppFramework";
 import { router } from "./core/Router/Router";
 import { registerTimeTrackRoutes } from "./Timetrack";
-import { registerToolsRoutes } from "./Tools";
+import { registerToolsRoutes } from "./Plugins";
 import { registerAIRoutes } from "./AI";
 import { registerSettingsRoute } from "./Settings";
 import { themeManager } from "./core/ThemeManager"; // 导入主题管理器
