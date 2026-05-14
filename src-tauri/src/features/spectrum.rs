@@ -1,25 +1,101 @@
 use std::sync::{Arc, atomic::{AtomicBool, AtomicUsize, Ordering}};
+use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Manager};
 use windows::Win32::Media::Audio::*;
 use windows::Win32::System::Com::*;
+
+const FFT_SIZE_MIN: usize = 512;
+const FFT_SIZE_MAX: usize = 8192;
+const FFT_SIZE_DEFAULT: usize = 2048;
+const SPECTRUM_COLUMNS_MIN: usize = 32;
+const SPECTRUM_COLUMNS_MAX: usize = 256;
+const SPECTRUM_COLUMNS_DEFAULT: usize = 96;
+const SPECTRUM_SETTINGS_FILE: &str = "spectrum_settings.json";
 
 pub struct SpectrumStop { pub stop: Arc<AtomicBool> }
 pub struct SpectrumConfig { pub fft_size: AtomicUsize, pub columns: AtomicUsize }
 pub struct SpectrumRuntime { pub running: Arc<AtomicBool> }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SpectrumSettings {
+    pub fft_size: usize,
+    pub columns: usize,
+}
+
+impl Default for SpectrumSettings {
+    fn default() -> Self {
+        Self {
+            fft_size: FFT_SIZE_DEFAULT,
+            columns: SPECTRUM_COLUMNS_DEFAULT,
+        }
+    }
+}
+
+impl SpectrumSettings {
+    fn normalized(self) -> Self {
+        let fft = if self.fft_size.is_power_of_two() {
+            self.fft_size.clamp(FFT_SIZE_MIN, FFT_SIZE_MAX)
+        } else {
+            FFT_SIZE_DEFAULT
+        };
+
+        Self {
+            fft_size: fft,
+            columns: self.columns.clamp(SPECTRUM_COLUMNS_MIN, SPECTRUM_COLUMNS_MAX),
+        }
+    }
+}
+
+fn spectrum_settings_path() -> std::path::PathBuf {
+    crate::app_paths::app_data_dir().join(SPECTRUM_SETTINGS_FILE)
+}
+
+fn persist_spectrum_settings(settings: SpectrumSettings) -> Result<(), String> {
+    let path = spectrum_settings_path();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| format!("Failed to create spectrum settings directory: {e}"))?;
+    }
+
+    let payload = serde_json::to_string_pretty(&settings.normalized())
+        .map_err(|e| format!("Failed to serialize spectrum settings: {e}"))?;
+    std::fs::write(path, payload)
+        .map_err(|e| format!("Failed to persist spectrum settings: {e}"))?;
+    Ok(())
+}
+
+pub fn load_spectrum_settings() -> SpectrumSettings {
+    let path = spectrum_settings_path();
+    let raw = match std::fs::read_to_string(path) {
+        Ok(v) => v,
+        Err(_) => return SpectrumSettings::default(),
+    };
+
+    match serde_json::from_str::<SpectrumSettings>(&raw) {
+        Ok(settings) => settings.normalized(),
+        Err(_) => SpectrumSettings::default(),
+    }
+}
+
 pub fn set_spectrum_fft_size(app: tauri::AppHandle, size: usize) -> Result<(), String> {
     let ok_pow2 = size.is_power_of_two();
-    if !ok_pow2 || size < 512 || size > 8192 { return Err("fft_size must be power-of-two within 512..8192".into()); }
+    if !ok_pow2 || size < FFT_SIZE_MIN || size > FFT_SIZE_MAX {
+        return Err("fft_size must be power-of-two within 512..8192".into());
+    }
     let state: tauri::State<SpectrumConfig> = app.state();
     state.fft_size.store(size, Ordering::Relaxed);
+    let columns = state.columns.load(Ordering::Relaxed);
+    persist_spectrum_settings(SpectrumSettings { fft_size: size, columns })?;
     let _ = app.emit("spectrum:status", format!("fft_size set to {}", size));
     Ok(())
 }
 
 pub fn set_spectrum_columns(app: tauri::AppHandle, cols: usize) -> Result<(), String> {
-    let cols = cols.clamp(32, 256);
+    let cols = cols.clamp(SPECTRUM_COLUMNS_MIN, SPECTRUM_COLUMNS_MAX);
     let state: tauri::State<SpectrumConfig> = app.state();
     state.columns.store(cols, Ordering::Relaxed);
+    let fft_size = state.fft_size.load(Ordering::Relaxed);
+    persist_spectrum_settings(SpectrumSettings { fft_size, columns: cols })?;
     let _ = app.emit("spectrum:status", format!("columns set to {}", cols));
     Ok(())
 }
@@ -51,7 +127,7 @@ pub fn start_spectrum(app: tauri::AppHandle) -> Result<(), String> {
             loop {
                 if stop_flag.load(Ordering::Relaxed) { break; }
                 let cfg: tauri::State<SpectrumConfig> = app_handle2.state();
-                let bins = cfg.columns.load(Ordering::Relaxed).clamp(32, 256);
+                let bins = cfg.columns.load(Ordering::Relaxed).clamp(SPECTRUM_COLUMNS_MIN, SPECTRUM_COLUMNS_MAX);
                 let mut data: Vec<f32> = Vec::with_capacity(bins);
                 for i in 0..bins {
                     let x = i as f32 / bins as f32;
@@ -162,7 +238,7 @@ fn run_wasapi_loopback(stop: Arc<AtomicBool>, app: tauri::AppHandle) -> Result<(
         // FFT 配置（动态大小）
     use rustfft::FftPlanner;
         let cfg_state: tauri::State<SpectrumConfig> = app.state();
-        let mut fft_size = cfg_state.fft_size.load(Ordering::Relaxed).max(512).min(8192);
+        let mut fft_size = cfg_state.fft_size.load(Ordering::Relaxed).clamp(FFT_SIZE_MIN, FFT_SIZE_MAX);
         let mut planner = FftPlanner::<f32>::new();
         let mut fft = planner.plan_fft_forward(fft_size);
         let mut window: Vec<f32> = (0..fft_size).map(|i| {

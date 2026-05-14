@@ -114,10 +114,11 @@ fn main() {
             app.manage(SpectrumStop {
                 stop: spectrum_stop.clone(),
             });
+            let spectrum_settings = spectrum::load_spectrum_settings();
             // 频谱配置（默认 2048 点 FFT、96 列）
             app.manage(SpectrumConfig {
-                fft_size: AtomicUsize::new(2048),
-                columns: AtomicUsize::new(96),
+                fft_size: AtomicUsize::new(spectrum_settings.fft_size),
+                columns: AtomicUsize::new(spectrum_settings.columns),
             });
             // 运行时状态
             app.manage(SpectrumRuntime {
