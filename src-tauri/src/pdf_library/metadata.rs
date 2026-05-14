@@ -151,7 +151,8 @@ pub fn extract_cover(path: &Path) -> Result<String, String> {
                 .rotate_if_landscape(PdfPageRenderRotation::None, true),
         )
         .map_err(|e| e.to_string())?
-        .as_image();
+        .as_image()
+        .map_err(|e| e.to_string())?;
 
     // 转换为 JPEG
     let mut buffer = Cursor::new(Vec::new());

@@ -159,7 +159,7 @@ fn parquet_total_rows(path: &str) -> Result<u64, String> {
 
 fn parquet_schema_columns(path: &str) -> Result<Vec<ParquetColumn>, String> {
     // collect_schema 只读 footer 元数据，不会把整文件加载进内存
-    let mut lf = LazyFrame::scan_parquet(path, ScanArgsParquet::default()).map_err(map_polars_err)?;
+    let mut lf = LazyFrame::scan_parquet(path.into(), ScanArgsParquet::default()).map_err(map_polars_err)?;
     let schema = lf.collect_schema().map_err(map_polars_err)?;
     let cols = schema
         .iter_names_and_dtypes()
@@ -291,7 +291,7 @@ fn any_to_json(v: &polars::prelude::AnyValue) -> Value {
 
 fn df_to_rows(df: &polars::prelude::DataFrame) -> Vec<HashMap<String, Value>> {
     let height = df.height();
-    let cols = df.get_columns();
+    let cols = df.columns();
 
     let mut out = Vec::with_capacity(height);
     for row_idx in 0..height {
@@ -371,7 +371,7 @@ pub async fn parquet_load_page(
     let app_handle2 = app_handle.clone();
 
     let parsed = tokio::task::spawn_blocking(move || -> Result<ParsedPage, String> {
-        let mut lf = LazyFrame::scan_parquet(&path_str, ScanArgsParquet::default())
+        let mut lf = LazyFrame::scan_parquet(path_str.as_str().into(), ScanArgsParquet::default())
             .map_err(map_polars_err)?;
 
         if !cols.is_empty() {
@@ -401,13 +401,13 @@ pub async fn parquet_load_page(
         );
 
         let headers = df
-            .get_columns()
+            .columns()
             .iter()
             .map(|s| s.name().to_string())
             .collect::<Vec<_>>();
 
         let height = df.height();
-        let cols_ref = df.get_columns();
+        let cols_ref = df.columns();
         let mut out = Vec::with_capacity(height);
         for row_idx in 0..height {
             let mut row = HashMap::with_capacity(cols_ref.len());
@@ -536,7 +536,7 @@ pub async fn parquet_generate_thumbnail(
 
     // 只取这一页的少量行用于检测数值列并采样
     let page = tokio::task::spawn_blocking(move || -> Result<ParsedPage, String> {
-        let lf = LazyFrame::scan_parquet(&path_str, ScanArgsParquet::default())
+        let lf = LazyFrame::scan_parquet(path_str.as_str().into(), ScanArgsParquet::default())
             .map_err(map_polars_err)?;
 
         let len: polars::prelude::IdxSize = page_info
@@ -550,7 +550,7 @@ pub async fn parquet_generate_thumbnail(
             .map_err(map_polars_err)?;
 
         let headers = df
-            .get_columns()
+            .columns()
             .iter()
             .map(|s| s.name().to_string())
             .collect::<Vec<_>>();
@@ -661,7 +661,7 @@ pub async fn convert_csv_to_parquet(
 
     tokio::task::spawn_blocking(move || -> Result<(), String> {
         // Golden rule: 不把整个 CSV 读进内存；LazyCsvReader 构建惰性计划
-        let mut reader = LazyCsvReader::new(csv_path)
+        let mut reader = LazyCsvReader::new(csv_path.as_str().into())
             .with_separator(delim)
             .with_has_header(has_header);
 
@@ -671,19 +671,20 @@ pub async fn convert_csv_to_parquet(
 
         let lf = reader.finish().map_err(map_polars_err)?;
 
-        // sink_parquet: 让 Polars 以流式/分块方式写出 Parquet（避免 collect 全量）
-        // 注意：具体是否全流式取决于 polars streaming 计划与算子。
-        let mut write_opts = polars::prelude::ParquetWriteOptions::default();
-        write_opts.compression = match compression.as_str() {
+        // Polars 0.53 移除了 LazyFrame::sink_parquet，这里改为 collect 后通过 ParquetWriter 写出。
+        let mut df = lf.collect().map_err(map_polars_err)?;
+        let mut out_file = File::create(&parquet_path)
+            .map_err(|e| format!("Failed to create parquet output: {e}"))?;
+
+        let compression_opt = match compression.as_str() {
             "snappy" => polars::prelude::ParquetCompression::Snappy,
             "uncompressed" => polars::prelude::ParquetCompression::Uncompressed,
-            _ => {
-                let level = polars::prelude::ZstdLevel::try_new(3).map_err(map_polars_err)?;
-                polars::prelude::ParquetCompression::Zstd(Some(level))
-            }
+            _ => polars::prelude::ParquetCompression::Zstd(None),
         };
 
-        lf.sink_parquet(&parquet_path, write_opts, None)
+        polars::prelude::ParquetWriter::new(&mut out_file)
+            .with_compression(compression_opt)
+            .finish(&mut df)
             .map_err(map_polars_err)?;
 
         Ok(())
