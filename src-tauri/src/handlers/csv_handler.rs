@@ -463,41 +463,41 @@ pub async fn csv_load_file(
     path: String,
     cache: State<'_, CsvCacheManager>,
 ) -> Result<(String, usize, char), String> {
-    println!("🚀 [Backend] csv_load_file 开始, 文件: {}", path);
+    println!("[Backend|Datascope] csv_load_file 开始, 文件: {}", path);
     
     let path_clone = path.clone();
     
     // 在独立线程中读取文件
-    println!("📁 [Backend] 读取文件中...");
+    println!("[Backend|Datascope] 读取文件中...");
     let content = tokio::task::spawn_blocking(move || {
         match std::fs::read_to_string(&path_clone) {
             Ok(content) => {
-                println!("✅ [Backend] 文件读取成功, 大小: {} bytes", content.len());
+                println!("[Backend|Datascope] 文件读取成功, 大小: {} bytes", content.len());
                 Ok(content)
             }
             Err(e) => {
-                println!("❌ [Backend] 文件读取失败: {}", e);
+                println!("[Backend|Datascope] 文件读取失败: {}", e);
                 Err(format!("Failed to read file: {}", e))
             }
         }
     })
     .await
     .map_err(|e| {
-        println!("❌ [Backend] Task join error: {}", e);
+        println!("[Backend|Datascope] Task join error: {}", e);
         format!("Task join error: {}", e)
     })??;
 
-    println!("🔍 [Backend] 检测分隔符...");
+    println!("[Backend|Datascope] 检测分隔符...");
     let delimiter = detect_delimiter(&content);
-    println!("✅ [Backend] 分隔符: '{}'", delimiter);
+    println!("[Backend|Datascope] 分隔符: '{}'", delimiter);
     
-    println!("📊 [Backend] 统计行数...");
+    println!("[Backend|Datascope] 统计行数...");
     let total_rows = quick_count_rows(&content);
-    println!("✅ [Backend] 总行数: {}", total_rows);
+    println!("[Backend|Datascope] 总行数: {}", total_rows);
 
-    println!("💾 [Backend] 缓存文件内容...");
+    println!("[Backend|Datascope] 缓存文件内容...");
     cache.set_file_content(content.clone(), PathBuf::from(&path), delimiter);
-    println!("✅ [Backend] csv_load_file 完成");
+    println!("[Backend|Datascope] csv_load_file 完成");
 
     Ok((path, total_rows, delimiter))
 }
@@ -516,12 +516,12 @@ pub async fn csv_load_page(
     app_handle: AppHandle,
     cache: State<'_, CsvCacheManager>,
 ) -> Result<ParsedPage, String> {
-    println!("📄 [Backend] csv_load_page 开始, 页码: {}, 行范围: {}-{}", 
+    println!("[Backend|Datascope] csv_load_page 开始, 页码: {}, 行范围: {}-{}", 
              page_index, page_info.start_row, page_info.end_row);
     
     // 检查缓存
     if let Some(cached) = cache.get_cached_page(page_index) {
-        println!("✅ [Backend] 使用缓存的页面数据");
+        println!("[Backend|Datascope] 使用缓存的页面数据");
         let _ = app_handle.emit(
             "datascope:progress",
             DatascopeProgress {
@@ -533,18 +533,18 @@ pub async fn csv_load_page(
         return Ok(cached);
     }
 
-    println!("📦 [Backend] 从缓存获取文件内容...");
+    println!("[Backend|Datascope] 从缓存获取文件内容...");
     let content = cache.get_file_content()
         .ok_or_else(|| {
-            println!("❌ [Backend] 错误: 没有加载的文件");
+            println!("[Backend|Datascope] 错误: 没有加载的文件");
             "No file loaded".to_string()
         })?;
     let delimiter = cache.get_delimiter();
     
-    println!("📊 [Backend] 文件大小: {} bytes, 分隔符: '{}'", content.len(), delimiter);
+    println!("[Backend|Datascope] 文件大小: {} bytes, 分隔符: '{}'", content.len(), delimiter);
 
     // 在独立线程中解析
-    println!("🔄 [Backend] 开始解析页面...");
+    println!("[Backend|Datascope] 开始解析页面...");
     let total = page_info.row_count as u64;
     let _ = app_handle.emit(
         "datascope:progress",
@@ -575,7 +575,7 @@ pub async fn csv_load_page(
             &progress,
         ) {
             Ok(result) => {
-                println!("✅ [Backend] 解析完成: {} 列, {} 行", 
+                println!("[Backend|Datascope] 解析完成: {} 列, {} 行", 
                          result.headers.len(), result.rows.len());
                 let _ = app_handle2.emit(
                     "datascope:progress",
@@ -588,21 +588,21 @@ pub async fn csv_load_page(
                 Ok(result)
             }
             Err(e) => {
-                println!("❌ [Backend] 解析失败: {}", e);
+                println!("[Backend|Datascope] 解析失败: {}", e);
                 Err(e)
             }
         }
     })
     .await
     .map_err(|e| {
-        println!("❌ [Backend] Task join error: {}", e);
+        println!("[Backend|Datascope] Task join error: {}", e);
         format!("Task join error: {}", e)
     })??;
 
     // 缓存结果
-    println!("💾 [Backend] 缓存页面数据...");
+    println!("[Backend|Datascope] 缓存页面数据...");
     cache.cache_page(page_index, parsed.clone());
-    println!("✅ [Backend] csv_load_page 完成");
+    println!("[Backend|Datascope] csv_load_page 完成");
 
     Ok(parsed)
 }
