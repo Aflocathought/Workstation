@@ -12,6 +12,7 @@
   },
   "license": "MIT",
   "dependencies": {
+    "@ai-sdk/solid": "^1.2.13",
     "@dschz/solid-flow": "link:..\\solid-flow",
     "@shoelace-style/shoelace": "^2.20.1",
     "@suid/icons-material": "^0.9.0",
@@ -24,10 +25,12 @@
     "@types/gapi": "^0.0.47",
     "@types/gapi.auth2": "^0.0.61",
     "@types/gapi.client.calendar": "^3.0.12",
+    "ai": "^6.0.184",
     "echarts": "^6.0.0",
     "gapi-script": "^1.2.0",
     "html2canvas": "^1.4.1",
     "solid-js": "^1.9.12",
+    "solid-markdown": "^2.1.1",
     "solid-toast": "^0.5.0",
     "tailwindcss": "^4.3.0"
   },

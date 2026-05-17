@@ -9,6 +9,7 @@ import { pythonToolConfig } from './Python';
 import { calendarToolConfig } from './Calendar';
 import { datascopeToolConfig } from './Datascope';
 import pdfLibraryToolConfig from './PDFLibrary';
+import { dictToolConfig } from './Dict';
 
 /**
  * 所有工具配置集合
@@ -19,6 +20,7 @@ export const allToolConfigs: ToolConfig[] = [
   pythonToolConfig,
   calendarToolConfig,
   datascopeToolConfig,
+  dictToolConfig,
   pdfLibraryToolConfig,
   // 未来新增工具配置添加在这里...
 ];

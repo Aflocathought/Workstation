@@ -1,7 +1,7 @@
 import { onMount, Show } from "solid-js";
 import { Toaster } from "solid-toast";
 import styles from "./App.module.css";
-import "./styles/themes.css"; // 导入主题系统
+import "./styles/themes.css";
 import TitleBar from "./components/Layout/TitleBar/TitleBar";
 import TimeTrackPage from "./Timetrack/TimeTrackPage";
 import ToolsPage from "./Plugins/ToolsPage";
@@ -14,36 +14,24 @@ import { registerTimeTrackRoutes } from "./Timetrack";
 import { registerToolsRoutes } from "./Plugins";
 import { registerAIRoutes } from "./AI";
 import { registerSettingsRoute } from "./Settings";
-import { themeManager } from "./core/ThemeManager"; // 导入主题管理器
+import { themeManager } from "./core/ThemeManager";
 
 function App() {
-  // 组件挂载时执行
   onMount(async () => {
-    // 初始化主题管理器 (确保在应用启动时加载)
-    void themeManager.currentTheme; // 触发主题管理器初始化
+    void themeManager.currentTheme;
 
-     // 注册工具集合路由
     registerToolsRoutes();
-
-    // 注册 AI 工作流路由
     registerAIRoutes();
-
-    // 注册时间追踪路由
     registerTimeTrackRoutes();
-
-    // 注册设置路由
     registerSettingsRoute();
 
-    // 初始化应用框架
     await initializeApp();
   });
 
   return (
     <div class={styles.container}>
-      {/* 自定义标题栏 */}
       <TitleBar />
 
-      {/* 全局 Toast 通知 */}
       <Toaster
         position="bottom-right"
         toastOptions={{
@@ -55,14 +43,9 @@ function App() {
         }}
       />
 
-      {/* 主内容区域 */}
       <div class={styles.mainContent}>
-        {/* 通知容器 */}
         <NotificationContainer />
 
-        {/* 根据路由显示对应页面 */}
-
-        {/* 工具集合模块 */}
         <Show
           when={
             router.current === "tools" || router.current === "tools-spectrum"
@@ -73,7 +56,6 @@ function App() {
           </div>
         </Show>
 
-        {/* 时间追踪模块 */}
         <Show
           when={
             router.current === "timetrack" ||
@@ -86,14 +68,12 @@ function App() {
           </div>
         </Show>
 
-        {/* AI 工作流模块 */}
         <Show when={router.current === "ai"}>
           <div class={styles.card}>
             <AIContainer />
           </div>
         </Show>
 
-        {/* 设置模块 */}
         <Show when={router.current === "settings"}>
           <SettingsPage />
         </Show>

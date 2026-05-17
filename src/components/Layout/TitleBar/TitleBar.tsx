@@ -15,7 +15,13 @@ import {
 const TitleBar: Component = () => {
   const [isMaximized, setIsMaximized] = createSignal(false);
   const [isFocused, setIsFocused] = createSignal(true);
-  const appWindow = getCurrentWindow();
+  let appWindow: ReturnType<typeof getCurrentWindow> | null = null;
+
+  try {
+    appWindow = getCurrentWindow();
+  } catch {
+    appWindow = null;
+  }
 
   // 将路由转换为导航项,固定顺序: 工具 → AI → 时间追踪 → 设置
   const mainNavItems = (): NavItem[] => {
@@ -38,6 +44,10 @@ const TitleBar: Component = () => {
   };
 
   onMount(async () => {
+    if (!appWindow) {
+      return;
+    }
+
     // 监听窗口最大化状态变化
     const unlistenResize = await appWindow.onResized(async () => {
       const maximized = await appWindow.isMaximized();
@@ -65,14 +75,26 @@ const TitleBar: Component = () => {
   });
 
   const handleMinimize = async () => {
+    if (!appWindow) {
+      return;
+    }
+
     await appWindow.minimize();
   };
 
   const handleMaximize = async () => {
+    if (!appWindow) {
+      return;
+    }
+
     await appWindow.toggleMaximize();
   };
 
   const handleClose = async () => {
+    if (!appWindow) {
+      return;
+    }
+
     await appWindow.close();
   };
 
@@ -114,6 +136,7 @@ const TitleBar: Component = () => {
           onClick={handleMinimize}
           title="最小化"
           aria-label="最小化"
+          disabled={!appWindow}
         >
           <MinimizeIcon />
         </button>
@@ -123,6 +146,7 @@ const TitleBar: Component = () => {
           onClick={handleMaximize}
           title={isMaximized() ? "还原" : "最大化"}
           aria-label={isMaximized() ? "还原" : "最大化"}
+          disabled={!appWindow}
         >
           {isMaximized() ? <RestoreIcon /> : <MaximizeIcon />}
         </button>
@@ -132,6 +156,7 @@ const TitleBar: Component = () => {
           onClick={handleClose}
           title="关闭"
           aria-label="关闭"
+          disabled={!appWindow}
         >
           <CloseIcon />
         </button>

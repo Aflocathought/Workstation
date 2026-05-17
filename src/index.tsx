@@ -1,6 +1,7 @@
 /* @refresh reload */
 import { render } from "solid-js/web";
 import App from "./App";
+import "./index.css";
 import Spectrum from "./Plugins/Spectrum/Spectrum";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { repository } from "./core/Repository";
