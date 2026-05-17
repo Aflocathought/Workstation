@@ -112,6 +112,57 @@
   justify-content: flex-end;
 }
 
+.pluginCard {
+  border: 1px solid var(--border-secondary);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  padding: 0 20px;
+}
+
+.pluginCardHeader {
+  padding: 20px 0 8px;
+}
+
+.pluginCardTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.pluginCardDescription {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.rangeControl {
+  min-width: 280px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.rangeControl input[type="range"] {
+  flex: 1;
+}
+
+.numberInput {
+  width: 96px;
+  padding: 6px 8px;
+  border: 1px solid var(--border-primary);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.numberInput:focus {
+  outline: 1px solid var(--focusBorder, var(--primary));
+  border-color: var(--focusBorder, var(--primary));
+}
+
 /* 主题按钮 */
 .themeButtons {
   display: flex;
@@ -198,5 +249,9 @@
   .settingControl {
     width: 100%;
     justify-content: flex-start;
+  }
+  .rangeControl {
+    width: 100%;
+    min-width: 0;
   }
 }

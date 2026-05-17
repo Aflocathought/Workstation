@@ -3,9 +3,14 @@ import { Component, createSignal, createEffect, onMount, Switch as SolidSwitch, 
 import { useAppFramework } from '../core/AppFramework';
 import { themeManager, type Theme } from '../core/ThemeManager';
 import { Switch, Select } from '../components/core-ui';
+import {
+  DATASCOPE_MAX_POINTS_MAX,
+  DATASCOPE_MAX_POINTS_MIN,
+  DATASCOPE_MAX_POINTS_STEP,
+} from './Setting';
 import styles from './SettingsPage.module.css';
 
-type Tab = 'appearance' | 'features' | 'data' | 'notifications' | 'about';
+type Tab = 'appearance' | 'features' | 'data' | 'plugins' | 'notifications' | 'about';
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -71,6 +76,14 @@ const SettingsPage: Component = () => {
     framework.store.updateSettings({ theme });
   };
 
+  const handleDatascopeMaxPointsChange = (event: Event) => {
+    framework.store.updateSettings({
+      datascopeMaxPoints: Number(
+        (event.currentTarget as HTMLInputElement).value
+      ),
+    });
+  };
+
   // 获取主题显示名称
   const getThemeLabel = (theme: Theme): string => {
     switch (theme) {
@@ -107,6 +120,7 @@ const SettingsPage: Component = () => {
     { id: 'appearance', label: '外观' },
     { id: 'features', label: '功能' },
     { id: 'data', label: '数据' },
+    { id: 'plugins', label: '插件' },
     { id: 'notifications', label: '通知' },
     { id: 'about', label: '关于' }
   ];
@@ -283,6 +297,64 @@ const SettingsPage: Component = () => {
                     checked={framework.store.settings.backupEnabled}
                     onChange={(checked) => framework.store.updateSettings({ backupEnabled: checked })}
                   />
+                </div>
+              </div>
+            </section>
+          </Match>
+
+          <Match when={activeTab() === 'plugins'}>
+            <section class={styles.section}>
+              <h2 class={styles.sectionTitle}>插件</h2>
+
+              <div class={styles.pluginCard}>
+                <div class={styles.pluginCardHeader}>
+                  <h3 class={styles.pluginCardTitle}>Datascope</h3>
+                  <p class={styles.pluginCardDescription}>
+                    配置大数据量图表的默认渲染策略，控制缩放和切换视图时的性能表现。
+                  </p>
+                </div>
+
+                <div class={styles.settingItem}>
+                  <div class={styles.settingLabel}>
+                    <label>自动下采样</label>
+                    <p class={styles.settingDescription}>在大数据量图表中自动压缩点数，降低缩放和渲染卡顿</p>
+                  </div>
+                  <div class={styles.settingControl}>
+                    <Switch
+                      checked={framework.store.settings.datascopeAutoDownsample}
+                      onChange={(checked) => framework.store.updateSettings({ datascopeAutoDownsample: checked })}
+                    />
+                  </div>
+                </div>
+
+                <div class={styles.settingItem}>
+                  <div class={styles.settingLabel}>
+                    <label>最大显示点数</label>
+                    <p class={styles.settingDescription}>
+                      控制 Datascope 自动下采样后的点数上限，范围 {DATASCOPE_MAX_POINTS_MIN} - {DATASCOPE_MAX_POINTS_MAX}
+                    </p>
+                  </div>
+                  <div class={styles.settingControl}>
+                    <div class={styles.rangeControl}>
+                      <input
+                        type="range"
+                        min={DATASCOPE_MAX_POINTS_MIN}
+                        max={DATASCOPE_MAX_POINTS_MAX}
+                        step={DATASCOPE_MAX_POINTS_STEP}
+                        value={framework.store.settings.datascopeMaxPoints}
+                        onInput={handleDatascopeMaxPointsChange}
+                      />
+                      <input
+                        class={styles.numberInput}
+                        type="number"
+                        min={DATASCOPE_MAX_POINTS_MIN}
+                        max={DATASCOPE_MAX_POINTS_MAX}
+                        step={DATASCOPE_MAX_POINTS_STEP}
+                        value={framework.store.settings.datascopeMaxPoints}
+                        onChange={handleDatascopeMaxPointsChange}
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             </section>

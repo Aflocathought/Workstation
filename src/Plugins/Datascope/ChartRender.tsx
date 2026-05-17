@@ -3,6 +3,7 @@ import * as echarts from "echarts";
 import styles from "./Datascope.module.css";
 
 type AxisType = "value" | "time" | "category";
+export type ChartMode = "line" | "scatter";
 
 interface ChartSeries {
   name: string;
@@ -12,6 +13,7 @@ interface ChartSeries {
 interface ChartRenderProps {
   axisType: AxisType;
   series: ChartSeries[];
+  chartMode: ChartMode;
   downsampled: boolean;
   isSmooth: boolean;
   xRange?: [number, number] | null;
@@ -52,6 +54,7 @@ const ChartRender: Component<ChartRenderProps> = (props) => {
   const getOption = () => {
     // ✅ 必须在这里计算，才能在每次重绘时获取最新的 props
     // 同时加上 enableXRange 的判断
+    const isScatterMode = props.chartMode === "scatter";
     const rangeL =
       props.enableXRange && props.xRange ? props.xRange[0] : undefined;
     const rangeR =
@@ -146,6 +149,21 @@ const ChartRender: Component<ChartRenderProps> = (props) => {
         // ECharts 内置 LTTB 采样不能正确处理 null 间隙，会跳过 null 点
         // 导致相隔很远的非 null 数据点被直接连线
         const hasNulls = series.points.some((p) => p[1] === null);
+
+        if (isScatterMode) {
+          const useLargeScatter = series.points.length >= 2000;
+          return {
+            name: series.name,
+            type: "scatter",
+            symbolSize: 6,
+            large: useLargeScatter,
+            largeThreshold: 2000,
+            progressive: 0,
+            data: series.points,
+            emphasis: { focus: "series" },
+          };
+        }
+
         return {
           name: series.name,
           type: "line",
@@ -167,8 +185,11 @@ const ChartRender: Component<ChartRenderProps> = (props) => {
       chartInstance.clear();
       return;
     }
-    // setOption 第二个参数为 true (notMerge)，这对重置 dataZoom 状态很重要
-    chartInstance.setOption(getOption(), true);
+    chartInstance.setOption(getOption(), {
+      notMerge: false,
+      lazyUpdate: true,
+      replaceMerge: ["series", "xAxis", "yAxis"],
+    });
   };
 
   onMount(() => {
@@ -183,6 +204,7 @@ const ChartRender: Component<ChartRenderProps> = (props) => {
     // 监听所有依赖
     void props.axisType;
     void props.series;
+    void props.chartMode;
     void props.downsampled;
     void props.isSmooth;
     void props.xRange;

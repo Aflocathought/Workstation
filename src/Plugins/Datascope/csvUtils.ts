@@ -422,6 +422,135 @@ export function largestTriangleThreeBucketsIndices(
   return Array.from(new Set(sampled)).sort((left, right) => left - right);
 }
 
+interface ProcessedChartRow {
+  axisValue: number | string;
+  axisNumeric: number | null;
+  values: Record<string, number | null>;
+}
+
+function resolveAxisNumber(item: ProcessedChartRow, index: number): number {
+  if (typeof item.axisNumeric === "number" && Number.isFinite(item.axisNumeric)) {
+    return item.axisNumeric;
+  }
+  return index;
+}
+
+function getRepresentativeY(
+  item: ProcessedChartRow,
+  yColumns: string[]
+): number {
+  let sum = 0;
+  let count = 0;
+
+  yColumns.forEach((col) => {
+    const value = item.values[col];
+    if (typeof value === "number" && Number.isFinite(value)) {
+      sum += value;
+      count += 1;
+    }
+  });
+
+  return count > 0 ? sum / count : 0;
+}
+
+function buildLineSampleIndices(
+  processed: ProcessedChartRow[],
+  yColumns: string[],
+  threshold: number
+): number[] {
+  if (processed.length <= threshold) {
+    return processed.map((_, index) => index);
+  }
+
+  const representativeSeries = processed.map((item, index) => ({
+    x: resolveAxisNumber(item, index),
+    y: getRepresentativeY(item, yColumns),
+  }));
+
+  if (representativeSeries.length >= 3) {
+    return largestTriangleThreeBucketsIndices(representativeSeries, threshold);
+  }
+
+  return evenlySampleIndices(processed.length, threshold);
+}
+
+function buildScatterBucketSeries(
+  processed: ProcessedChartRow[],
+  column: string,
+  threshold: number,
+  axisType: AxisType
+): Array<[number | string, number | null]> {
+  if (processed.length <= threshold) {
+    return processed.map((item) => [item.axisValue, item.values[column]]);
+  }
+
+  if (axisType === "category") {
+    return evenlySampleIndices(processed.length, threshold).map((index) => [
+      processed[index].axisValue,
+      processed[index].values[column],
+    ]);
+  }
+
+  const bucketCount = Math.min(threshold, processed.length);
+  const axisNumbers = processed.map((item, index) => resolveAxisNumber(item, index));
+  const minX = Math.min(...axisNumbers);
+  const maxX = Math.max(...axisNumbers);
+
+  if (!Number.isFinite(minX) || !Number.isFinite(maxX) || minX === maxX) {
+    return evenlySampleIndices(processed.length, threshold).map((index) => [
+      processed[index].axisValue,
+      processed[index].values[column],
+    ]);
+  }
+
+  const bucketWidth = (maxX - minX) / bucketCount;
+
+  if (!Number.isFinite(bucketWidth) || bucketWidth <= 0) {
+    return evenlySampleIndices(processed.length, threshold).map((index) => [
+      processed[index].axisValue,
+      processed[index].values[column],
+    ]);
+  }
+
+  const buckets = new Map<
+    number,
+    { sumX: number; sumY: number; count: number }
+  >();
+
+  processed.forEach((item, index) => {
+    const y = item.values[column];
+    if (y === null) return;
+
+    const x = axisNumbers[index];
+    const bucketIndex =
+      x === maxX
+        ? bucketCount - 1
+        : Math.min(
+            bucketCount - 1,
+            Math.max(0, Math.floor((x - minX) / bucketWidth))
+          );
+
+    const current = buckets.get(bucketIndex) ?? {
+      sumX: 0,
+      sumY: 0,
+      count: 0,
+    };
+
+    current.sumX += x;
+    current.sumY += y;
+    current.count += 1;
+    buckets.set(bucketIndex, current);
+  });
+
+  if (!buckets.size) {
+    return [];
+  }
+
+  return Array.from(buckets.entries())
+    .sort((left, right) => left[0] - right[0])
+    .map(([, bucket]) => [bucket.sumX / bucket.count, bucket.sumY / bucket.count]);
+}
+
 /**
  * 构建图表数据，包括下采样处理
  * @param params 
@@ -432,13 +561,20 @@ export function buildChartData(params: {
   xColumn: string;
   yColumns: string[];
   axisType: AxisType;
+  chartMode?: "line" | "scatter";
+  enableDownsampling?: boolean;
+  maxPoints?: number;
 }): ChartComputationResult {
-  const { rows, xColumn, yColumns, axisType } = params;
-  const processed: Array<{
-    axisValue: number | string;
-    axisNumeric: number | null;
-    values: Record<string, number | null>;
-  }> = [];
+  const {
+    rows,
+    xColumn,
+    yColumns,
+    axisType,
+    chartMode = "line",
+    enableDownsampling = false,
+    maxPoints = DEFAULT_MAX_POINTS,
+  } = params;
+  const processed: ProcessedChartRow[] = [];
 
   let droppedRows = 0;
 
@@ -486,22 +622,42 @@ export function buildChartData(params: {
     };
   }
 
-  const indices = processed.map((_, idx) => idx);
+  const threshold = clampPoints(maxPoints);
+  const shouldDownsample = enableDownsampling && processed.length > threshold;
 
-  const series: ChartSeries[] = yColumns.map((col) => ({
-    name: col,
-    points: indices.map((idx) => [
-      processed[idx].axisValue,
-      processed[idx].values[col],
-    ]),
-  }));
+  let sampledCount = processed.length;
+  let series: ChartSeries[];
+
+  if (shouldDownsample && chartMode === "scatter") {
+    series = yColumns.map((col) => ({
+      name: col,
+      points: buildScatterBucketSeries(processed, col, threshold, axisType),
+    }));
+    sampledCount = series.reduce(
+      (max, current) => Math.max(max, current.points.length),
+      0
+    );
+  } else {
+    const indices = shouldDownsample
+      ? buildLineSampleIndices(processed, yColumns, threshold)
+      : processed.map((_, idx) => idx);
+
+    sampledCount = indices.length;
+    series = yColumns.map((col) => ({
+      name: col,
+      points: indices.map((idx) => [
+        processed[idx].axisValue,
+        processed[idx].values[col],
+      ]),
+    }));
+  }
 
   return {
     series,
     axisType,
     rawCount: processed.length,
-    sampledCount: indices.length,
-    downsampled: false,
+    sampledCount,
+    downsampled: shouldDownsample,
     droppedRows,
   };
 }

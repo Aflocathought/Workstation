@@ -13,8 +13,9 @@ import {
 import { open } from "@tauri-apps/plugin-dialog";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
-import ChartRender from "./ChartRender";
+import ChartRender, { type ChartMode } from "./ChartRender";
 import styles from "./Datascope.module.css";
+import { useAppFramework } from "../../core/AppFramework";
 import {
   determineAxisType,
   buildColumnMeta,
@@ -41,9 +42,6 @@ export interface ChartComputationResult {
   xRange?: [number, number] | null;
 }
 
-export const DEFAULT_MAX_POINTS = 4000;
-export const MIN_POINTS = 200;
-export const MAX_POINTS = 20000;
 export const ROW_INDEX_KEY = "__auto_sequence__";
 const ROWS_PER_PAGE = 200000;
 
@@ -59,6 +57,7 @@ const MAX_RECENT_FILES = 10;
 type DataFormat = "csv" | "parquet";
 
 const Datascope: Component = () => {
+  const framework = useAppFramework();
   const [headers, setHeaders] = createSignal<string[]>([]);
   const [rows, setRows] = createSignal<CSVRecord[]>([]);
   const [xColumn, setXColumn] = createSignal<string>("");
@@ -72,6 +71,9 @@ const Datascope: Component = () => {
   const [skippedRows, setSkippedRows] = createSignal<number>(0);
   const csvExists = createMemo(() => rows().length > 0);
   const [isSmooth] = createSignal<boolean>(false);
+  const [chartMode, setChartMode] = createSignal<ChartMode>("line");
+  const autoDownsample = () => framework.store.settings.datascopeAutoDownsample;
+  const maxPoints = () => framework.store.settings.datascopeMaxPoints;
 
   const [isSettingsOpen, setIsSettingsOpen] = createSignal<boolean>(true);
 
@@ -448,6 +450,9 @@ const Datascope: Component = () => {
       xColumn: xCol,
       yColumns: selected,
       axisType: axisType(),
+      chartMode: chartMode(),
+      enableDownsampling: autoDownsample(),
+      maxPoints: maxPoints(),
     });
   });
 
@@ -839,6 +844,12 @@ const Datascope: Component = () => {
     });
   };
 
+  const handleChartModeChange = (event: Event) => {
+    setChartMode(
+      (event.currentTarget as HTMLSelectElement).value as ChartMode
+    );
+  };
+
   const renderStats = () => {
     const data = chartData();
     if (!data) return null;
@@ -891,6 +902,7 @@ const Datascope: Component = () => {
         <ChartRender
           axisType={data.axisType}
           series={data.series}
+          chartMode={chartMode()}
           downsampled={data.downsampled}
           isSmooth={isSmooth()}
           isIndexAxis={xColumn() === ROW_INDEX_KEY}
@@ -1073,6 +1085,14 @@ const Datascope: Component = () => {
                     <For each={headers()}>
                       {(header) => <option value={header}>{header}</option>}
                     </For>
+                  </select>
+                </label>
+
+                <label class={styles.inlineControls}>
+                  <span>图表类型</span>
+                  <select value={chartMode()} onChange={handleChartModeChange}>
+                    <option value="line">连线图</option>
+                    <option value="scatter">散点图</option>
                   </select>
                 </label>
 

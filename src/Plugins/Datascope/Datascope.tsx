@@ -8,9 +8,15 @@ import {
   For,
   Show,
 } from "solid-js";
-import ChartRender from "./ChartRender";
+import ChartRender, { type ChartMode } from "./ChartRender";
 import styles from "./Datascope.module.css";
 import { SplitPane } from "../../components/core-ui/SplitPane";
+import { useAppFramework } from "../../core/AppFramework";
+import {
+  DATASCOPE_MAX_POINTS_DEFAULT,
+  DATASCOPE_MAX_POINTS_MAX,
+  DATASCOPE_MAX_POINTS_MIN,
+} from "../../Settings/Setting";
 import {
   detectDelimiter,
   parseCSV,
@@ -18,7 +24,6 @@ import {
   buildColumnMeta,
   buildChartData,
   ChartSeries,
-  clampPoints,
   axisTypeLabel,
 } from "./csvUtils";
 import {
@@ -44,12 +49,13 @@ export interface ChartComputationResult {
   xRange?: [number, number] | null;
 }
 
-export const DEFAULT_MAX_POINTS = 4000;
-export const MIN_POINTS = 200;
-export const MAX_POINTS = 20000;
+export const DEFAULT_MAX_POINTS = DATASCOPE_MAX_POINTS_DEFAULT;
+export const MIN_POINTS = DATASCOPE_MAX_POINTS_MIN;
+export const MAX_POINTS = DATASCOPE_MAX_POINTS_MAX;
 export const ROW_INDEX_KEY = "__auto_sequence__";
 
 const Datascope: Component = () => {
+  const framework = useAppFramework();
   const [headers, setHeaders] = createSignal<string[]>([]);
   const [rows, setRows] = createSignal<CSVRecord[]>([]);
   const [xColumn, setXColumn] = createSignal<string>("");
@@ -58,14 +64,15 @@ const Datascope: Component = () => {
   const [status, setStatus] = createSignal<string>("");
   const [errorMessage, setErrorMessage] = createSignal<string>("");
   const [isLoading, setIsLoading] = createSignal<boolean>(false);
-  const [maxPoints, setMaxPoints] = createSignal<number>(DEFAULT_MAX_POINTS);
-  const [autoDownsample, setAutoDownsample] = createSignal<boolean>(false);
   const [delimiter, setDelimiter] = createSignal<string>(",");
   const [rawContent, setRawContent] = createSignal<string>("");
   const [skippedRows, setSkippedRows] = createSignal<number>(0);
   const [dragOver, setDragOver] = createSignal<boolean>(false);
   const csvExists = createMemo(() => rows().length > 0);
   const [isSmooth] = createSignal<boolean>(false); // 默认 false
+  const [chartMode, setChartMode] = createSignal<ChartMode>("line");
+  const autoDownsample = () => framework.store.settings.datascopeAutoDownsample;
+  const maxPoints = () => framework.store.settings.datascopeMaxPoints;
 
   // 分页相关状态
   const [pagination, setPagination] = createSignal<PaginationState | null>(
@@ -156,6 +163,9 @@ const Datascope: Component = () => {
       xColumn: xCol,
       yColumns: selected,
       axisType: axisType(),
+      chartMode: chartMode(),
+      enableDownsampling: autoDownsample(),
+      maxPoints: maxPoints(),
     });
   });
 
@@ -224,7 +234,6 @@ const Datascope: Component = () => {
     batch(() => {
       setSkippedRows(parsed.skippedRows);
       setValueColumns([]);
-      setMaxPoints(DEFAULT_MAX_POINTS);
       setHeaders(parsed.headers);
       setRows(parsed.rows);
       setXColumn(ROW_INDEX_KEY);
@@ -507,6 +516,12 @@ const Datascope: Component = () => {
     });
   };
 
+  const handleChartModeChange = (event: Event) => {
+    setChartMode(
+      (event.currentTarget as HTMLSelectElement).value as ChartMode
+    );
+  };
+
   const renderStats = () => {
     const data = chartData();
     if (!data) return null;
@@ -559,6 +574,7 @@ const Datascope: Component = () => {
         <ChartRender
           axisType={data.axisType}
           series={data.series}
+          chartMode={chartMode()}
           downsampled={data.downsampled}
           isSmooth={isSmooth()}
           isIndexAxis={xColumn() === ROW_INDEX_KEY}
@@ -657,6 +673,14 @@ const Datascope: Component = () => {
                                 </For>
                               </select>
                             </label>
+
+                            <label class={styles.inlineControls}>
+                              <span>图表类型</span>
+                              <select value={chartMode()} onChange={handleChartModeChange}>
+                                <option value="line">连线图</option>
+                                <option value="scatter">散点图</option>
+                              </select>
+                            </label>
               
                             <div>
                               <div>数值列</div>
@@ -694,50 +718,6 @@ const Datascope: Component = () => {
                                 <option value="|">竖线 (|)</option>
                               </select>
                             </label>
-              
-                            <label class={styles.checkboxItem}>
-                              <input
-                                type="checkbox"
-                                checked={autoDownsample()}
-                                onChange={(event) =>
-                                  setAutoDownsample(event.currentTarget.checked)
-                                }
-                              />
-                              自动下采样
-                            </label>
-              
-                            <div class={styles.sliderInput}>
-                              <span>采样点上限</span>
-                              <input
-                                type="range"
-                                min={MIN_POINTS}
-                                max={MAX_POINTS}
-                                step={MIN_POINTS}
-                                value={maxPoints()}
-                                disabled={!autoDownsample()}
-                                onInput={(event) =>
-                                  setMaxPoints(
-                                    clampPoints(
-                                      Number((event.currentTarget as HTMLInputElement).value)
-                                    )
-                                  )
-                                }
-                              />
-                              <input
-                                type="number"
-                                min={MIN_POINTS}
-                                max={MAX_POINTS}
-                                value={maxPoints()}
-                                disabled={!autoDownsample()}
-                                onInput={(event) =>
-                                  setMaxPoints(
-                                    clampPoints(
-                                      Number((event.currentTarget as HTMLInputElement).value)
-                                    )
-                                  )
-                                }
-                              />
-                            </div>
                           </div>
                         </section>
 
