@@ -492,9 +492,17 @@ function buildScatterBucketSeries(
   }
 
   const bucketCount = Math.min(threshold, processed.length);
-  const axisNumbers = processed.map((item, index) => resolveAxisNumber(item, index));
-  const minX = Math.min(...axisNumbers);
-  const maxX = Math.max(...axisNumbers);
+  const axisNumbers = new Array<number>(processed.length);
+  let minX = Infinity;
+  let maxX = -Infinity;
+
+  for (let index = 0; index < processed.length; index += 1) {
+    const x = resolveAxisNumber(processed[index], index);
+    axisNumbers[index] = x;
+
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+  }
 
   if (!Number.isFinite(minX) || !Number.isFinite(maxX) || minX === maxX) {
     return evenlySampleIndices(processed.length, threshold).map((index) => [
