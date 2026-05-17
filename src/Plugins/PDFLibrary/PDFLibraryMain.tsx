@@ -5,9 +5,12 @@ import { listen } from '@tauri-apps/api/event';
 import { pdfLibraryService } from './PDFLibraryService';
 import type { Book, Tag, Directory, Category, ViewType, SortField, SortOrder } from './types';
 import { confirmAction } from '../../core/ui/confirm';
+import { toolStateManager } from '../ToolStateManager';
 import TagManager from './TagManager';
 import { loadState, saveState } from './PDFLibraryState';
 import styles from './PDFLibrary.module.css';
+
+const PDF_LIBRARY_TOOL_ID = 'tools-pdf-library';
 
 /**
  * PDF Library 主组件
@@ -45,7 +48,9 @@ const PDFLibrary: Component = () => {
   const [dropTargetCategoryId, setDropTargetCategoryId] = createSignal<number | null>(null);
   const [dragOver, setDragOver] = createSignal(false);
   
+  let unlistenLibraryUpdate: (() => void) | undefined;
   let unlistenFileDrop: (() => void) | undefined;
+  let isDisposed = false;
   let dragCounter = 0;
   
   // 批量选择
@@ -228,6 +233,14 @@ const PDFLibrary: Component = () => {
     // 注意：实际的文件处理由 tauri://drag-drop 事件处理
   };
 
+  onCleanup(() => {
+    isDisposed = true;
+    unlistenLibraryUpdate?.();
+    unlistenLibraryUpdate = undefined;
+    unlistenFileDrop?.();
+    unlistenFileDrop = undefined;
+  });
+
   onMount(async () => {
     console.log('[PDFLibrary] onMount 被调用, isLoading =', isLoading());
     
@@ -244,14 +257,23 @@ const PDFLibrary: Component = () => {
     setSearchText(savedState.searchText);
     
     // 监听后端更新事件
-    const unlisten = await listen('pdf-library-update', () => {
+    const stopLibraryUpdate = await listen('pdf-library-update', () => {
       console.log('[PDFLibrary] 收到更新事件，正在刷新数据...');
       loadData();
     });
+    if (isDisposed) {
+      stopLibraryUpdate();
+      return;
+    }
+    unlistenLibraryUpdate = stopLibraryUpdate;
 
     // 监听 Tauri v2 的拖拽事件 tauri://drag-drop
     try {
-      unlistenFileDrop = await listen<any>("tauri://drag-drop", async (event) => {
+      const stopFileDrop = await listen<any>("tauri://drag-drop", async (event) => {
+        if (toolStateManager.getActiveTool() !== PDF_LIBRARY_TOOL_ID) {
+          return;
+        }
+
         const payload: any = event.payload;
         const kind = (payload && (payload.type || payload.event || payload.kind)) as string | undefined;
 
@@ -275,17 +297,15 @@ const PDFLibrary: Component = () => {
           await handleFileDrop(firstPath);
         }
       });
+
+      if (isDisposed) {
+        stopFileDrop();
+        return;
+      }
+      unlistenFileDrop = stopFileDrop;
     } catch (err) {
       console.error("监听 tauri://drag-drop 失败", err);
     }
-    
-    onCleanup(() => {
-      unlisten();
-      if (unlistenFileDrop) {
-        unlistenFileDrop();
-        unlistenFileDrop = undefined;
-      }
-    });
 
     try {
       console.log('[PDFLibrary] 开始初始化数据库...');

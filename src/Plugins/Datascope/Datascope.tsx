@@ -607,7 +607,7 @@ const Datascope: Component = () => {
               {renderStats()}
               {renderChart()}
 
-              {/* ��ҳ����ͼ */}
+              {/* 缩略图分页视图 */}
               <Show when={pagination()}>
                 <ThumbnailGrid
                   thumbnails={thumbnails()}
