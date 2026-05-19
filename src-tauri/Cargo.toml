@@ -38,7 +38,7 @@ rustfft = "6.4.0"
 window-vibrancy = "0.7.1"
 notify = "8.2.0"
 tauri-plugin-dialog = "2.7.1"
-pdfium-render = "0.9.1"
+pdfium-render = { version = "0.9.1", default-features = false, features = ["pdfium_7763", "image_025", "thread_safe"] }
 image = "0.25"
 base64 = "0.22.1"
 csv = "1.3"

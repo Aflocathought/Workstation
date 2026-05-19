@@ -41,6 +41,7 @@
 
 在您添加的文件或者文件夹范围内访问您的文件
 （下个开发）就像那些分类论文的软件一样，对pdf进行分类，额外添加了给pdf打上tag等的功能。
+当前仓库可用 `pnpm pdfium:sync` 自动按 `src-tauri/Cargo.toml` 中配置的 `pdfium_XXXX` 版本下载并替换 Windows x64 的 PDFium 二进制；`pnpm pdfium:sync:latest` 仅适合你同时升级 `src-tauri/Cargo.toml` 里的 PDFium 绑定版本时使用，否则会再次出现 DLL 与绑定版本不匹配。
 
 ### Calendar
 

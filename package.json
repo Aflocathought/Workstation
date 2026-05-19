@@ -8,7 +8,9 @@
     "dev": "vite",
     "build": "vite build",
     "serve": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "pdfium:sync": "pwsh -ExecutionPolicy Bypass -File ./scripts/update-pdfium.ps1",
+    "pdfium:sync:latest": "pwsh -ExecutionPolicy Bypass -File ./scripts/update-pdfium.ps1 -Latest"
   },
   "license": "MIT",
   "dependencies": {

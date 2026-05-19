@@ -3,3 +3,7 @@ dist
 .env
 
 Abandoned/
+src-tauri/bin/pdfium-win-x64/include
+src-tauri/bin/pdfium-win-x64/lib
+src-tauri/bin/pdfium-win-x64/PDFiumConfig.cmake
+src-tauri/bin/pdfium-win-x64/args.gn

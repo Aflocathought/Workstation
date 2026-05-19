@@ -3,7 +3,7 @@
 use super::PDFMetadata;
 use image::ImageFormat;
 use pdfium_render::prelude::{
-    PdfDocumentMetadataTagType, PdfPageRenderRotation, PdfRenderConfig, Pdfium,
+    PdfDocumentMetadataTagType, PdfPageRenderRotation, PdfRenderConfig, Pdfium, PdfiumError,
 };
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
@@ -64,20 +64,25 @@ fn init_pdfium() -> Result<Pdfium, String> {
     for path in &search_paths {
         match Pdfium::bind_to_library(Pdfium::pdfium_platform_library_name_at_path(path)) {
             Ok(bindings) => return Ok(Pdfium::new(bindings)),
+            Err(PdfiumError::PdfiumLibraryBindingsAlreadyInitialized) => {
+                return Ok(Pdfium::default())
+            }
             Err(e) => errors.push(format!("{} -> {}", path, e)),
         }
     }
 
     // 最后尝试系统路径
-    Pdfium::bind_to_system_library()
-        .map(Pdfium::new)
-        .map_err(|e| {
+    match Pdfium::bind_to_system_library() {
+        Ok(bindings) => Ok(Pdfium::new(bindings)),
+        Err(PdfiumError::PdfiumLibraryBindingsAlreadyInitialized) => Ok(Pdfium::default()),
+        Err(e) => {
             errors.push(format!("system -> {}", e));
-            format!(
+            Err(format!(
                 "无法加载 PDFium 库。已尝试路径: {}. 请将 pdfium.dll/libpdfium.so 放到上述目录之一，或设置 PDFIUM_PATH。",
                 errors.join(" | ")
-            )
-        })
+            ))
+        }
+    }
 }
 
 /// 提取 PDF 元数据
@@ -163,4 +168,15 @@ pub fn extract_cover(path: &Path) -> Result<String, String> {
     // Base64 编码
     use base64::{engine::general_purpose, Engine as _};
     Ok(general_purpose::STANDARD.encode(buffer.into_inner()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::init_pdfium;
+
+    #[test]
+    fn init_pdfium_reuses_existing_bindings() {
+        let _first = init_pdfium().expect("first Pdfium initialization should succeed");
+        let _second = init_pdfium().expect("second Pdfium initialization should reuse bindings");
+    }
 }
