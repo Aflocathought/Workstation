@@ -26,7 +26,11 @@ const PDFLibrary: Component = () => {
   
   const [selectedBook, setSelectedBook] = createSignal<Book | null>(null);
   const [viewType, setViewType] = createSignal<ViewType>('grid');
-  
+
+  // 分组类型
+  type GroupType = 'month' | 'initial' | 'none';
+  const [groupType, setGroupType] = createSignal<GroupType>('month');
+
   // 过滤和排序
   const [searchText, setSearchText] = createSignal('');
   const [selectedTagIds, setSelectedTagIds] = createSignal<number[]>([]);
@@ -154,6 +158,41 @@ const PDFLibrary: Component = () => {
     }
     
     return result;
+  });
+
+  const groupedBooks = createMemo(() => {
+    const _books = filteredBooks();
+    if (groupType() === 'none') {
+      return [{ title: '', books: _books }];
+    }
+
+    const groups = new Map<string, Book[]>();
+    _books.forEach(book => {
+      let groupKey = '';
+      if (groupType() === 'month') {
+        const date = new Date(book.importDate);
+        groupKey = `${date.getFullYear()}.${date.getMonth() + 1}`;
+      } else if (groupType() === 'initial') {
+        const title = book.title.trim();
+        const firstChar = title.length > 0 ? title.charAt(0) : '#';
+        groupKey = /[a-zA-Z]/.test(firstChar) ? firstChar.toUpperCase() : firstChar;
+      }
+      
+      if (!groups.has(groupKey)) {
+        groups.set(groupKey, []);
+      }
+      groups.get(groupKey)!.push(book);
+    });
+
+    return Array.from(groups.entries()).sort((a, b) => {
+      if (groupType() === 'month') {
+        const [yearA, monthA] = a[0].split('.').map(Number);
+        const [yearB, monthB] = b[0].split('.').map(Number);
+        if (yearA !== yearB) return yearB - yearA;
+        return monthB - monthA;
+      }
+      return a[0].localeCompare(b[0], 'zh-CN');
+    }).map(([title, books]) => ({ title, books }));
   });
 
   // ==================== 生命周期 ====================
@@ -1190,6 +1229,25 @@ const PDFLibrary: Component = () => {
               value={searchText()}
               onInput={(e) => setAndSaveSearchText(e.currentTarget.value)}
             />
+            
+            <select
+              style={{
+                background: 'var(--vscode-input-background)',
+                color: 'var(--vscode-input-foreground)',
+                border: '1px solid var(--vscode-input-border, transparent)',
+                padding: '4px 8px',
+                "border-radius": '4px',
+                outline: 'none',
+                cursor: 'pointer'
+              }}
+              value={groupType()}
+              onChange={(e) => setGroupType(e.currentTarget.value as GroupType)}
+              title="分组方式"
+            >
+              <option value="month">按月分组</option>
+              <option value="initial">按首字母分组</option>
+              <option value="none">不分组</option>
+            </select>
 
             <button
               class={styles.toolbarButton}
@@ -1236,11 +1294,22 @@ const PDFLibrary: Component = () => {
                 </div>
               }
             >
-              <Show when={viewType() === 'grid'}>
-                <div class={styles.gridView}>
-                  <For each={filteredBooks()}>
-                    {(book) => (
-                      <div
+              <div class={styles.groupedList} style={{ display: 'flex', "flex-direction": 'column', gap: '20px' }}>
+                <For each={groupedBooks()}>
+                  {(group) => (
+                    <div class={styles.bookGroup}>
+                      <Show when={group.title !== ''}>
+                        <div class={styles.groupHeader} style={{ display: 'flex', "align-items": 'center', margin: '0 0 16px 0', gap: '12px' }}>
+                          <span style={{ "font-size": '14px', "font-weight": 'bold', color: 'var(--vscode-editor-foreground)', opacity: '0.9' }}>{group.title}</span>
+                          <div style={{ flex: 1, height: '1px', background: 'var(--vscode-editor-foreground)', opacity: '0.1' }}></div>
+                        </div>
+                      </Show>
+                      
+                      <Show when={viewType() === 'grid'}>
+                        <div class={styles.gridView}>
+                          <For each={group.books}>
+                            {(book) => (
+                              <div
                         class={styles.bookCard}
                         classList={{ 
                           [styles.selected]: selectedBook()?.id === book.id, 
@@ -1314,17 +1383,17 @@ const PDFLibrary: Component = () => {
                         <div class={styles.bookMeta}>
                           {book.author || '未知作者'} · {book.pageCount} 页
                         </div>
-                      </div>
-                    )}
-                  </For>
-                </div>
-              </Show>
+                              </div>
+                            )}
+                          </For>
+                        </div>
+                      </Show>
 
-              <Show when={viewType() === 'list'}>
-                <div class={styles.listView}>
-                  <For each={filteredBooks()}>
-                    {(book) => (
-                      <div
+                      <Show when={viewType() === 'list'}>
+                        <div class={styles.listView}>
+                          <For each={group.books}>
+                            {(book) => (
+                              <div
                         class={styles.bookRow}
                         classList={{ [styles.selected]: selectedBook()?.id === book.id, [styles.missing]: book.isMissing }}
                         onClick={() => handleSelectBook(book)}
@@ -1363,11 +1432,15 @@ const PDFLibrary: Component = () => {
                             )}
                           </For>
                         </div>
-                      </div>
-                    )}
-                  </For>
-                </div>
-              </Show>
+                              </div>
+                            )}
+                          </For>
+                        </div>
+                      </Show>
+                    </div>
+                  )}
+                </For>
+              </div>
             </Show>
           </div>
 
