@@ -29,12 +29,14 @@ const PDFLibrary: Component = () => {
 
   // 分组类型
   type GroupType = 'month' | 'initial' | 'none';
+  type LibraryFilter = 'all' | 'external';
   const [groupType, setGroupType] = createSignal<GroupType>('month');
 
   // 过滤和排序
   const [searchText, setSearchText] = createSignal('');
   const [selectedTagIds, setSelectedTagIds] = createSignal<number[]>([]);
   const [excludedTagIds, setExcludedTagIds] = createSignal<number[]>([]); // 排除的标签
+  const [selectedLibraryFilter, setSelectedLibraryFilter] = createSignal<LibraryFilter>('all');
   const [selectedDirectoryId, setSelectedDirectoryId] = createSignal<number | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = createSignal<number | null>(null);
   const [sortField] = createSignal<SortField>('importDate');
@@ -70,9 +72,22 @@ const PDFLibrary: Component = () => {
   // ==================== 状态持久化辅助函数 ====================
   
   // 包装状态设置函数，自动保存到 localStorage
+  const setAndSaveLibrarySelection = (directoryId: number | null, libraryFilter: LibraryFilter) => {
+    setSelectedDirectoryId(directoryId);
+    setSelectedLibraryFilter(libraryFilter);
+    saveState({ selectedDirectoryId: directoryId, selectedLibraryFilter: libraryFilter });
+  };
+
   const setAndSaveDirectoryId = (id: number | null) => {
-    setSelectedDirectoryId(id);
-    saveState({ selectedDirectoryId: id });
+    setAndSaveLibrarySelection(id, 'all');
+  };
+
+  const showAllBooks = () => {
+    setAndSaveLibrarySelection(null, 'all');
+  };
+
+  const showExternalBooks = () => {
+    setAndSaveLibrarySelection(null, 'external');
   };
   
   const setAndSaveCategoryId = (id: number | null) => {
@@ -108,6 +123,37 @@ const PDFLibrary: Component = () => {
   };
 
   // ==================== 计算属性 ====================
+
+  const externalDiagnostics = createMemo(() => {
+    const dirs = directories();
+    const directoryMap = new Map(dirs.map(directory => [directory.id, directory]));
+    const externalDirectoryIds = new Set(
+      dirs
+        .filter(directory => directory.type === 'external')
+        .map(directory => directory.id)
+    );
+
+    const byDirectory = books().filter(book => externalDirectoryIds.has(book.directoryId));
+    const byManaged = books().filter(book => !book.isManaged);
+    const effective = books().filter(book => !book.isManaged || externalDirectoryIds.has(book.directoryId));
+    const mismatchedBooks = books()
+      .filter(book => (!book.isManaged) !== externalDirectoryIds.has(book.directoryId))
+      .map(book => ({
+        id: book.id,
+        title: book.title,
+        directoryId: book.directoryId,
+        directoryType: directoryMap.get(book.directoryId)?.type ?? 'missing',
+        isManaged: book.isManaged,
+      }));
+
+    return {
+      externalDirectoryIds,
+      byDirectoryCount: byDirectory.length,
+      byManagedCount: byManaged.length,
+      effectiveCount: effective.length,
+      mismatchedBooks,
+    };
+  });
   
   const filteredBooks = createMemo(() => {
     let result = books();
@@ -136,6 +182,14 @@ const PDFLibrary: Component = () => {
     if (excludedIds.length > 0) {
       result = result.filter(book =>
         !book.tags?.some(tag => excludedIds.includes(tag.id))
+      );
+    }
+
+    // 书库来源过滤
+    if (selectedLibraryFilter() === 'external') {
+      const diagnostics = externalDiagnostics();
+      result = result.filter(book =>
+        !book.isManaged || diagnostics.externalDirectoryIds.has(book.directoryId)
       );
     }
     
@@ -288,6 +342,7 @@ const PDFLibrary: Component = () => {
     console.log('[PDFLibrary] 加载保存的状态:', savedState);
     
     // 恢复状态
+    setSelectedLibraryFilter(savedState.selectedLibraryFilter);
     setSelectedDirectoryId(savedState.selectedDirectoryId);
     setSelectedCategoryId(savedState.selectedCategoryId);
     setSelectedTagIds(savedState.selectedTagIds);
@@ -386,6 +441,37 @@ const PDFLibrary: Component = () => {
       
       console.log('[PDFLibrary] 加载完成 - 书籍数:', booksData.length, '标签数:', tagsData.length, '分类数:', catsData.length);
       console.log('[PDFLibrary] 书籍标签详情:', booksData.map(b => ({ id: b.id, title: b.title, tags: b.tags?.map(t => t.name) })));
+      const externalDirectoryIds = new Set(
+        dirsData
+          .filter(directory => directory.type === 'external')
+          .map(directory => directory.id)
+      );
+      const externalByDirectory = booksData.filter(book => externalDirectoryIds.has(book.directoryId));
+      const externalByManaged = booksData.filter(book => !book.isManaged);
+      const mismatchedExternalBooks = booksData
+        .filter(book => (!book.isManaged) !== externalDirectoryIds.has(book.directoryId))
+        .map(book => ({
+          id: book.id,
+          title: book.title,
+          directoryId: book.directoryId,
+          directoryType: dirsData.find(directory => directory.id === book.directoryId)?.type ?? 'missing',
+          isManaged: book.isManaged,
+          filepath: book.filepath,
+        }));
+
+      console.log('[PDFLibrary][Debug] 外部书籍统计', {
+        externalDirectoryCount: dirsData.filter(directory => directory.type === 'external').length,
+        externalByDirectory: externalByDirectory.length,
+        externalByManaged: externalByManaged.length,
+        effectiveExternal: new Set([
+          ...externalByDirectory.map(book => book.id),
+          ...externalByManaged.map(book => book.id),
+        ]).size,
+      });
+
+      if (mismatchedExternalBooks.length > 0) {
+        console.warn('[PDFLibrary][Debug] 外部标记不一致', mismatchedExternalBooks);
+      }
       
       setBooks(booksData);
       setTags(tagsData);
@@ -849,13 +935,37 @@ const PDFLibrary: Component = () => {
           <div class={styles.sidebarTitle}>书库</div>
           <div 
             class={styles.navItem}
-            classList={{ [styles.active]: selectedDirectoryId() === null }}
-            onClick={() => setAndSaveDirectoryId(null)}
+            classList={{ [styles.active]: selectedDirectoryId() === null && selectedLibraryFilter() === 'all' }}
+            onClick={showAllBooks}
           >
             <span class={styles.navIcon}>📚</span>
             <span class={styles.navLabel}>全部书籍</span>
             <span class={styles.navCount}>{books().length}</span>
           </div>
+
+          <div 
+            class={styles.navItem}
+            classList={{ [styles.active]: selectedDirectoryId() === null && selectedLibraryFilter() === 'external' }}
+            onClick={showExternalBooks}
+          >
+            <span class={styles.navIcon}>🔗</span>
+            <span class={styles.navLabel}>外部书库</span>
+            <span class={styles.navCount}>{externalDiagnostics().effectiveCount}</span>
+          </div>
+
+          <Show when={externalDiagnostics().byManagedCount !== externalDiagnostics().byDirectoryCount}>
+            <div
+              style={{
+                "font-size": '11px',
+                opacity: '0.72',
+                padding: '2px 12px 8px 32px',
+                "line-height": '1.4'
+              }}
+              title={`调试: 只读外部 ${externalDiagnostics().byManagedCount} / 目录外部 ${externalDiagnostics().byDirectoryCount}`}
+            >
+              调试: 只读 {externalDiagnostics().byManagedCount} / 目录 {externalDiagnostics().byDirectoryCount}
+            </div>
+          </Show>
           
           <For each={directories()}>
             {(dir) => (

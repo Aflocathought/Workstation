@@ -8,6 +8,7 @@ const STATE_STORAGE_KEY = 'pdf-library-state';
 
 export interface PDFLibraryState {
   // 当前选择的过滤条件
+  selectedLibraryFilter: 'all' | 'external';
   selectedDirectoryId: number | null;
   selectedCategoryId: number | null;
   selectedTagIds: number[];
@@ -25,6 +26,7 @@ export interface PDFLibraryState {
 }
 
 const DEFAULT_STATE: PDFLibraryState = {
+  selectedLibraryFilter: 'all',
   selectedDirectoryId: null,
   selectedCategoryId: null,
   selectedTagIds: [],
@@ -66,6 +68,7 @@ export function loadState(): PDFLibraryState {
     
     // 验证状态的有效性
     return {
+      selectedLibraryFilter: parsed.selectedLibraryFilter === 'external' ? 'external' : 'all',
       selectedDirectoryId: typeof parsed.selectedDirectoryId === 'number' ? parsed.selectedDirectoryId : null,
       selectedCategoryId: typeof parsed.selectedCategoryId === 'number' ? parsed.selectedCategoryId : null,
       selectedTagIds: Array.isArray(parsed.selectedTagIds) ? parsed.selectedTagIds : [],
