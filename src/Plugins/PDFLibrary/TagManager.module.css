@@ -18,6 +18,34 @@
   gap: 16px;
 }
 
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+  flex: 1;
+}
+
+.headerText {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.subtitle {
+  font-size: 12px;
+  opacity: 0.72;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .backButton {
   padding: 8px 16px;
   background: transparent;
@@ -56,6 +84,64 @@
   background: var(--button-hoverBackground);
 }
 
+.secondaryButton {
+  padding: 8px 14px;
+  background: var(--button-secondaryBackground);
+  color: var(--button-secondaryForeground);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.15s;
+}
+
+.secondaryButton:hover {
+  background: var(--button-secondaryHoverBackground);
+}
+
+.hiddenInput {
+  display: none;
+}
+
+.tabBar {
+  display: flex;
+  gap: 8px;
+  padding: 16px 24px 0;
+}
+
+.tabButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: 1px solid var(--input-border);
+  background: transparent;
+  color: var(--foreground);
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.15s;
+}
+
+.tabButton:hover {
+  background: var(--list-hoverBackground);
+}
+
+.activeTab {
+  background: var(--button-background);
+  color: var(--button-foreground);
+  border-color: var(--button-background);
+}
+
+.tabCount {
+  min-width: 18px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.16);
+  font-size: 11px;
+  text-align: center;
+}
+
 .loading {
   display: flex;
   justify-content: center;
@@ -63,6 +149,23 @@
   height: 200px;
   font-size: 14px;
   opacity: 0.6;
+}
+
+.content {
+  flex: 1;
+  overflow: hidden;
+}
+
+.emptyState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 220px;
+  margin: 24px;
+  border: 1px dashed var(--panel-border);
+  border-radius: 8px;
+  opacity: 0.72;
+  font-size: 14px;
 }
 
 .tagList {
@@ -104,6 +207,10 @@
   font-weight: 500;
   color: white;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.badgeIcon {
+  margin-right: 6px;
 }
 
 .tagName {
@@ -180,6 +287,20 @@
 .bookCount {
   font-weight: 600;
   color: var(--textLink-foreground);
+}
+
+.colorValue {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.colorPreview {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15);
 }
 
 /* 模态框 */
@@ -284,4 +405,28 @@
 
 .saveButton:hover {
   background: var(--button-hoverBackground);
+}
+
+@media (max-width: 900px) {
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .headerLeft {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .headerActions {
+    justify-content: flex-start;
+  }
+
+  .tagList {
+    grid-template-columns: 1fr;
+  }
+
+  .modalContent {
+    min-width: min(400px, calc(100vw - 32px));
+  }
 }

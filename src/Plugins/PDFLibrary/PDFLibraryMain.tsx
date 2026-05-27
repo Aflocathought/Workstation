@@ -907,7 +907,7 @@ const PDFLibrary: Component = () => {
       when={!isLoading()}
       fallback={<div class={styles.emptyState}>加载中...</div>}
     >
-    {/* 如果显示标签管理器，则渲染标签管理器 */}
+    {/* 如果显示分类/标签管理器，则渲染管理器 */}
     <Show when={showTagManager()} fallback={
     <div 
       class={styles.container}
@@ -1143,7 +1143,7 @@ const PDFLibrary: Component = () => {
             onClick={() => setShowTagManager(!showTagManager())}
           >
             <span class={styles.navIcon}>🏷️</span>
-            <span class={styles.navLabel}>标签管理器</span>
+            <span class={styles.navLabel}>分类&标签管理器</span>
           </div>
           <div class={styles.navItem} onClick={handleChangeWorkspace}>
             <span class={styles.navIcon}>⚙️</span>
@@ -1766,7 +1766,10 @@ const PDFLibrary: Component = () => {
       </div>
     </div>
     }>
-      <TagManager onBack={() => setShowTagManager(false)} />
+      <TagManager onBack={() => {
+        setShowTagManager(false);
+        void loadData();
+      }} />
     </Show>
     </Show>
   );
