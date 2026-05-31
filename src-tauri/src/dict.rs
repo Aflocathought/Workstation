@@ -1033,6 +1033,7 @@ fn lookup_word_sync(
         return Ok(render_dictionary_not_configured(trimmed));
     }
 
+    let mut matched_entries = Vec::new();
     let mut lookup_errors = Vec::new();
 
     for (index, dictionary) in imported_dictionaries.iter().enumerate() {
@@ -1046,12 +1047,12 @@ fn lookup_word_sync(
         match lookup_word_in_dictionary(dictionary, trimmed) {
             Ok(Some(entry)) => {
                 dict_debug(format!(
-                    "lookup finish mode=all word={} hit_dictionary={} elapsed_ms={}",
+                    "lookup all hit word={} dictionary={} elapsed_ms={}",
                     trimmed,
                     display_path(dictionary),
                     started_at.elapsed().as_millis()
                 ));
-                return Ok(entry);
+                matched_entries.push(entry);
             }
             Ok(None) => {}
             Err(error) => {
@@ -1063,6 +1064,19 @@ fn lookup_word_sync(
                 lookup_errors.push(error);
             }
         }
+    }
+
+    if !matched_entries.is_empty() {
+        dict_debug(format!(
+            "lookup finish mode=all word={} result=hit dictionaries={} hit_count={} errors={} elapsed_ms={}",
+            trimmed,
+            imported_dictionaries.len(),
+            matched_entries.len(),
+            lookup_errors.len(),
+            started_at.elapsed().as_millis()
+        ));
+
+        return Ok(matched_entries.join("\n"));
     }
 
     if lookup_errors.len() == imported_dictionaries.len() {
