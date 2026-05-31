@@ -119,12 +119,17 @@ fn render_dictionary_entry(
 
     format!(
         r#"
-<article>
-    <span class="entry-label">REAL MDX</span>
-    <h1>{}</h1>
-    <p><strong>{}</strong></p>
+<article class="dictionary-entry">
+    <header class="dictionary-entry-header">
+        <span class="entry-label">本地 MDX</span>
+        <h1 class="dictionary-entry-title">{}</h1>
+        <div class="dictionary-source-heading">
+            <span>来自：{}</span>
+            <hr />
+        </div>
+    </header>
     {}
-    <div class="entry-card">{}</div>
+    <div class="dictionary-entry-body">{}</div>
 </article>
         "#,
         escape_html(headword),
@@ -139,11 +144,19 @@ fn render_dictionary_not_found(dictionary_file: &str, word: &str) -> String {
 
     format!(
         r#"
-<article>
-    <span class="entry-label">REAL MDX</span>
-    <h1>{}</h1>
-    <p>当前在词典 <strong>{}</strong> 中没有找到这个词条。</p>
-    <p>可以尝试词形变化、大小写变体，或在设置中切换另一部词典。</p>
+<article class="dictionary-entry dictionary-entry-empty">
+    <header class="dictionary-entry-header">
+        <span class="entry-label">本地 MDX</span>
+        <h1 class="dictionary-entry-title">{}</h1>
+        <div class="dictionary-source-heading">
+            <span>来自：{}</span>
+            <hr />
+        </div>
+    </header>
+    <div class="dictionary-entry-body">
+        <p>当前词典没有找到这个词条。</p>
+        <p>可以尝试词形变化、大小写变体，或在设置中心切换另一部词典。</p>
+    </div>
 </article>
         "#,
         escape_html(word),
@@ -154,11 +167,19 @@ fn render_dictionary_not_found(dictionary_file: &str, word: &str) -> String {
 fn render_dictionary_collection_not_found(dictionary_count: usize, word: &str) -> String {
     format!(
         r#"
-<article>
-    <span class="entry-label">REAL MDX</span>
-    <h1>{}</h1>
-    <p>已在导入的 <strong>{}</strong> 本词典中查找，但没有找到这个词条。</p>
-    <p>可以尝试词形变化、大小写变体，或在设置中选中单本词典缩小范围。</p>
+<article class="dictionary-entry dictionary-entry-empty">
+    <header class="dictionary-entry-header">
+        <span class="entry-label">本地 MDX</span>
+        <h1 class="dictionary-entry-title">{}</h1>
+        <div class="dictionary-source-heading">
+            <span>来自：全部启用词典</span>
+            <hr />
+        </div>
+    </header>
+    <div class="dictionary-entry-body">
+        <p>已在启用的 <strong>{}</strong> 本词典中查找，但没有找到这个词条。</p>
+        <p>可以尝试词形变化、大小写变体，或在左侧栏选中单本词典缩小范围。</p>
+    </div>
 </article>
         "#,
         escape_html(word),
@@ -169,11 +190,19 @@ fn render_dictionary_collection_not_found(dictionary_count: usize, word: &str) -
 fn render_dictionary_not_configured(word: &str) -> String {
     format!(
         r#"
-<article>
-    <span class="entry-label">LOCAL DICTIONARY</span>
-    <h1>{}</h1>
-    <p>还没有可用的本地 MDX 词典。</p>
-    <p>请先在右侧设置里选择词典目录，扫描后可以选择单本词典，或使用全部导入词典查找。</p>
+<article class="dictionary-entry dictionary-entry-empty">
+    <header class="dictionary-entry-header">
+        <span class="entry-label">本地词典</span>
+        <h1 class="dictionary-entry-title">{}</h1>
+        <div class="dictionary-source-heading">
+            <span>来自：未配置</span>
+            <hr />
+        </div>
+    </header>
+    <div class="dictionary-entry-body">
+        <p>还没有可用的本地 MDX 词典。</p>
+        <p>请先在设置中心选择词典目录，扫描后可以在左侧栏选择单本词典，或使用全部启用词典查找。</p>
+    </div>
 </article>
         "#,
         escape_html(word),

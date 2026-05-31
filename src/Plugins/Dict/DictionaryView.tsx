@@ -374,7 +374,7 @@ function DictionaryView() {
         <div class="relative h-full overflow-hidden rounded-[20px] border border-white/60 bg-white/50 shadow-inner">
           <div
             ref={articleRef}
-            class="dictionary-scroll relative h-full overflow-auto p-6 md:p-8"
+            class="dictionary-scroll relative h-full overflow-auto p-5 md:p-6"
             onClick={playDictionaryAudio}
             onMouseUp={updateSelectedText}
             onDblClick={updateSelectedText}

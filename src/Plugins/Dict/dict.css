@@ -50,34 +50,129 @@
 
 .dict-plugin-root .dictionary-html {
   color: #334155;
-  line-height: 1.8;
-  font-size: 15px;
+  font-size: 14px;
+  line-height: 1.55;
+  text-align: left;
+  word-break: normal;
+  overflow-wrap: anywhere;
+}
+
+.dict-plugin-root .dictionary-html *,
+.dict-plugin-root .dictionary-html *::before,
+.dict-plugin-root .dictionary-html *::after {
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+.dict-plugin-root .dictionary-html :where(article, section, div, p, ul, ol, dl, table, blockquote, pre) {
+  text-align: left;
+}
+
+.dict-plugin-root .dictionary-html .dictionary-entry {
+  width: 100%;
+  margin: 0;
+}
+
+.dict-plugin-root .dictionary-html .dictionary-entry-header {
+  margin-bottom: 14px;
+}
+
+.dict-plugin-root .dictionary-html .dictionary-entry-title {
+  margin: 8px 0 10px;
+  color: #0f172a;
+  font-size: 1.55rem;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.dict-plugin-root .dictionary-html .dictionary-source-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.dict-plugin-root .dictionary-html .dictionary-source-heading span {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dict-plugin-root .dictionary-html .dictionary-source-heading hr {
+  flex: 1;
+  min-width: 40px;
+  height: 1px;
+  border: 0;
+  background: rgba(148, 163, 184, 0.45);
+}
+
+.dict-plugin-root .dictionary-html .dictionary-entry-body {
+  width: 100%;
+  color: #334155;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.dict-plugin-root .dictionary-html .dictionary-entry-body :where(p, li, dd, dt) {
+  margin: 0.25rem 0;
+  line-height: 1.55;
+}
+
+.dict-plugin-root .dictionary-html .dictionary-entry-body :where(ul, ol) {
+  margin: 0.45rem 0;
+  padding-left: 1.35rem;
+}
+
+.dict-plugin-root .dictionary-html .dictionary-entry-body :where(span, b, strong, em, i, a, sup, sub) {
+  display: inline;
+  width: auto;
+  max-width: none;
+}
+
+.dict-plugin-root .dictionary-html .dictionary-entry-body :where(img, audio, video, iframe, object) {
+  max-width: 100%;
+}
+
+.dict-plugin-root .dictionary-html .dictionary-entry-body :where(table) {
+  width: auto;
+  max-width: 100%;
+  border-collapse: collapse;
+}
+
+.dict-plugin-root .dictionary-html .dictionary-entry-body :where(td, th) {
+  padding: 0.2rem 0.45rem;
+  vertical-align: top;
 }
 
 .dict-plugin-root .dictionary-html h1 {
-  font-size: 2.2rem;
+  font-size: 1.55rem;
   font-weight: 800;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
   color: #0f172a;
-  margin: 0 0 1rem;
+  margin: 0.75rem 0 0.45rem;
 }
 
 .dict-plugin-root .dictionary-html h2 {
-  font-size: 1.3rem;
+  font-size: 1.1rem;
   font-weight: 700;
   color: #1e293b;
-  margin: 1.8rem 0 0.8rem;
+  margin: 1rem 0 0.4rem;
 }
 
 .dict-plugin-root .dictionary-html p,
 .dict-plugin-root .dictionary-html li {
-  margin: 0 0 0.8rem;
+  margin: 0.25rem 0;
 }
 
 .dict-plugin-root .dictionary-html blockquote {
-  margin: 1.2rem 0;
+  margin: 0.75rem 0;
   border-left: 3px solid #6366f1;
-  padding: 0.75rem 1.25rem;
+  padding: 0.55rem 0.9rem;
   color: #4338ca;
   background: rgba(224, 231, 255, 0.5);
   border-radius: 0 8px 8px 0;
@@ -94,7 +189,7 @@
   border: 1px solid rgba(203, 213, 225, 0.6);
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.9);
-  padding: 1.5rem;
+  padding: 1rem;
   box-shadow: 0 2px 8px -2px rgba(15, 23, 42, 0.05);
 }
 
