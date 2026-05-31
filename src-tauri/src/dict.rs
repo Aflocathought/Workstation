@@ -3,6 +3,7 @@ use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
 use serde::Serialize;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::time::Instant;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -12,6 +13,22 @@ pub(crate) struct DictionarySource {
     display_name: String,
     has_mdd: bool,
     mdd_path: Option<String>,
+}
+
+fn dict_debug(message: impl AsRef<str>) {
+    eprintln!("[Backend|Dict] {}", message.as_ref());
+}
+
+fn display_path(path: impl AsRef<Path>) -> String {
+    path.as_ref().display().to_string()
+}
+
+fn dictionary_file_label(dictionary_file: &str) -> String {
+    Path::new(dictionary_file)
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or(dictionary_file)
+        .to_string()
 }
 
 fn escape_html(input: &str) -> String {
@@ -262,8 +279,42 @@ struct DictionaryResourceResolver {
 impl DictionaryResourceResolver {
     fn new(dictionary_file: &str) -> Self {
         let dictionary_path = Path::new(dictionary_file);
-        let mdd =
-            find_matching_mdd(dictionary_path).and_then(|path| mdict_rs::MddFile::open(path).ok());
+        let mdd_path = find_matching_mdd(dictionary_path);
+        let mdd = mdd_path.as_ref().and_then(|path| {
+            dict_debug(format!(
+                "resource mdd open start dictionary={} mdd={}",
+                display_path(dictionary_path),
+                display_path(path)
+            ));
+
+            match mdict_rs::MddFile::open(path) {
+                Ok(file) => {
+                    dict_debug(format!(
+                        "resource mdd open ok dictionary={} mdd={} entries={}",
+                        display_path(dictionary_path),
+                        display_path(path),
+                        file.len()
+                    ));
+                    Some(file)
+                }
+                Err(error) => {
+                    dict_debug(format!(
+                        "resource mdd open failed dictionary={} mdd={} error={}",
+                        display_path(dictionary_path),
+                        display_path(path),
+                        error
+                    ));
+                    None
+                }
+            }
+        });
+
+        if mdd_path.is_none() {
+            dict_debug(format!(
+                "resource mdd not found dictionary={}",
+                display_path(dictionary_path)
+            ));
+        }
 
         Self {
             mdd,
@@ -292,13 +343,33 @@ impl DictionaryResourceResolver {
         if let Some(mdd) = &self.mdd {
             for candidate in resource_key_candidates(resource_reference) {
                 match mdd.lookup(&candidate) {
-                    Ok(Some(resource)) => return Some(resource.data),
+                    Ok(Some(resource)) => {
+                        dict_debug(format!(
+                            "resource resolved source=mdd ref={} key={} bytes={}",
+                            resource_reference,
+                            candidate,
+                            resource.data.len()
+                        ));
+                        return Some(resource.data);
+                    }
                     Ok(None) | Err(_) => {}
                 }
             }
         }
 
-        self.load_disk_resource(resource_reference)
+        let disk_resource = self.load_disk_resource(resource_reference);
+
+        if let Some(data) = &disk_resource {
+            dict_debug(format!(
+                "resource resolved source=disk ref={} bytes={}",
+                resource_reference,
+                data.len()
+            ));
+        } else {
+            dict_debug(format!("resource miss ref={}", resource_reference));
+        }
+
+        disk_resource
     }
 
     fn load_disk_resource(&self, resource_reference: &str) -> Option<Vec<u8>> {
@@ -323,8 +394,22 @@ impl DictionaryResourceResolver {
 
 #[cfg(feature = "mdict-rs-backend")]
 fn render_dictionary_record_body(dictionary_file: &str, raw_record: &str) -> String {
+    let started_at = Instant::now();
+    dict_debug(format!(
+        "resource rewrite start dictionary={} input_bytes={}",
+        display_path(dictionary_file),
+        raw_record.len()
+    ));
     let resolver = DictionaryResourceResolver::new(dictionary_file);
-    rewrite_html_resources(raw_record, &resolver)
+    let rewritten = rewrite_html_resources(raw_record, &resolver);
+    dict_debug(format!(
+        "resource rewrite finish dictionary={} output_bytes={} elapsed_ms={}",
+        display_path(dictionary_file),
+        rewritten.len(),
+        started_at.elapsed().as_millis()
+    ));
+
+    rewritten
 }
 
 #[cfg(not(feature = "mdict-rs-backend"))]
@@ -683,28 +768,69 @@ fn skip_ascii_whitespace(value: &str, mut index: usize) -> usize {
 
 #[cfg(feature = "mdict-rs-backend")]
 fn lookup_word_in_dictionary(dictionary_file: &str, word: &str) -> Result<Option<String>, String> {
-    let mdx = mdict_rs::MdxFile::open(dictionary_file).map_err(|error| {
-        format!(
-            "mdict-rs 暂时无法打开所选词典 {}: {}",
-            Path::new(dictionary_file)
-                .file_name()
-                .and_then(|value| value.to_str())
-                .unwrap_or(dictionary_file),
-            error,
-        )
-    })?;
+    let started_at = Instant::now();
+    let dictionary_label = dictionary_file_label(dictionary_file);
 
-    for candidate in lookup_key_candidates(word) {
+    dict_debug(format!(
+        "dictionary open start file={} word={}",
+        display_path(dictionary_file),
+        word
+    ));
+
+    let mdx = match mdict_rs::MdxFile::open(dictionary_file) {
+        Ok(mdx) => {
+            dict_debug(format!(
+                "dictionary open ok file={} entries={} elapsed_ms={}",
+                display_path(dictionary_file),
+                mdx.len(),
+                started_at.elapsed().as_millis()
+            ));
+            mdx
+        }
+        Err(error) => {
+            dict_debug(format!(
+                "dictionary open failed file={} error={} elapsed_ms={}",
+                display_path(dictionary_file),
+                error,
+                started_at.elapsed().as_millis()
+            ));
+            return Err(format!(
+                "mdict-rs 暂时无法打开所选词典 {}: {}",
+                dictionary_label, error,
+            ));
+        }
+    };
+
+    let candidates = lookup_key_candidates(word);
+    dict_debug(format!(
+        "lookup candidates file={} word={} candidates={}",
+        display_path(dictionary_file),
+        word,
+        candidates.join("|")
+    ));
+
+    for candidate in candidates {
         if let Some(record) = mdx.lookup(&candidate).map_err(|error| {
+            dict_debug(format!(
+                "lookup candidate failed file={} candidate={} error={}",
+                display_path(dictionary_file),
+                candidate,
+                error
+            ));
             format!(
                 "mdict-rs 在查询词典 {} 时失败: {}",
-                Path::new(dictionary_file)
-                    .file_name()
-                    .and_then(|value| value.to_str())
-                    .unwrap_or(dictionary_file),
+                dictionary_file_label(dictionary_file),
                 error,
             )
         })? {
+            dict_debug(format!(
+                "lookup hit file={} candidate={} key={} record_bytes={} elapsed_ms={}",
+                display_path(dictionary_file),
+                candidate,
+                record.key,
+                record.text.len(),
+                started_at.elapsed().as_millis()
+            ));
             return Ok(Some(render_dictionary_entry(
                 dictionary_file,
                 &record.key,
@@ -714,14 +840,23 @@ fn lookup_word_in_dictionary(dictionary_file: &str, word: &str) -> Result<Option
         }
     }
 
+    dict_debug(format!(
+        "lookup miss file={} word={} elapsed_ms={}",
+        display_path(dictionary_file),
+        word,
+        started_at.elapsed().as_millis()
+    ));
+
     Ok(None)
 }
 
 #[cfg(not(feature = "mdict-rs-backend"))]
-fn lookup_word_in_dictionary(
-    _dictionary_file: &str,
-    _word: &str,
-) -> Result<Option<String>, String> {
+fn lookup_word_in_dictionary(dictionary_file: &str, word: &str) -> Result<Option<String>, String> {
+    dict_debug(format!(
+        "lookup skipped feature_disabled file={} word={}",
+        display_path(dictionary_file),
+        word
+    ));
     Err(
         "当前构建未启用 mdict-rs-backend；已禁用 readmdict 慢速回退以避免加密词典暴力解析。"
             .to_string(),
@@ -732,24 +867,45 @@ fn lookup_word_in_dictionary(
 pub(crate) fn scan_dictionary_directory(
     directory: String,
 ) -> Result<Vec<DictionarySource>, String> {
+    let started_at = Instant::now();
     let trimmed = directory.trim();
 
+    dict_debug(format!("scan start directory={}", trimmed));
+
     if trimmed.is_empty() {
+        dict_debug("scan rejected reason=empty_directory");
         return Err("请先选择词典目录".to_string());
     }
 
     let root = Path::new(trimmed);
 
     if !root.exists() {
+        dict_debug(format!(
+            "scan rejected reason=missing_directory directory={}",
+            display_path(root)
+        ));
         return Err(format!("词典目录不存在: {}", root.display()));
     }
 
     if !root.is_dir() {
+        dict_debug(format!(
+            "scan rejected reason=not_directory path={}",
+            display_path(root)
+        ));
         return Err(format!("所选路径不是文件夹: {}", root.display()));
     }
 
     let mut dictionary_files = Vec::new();
-    collect_dictionary_files(root, &mut dictionary_files)?;
+    if let Err(error) = collect_dictionary_files(root, &mut dictionary_files) {
+        dict_debug(format!(
+            "scan failed directory={} error={} elapsed_ms={}",
+            display_path(root),
+            error,
+            started_at.elapsed().as_millis()
+        ));
+        return Err(error);
+    }
+
     dictionary_files.sort_by(|left, right| {
         left.file_name()
             .and_then(|value| value.to_str())
@@ -764,7 +920,7 @@ pub(crate) fn scan_dictionary_directory(
             )
     });
 
-    Ok(dictionary_files
+    let sources = dictionary_files
         .into_iter()
         .map(|path| {
             let mdd_path = find_matching_mdd(&path);
@@ -781,7 +937,18 @@ pub(crate) fn scan_dictionary_directory(
                 mdd_path: mdd_path.map(|value| value.display().to_string()),
             }
         })
-        .collect())
+        .collect::<Vec<_>>();
+
+    let mdd_count = sources.iter().filter(|source| source.has_mdd).count();
+    dict_debug(format!(
+        "scan finish directory={} mdx_count={} mdd_count={} elapsed_ms={}",
+        display_path(root),
+        sources.len(),
+        mdd_count,
+        started_at.elapsed().as_millis()
+    ));
+
+    Ok(sources)
 }
 
 #[tauri::command]
@@ -790,11 +957,25 @@ pub(crate) async fn lookup_word(
     dictionary_file: Option<String>,
     dictionary_files: Option<Vec<String>>,
 ) -> Result<String, String> {
+    dict_debug(format!(
+        "lookup command queued word={} selected_dictionary={} imported_count={}",
+        word.trim(),
+        dictionary_file
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .unwrap_or("<all-enabled>"),
+        dictionary_files.as_ref().map_or(0, Vec::len)
+    ));
+
     tauri::async_runtime::spawn_blocking(move || {
         lookup_word_sync(word, dictionary_file, dictionary_files)
     })
     .await
-    .map_err(|error| format!("词典查询任务失败: {error}"))?
+    .map_err(|error| {
+        dict_debug(format!("lookup worker failed error={error}"));
+        format!("词典查询任务失败: {error}")
+    })?
 }
 
 fn lookup_word_sync(
@@ -802,41 +983,105 @@ fn lookup_word_sync(
     dictionary_file: Option<String>,
     dictionary_files: Option<Vec<String>>,
 ) -> Result<String, String> {
+    let started_at = Instant::now();
     let trimmed = word.trim();
 
     if trimmed.is_empty() {
+        dict_debug("lookup rejected reason=empty_word");
         return Err("请输入要查询的单词".to_string());
     }
+
+    dict_debug(format!(
+        "lookup start word={} selected_dictionary={} imported_count={}",
+        trimmed,
+        dictionary_file
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .unwrap_or("<all-enabled>"),
+        dictionary_files.as_ref().map_or(0, Vec::len)
+    ));
 
     if let Some(selected_dictionary) = dictionary_file
         .as_deref()
         .map(str::trim)
         .filter(|value| !value.is_empty())
     {
-        return lookup_word_in_dictionary(selected_dictionary, trimmed).map(|entry| {
+        let entry = lookup_word_in_dictionary(selected_dictionary, trimmed)?;
+
+        dict_debug(format!(
+            "lookup finish mode=selected word={} dictionary={} hit={} elapsed_ms={}",
+            trimmed,
+            display_path(selected_dictionary),
+            entry.is_some(),
+            started_at.elapsed().as_millis()
+        ));
+
+        return Ok(
             entry.unwrap_or_else(|| render_dictionary_not_found(selected_dictionary, trimmed))
-        });
+        );
     }
 
     let imported_dictionaries = unique_dictionary_files(dictionary_files);
 
     if imported_dictionaries.is_empty() {
+        dict_debug(format!(
+            "lookup finish mode=all word={} result=not_configured elapsed_ms={}",
+            trimmed,
+            started_at.elapsed().as_millis()
+        ));
         return Ok(render_dictionary_not_configured(trimmed));
     }
 
     let mut lookup_errors = Vec::new();
 
-    for dictionary in &imported_dictionaries {
+    for (index, dictionary) in imported_dictionaries.iter().enumerate() {
+        dict_debug(format!(
+            "lookup all probing index={} total={} dictionary={}",
+            index + 1,
+            imported_dictionaries.len(),
+            display_path(dictionary)
+        ));
+
         match lookup_word_in_dictionary(dictionary, trimmed) {
-            Ok(Some(entry)) => return Ok(entry),
+            Ok(Some(entry)) => {
+                dict_debug(format!(
+                    "lookup finish mode=all word={} hit_dictionary={} elapsed_ms={}",
+                    trimmed,
+                    display_path(dictionary),
+                    started_at.elapsed().as_millis()
+                ));
+                return Ok(entry);
+            }
             Ok(None) => {}
-            Err(error) => lookup_errors.push(error),
+            Err(error) => {
+                dict_debug(format!(
+                    "lookup all dictionary_error dictionary={} error={}",
+                    display_path(dictionary),
+                    error
+                ));
+                lookup_errors.push(error);
+            }
         }
     }
 
     if lookup_errors.len() == imported_dictionaries.len() {
+        dict_debug(format!(
+            "lookup finish mode=all word={} result=all_failed error_count={} elapsed_ms={}",
+            trimmed,
+            lookup_errors.len(),
+            started_at.elapsed().as_millis()
+        ));
         return Err(lookup_errors.join("\n"));
     }
+
+    dict_debug(format!(
+        "lookup finish mode=all word={} result=miss dictionaries={} errors={} elapsed_ms={}",
+        trimmed,
+        imported_dictionaries.len(),
+        lookup_errors.len(),
+        started_at.elapsed().as_millis()
+    ));
 
     Ok(render_dictionary_collection_not_found(
         imported_dictionaries.len(),
