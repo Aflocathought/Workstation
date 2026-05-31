@@ -1,11 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import {
-  Show,
-  createMemo,
-  createSignal,
-  onCleanup,
-  onMount,
-} from "solid-js";
+import { Show, createMemo, createSignal, onCleanup, onMount } from "solid-js";
 import { useChatBridge } from "./ChatBridgeContext";
 import {
   DICTIONARY_STORAGE_KEYS,
@@ -137,7 +131,9 @@ function DictionaryView() {
     const rangeRect = range.getBoundingClientRect();
     const containerRect = container.getBoundingClientRect();
     const rawLeft =
-      (rangeRect.left || event.clientX) - containerRect.left + container.scrollLeft;
+      (rangeRect.left || event.clientX) -
+      containerRect.left +
+      container.scrollLeft;
     const rawTop =
       (rangeRect.bottom || event.clientY) -
       containerRect.top +
@@ -218,9 +214,23 @@ function DictionaryView() {
         <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div class="flex items-center gap-3">
             <div class="flex h-10 w-10 items-center justify-center rounded-[14px] bg-indigo-600 text-white shadow-md shadow-indigo-600/20">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+              </svg>
             </div>
-            <h1 class="text-xl font-bold tracking-tight text-slate-800">本地词典</h1>
+            <h1 class="text-xl font-bold tracking-tight text-slate-800">
+              本地词典
+            </h1>
           </div>
 
           <Show when={currentWord()}>
@@ -240,7 +250,20 @@ function DictionaryView() {
         >
           <div class="relative flex-1">
             <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-5 text-slate-400">
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.3-4.3" />
+              </svg>
             </div>
             <input
               type="text"
@@ -254,13 +277,32 @@ function DictionaryView() {
 
           <button
             type="submit"
-            class="inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-slate-900 px-6 font-medium text-white shadow-lg shadow-slate-900/20 transition hover:bg-slate-800 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100"
+            class="inline-flex h-14 w-16 items-center justify-center gap-2 rounded-2xl bg-slate-900 p-2 font-medium text-white shadow-lg shadow-slate-900/20 transition hover:bg-slate-800 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100"
             disabled={isLoading()}
           >
             <Show
               when={!isLoading()}
               fallback={
-                <svg class="h-5 w-5 animate-spin text-white/70" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                <svg
+                  class="h-5 w-5 animate-spin text-white/70"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    class="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    stroke-width="4"
+                  ></circle>
+                  <path
+                    class="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
               }
             >
               <span>查 词</span>
@@ -270,7 +312,21 @@ function DictionaryView() {
 
         <Show when={errorMessage()}>
           <div class="mt-4 flex items-center gap-3 rounded-2xl border border-rose-200/60 bg-rose-50/80 px-5 py-4 text-[15px] font-medium text-rose-700 backdrop-blur-sm">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="m15 9-6 6" />
+              <path d="m9 9 6 6" />
+            </svg>
             {errorMessage()}
           </div>
         </Show>
@@ -284,9 +340,7 @@ function DictionaryView() {
             onMouseUp={updateSelectedText}
             onDblClick={updateSelectedText}
           >
-            <Show
-              when={!isLoading()}
-            >
+            <Show when={!isLoading()}>
               <div class="dictionary-html" innerHTML={entryHtml()} />
             </Show>
 
@@ -305,7 +359,19 @@ function DictionaryView() {
                     hideAskButton();
                   }}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3ZM5 3v4M19 17v4M3 5h4M17 19h4"/></svg>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3ZM5 3v4M19 17v4M3 5h4M17 19h4" />
+                  </svg>
                   <span>询问AI</span>
                 </button>
               )}
@@ -325,7 +391,21 @@ function DictionaryView() {
           disabled={!currentWord()}
           onClick={exportVocabularyToCsv}
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" x2="12" y1="15" y2="3" />
+          </svg>
           <span>导出 CSV</span>
         </button>
       </div>

@@ -3,7 +3,8 @@ use base64::Engine as _;
 use parquet2::read::read_metadata;
 use polars::lazy::dsl::col;
 use polars::prelude::{
-    LazyCsvReader, LazyFileListReader, LazyFrame, PolarsError, ScanArgsParquet, SchemaNamesAndDtypes,
+    LazyCsvReader, LazyFileListReader, LazyFrame, PolarsError, ScanArgsParquet,
+    SchemaNamesAndDtypes,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -148,7 +149,8 @@ fn map_polars_err(err: PolarsError) -> String {
 
 fn parquet_total_rows(path: &str) -> Result<u64, String> {
     let mut file = File::open(path).map_err(|e| format!("Failed to open parquet: {e}"))?;
-    let metadata = read_metadata(&mut file).map_err(|e| format!("Failed to read parquet metadata: {e}"))?;
+    let metadata =
+        read_metadata(&mut file).map_err(|e| format!("Failed to read parquet metadata: {e}"))?;
     let total: u64 = metadata
         .row_groups
         .iter()
@@ -159,7 +161,8 @@ fn parquet_total_rows(path: &str) -> Result<u64, String> {
 
 fn parquet_schema_columns(path: &str) -> Result<Vec<ParquetColumn>, String> {
     // collect_schema 只读 footer 元数据，不会把整文件加载进内存
-    let mut lf = LazyFrame::scan_parquet(path.into(), ScanArgsParquet::default()).map_err(map_polars_err)?;
+    let mut lf =
+        LazyFrame::scan_parquet(path.into(), ScanArgsParquet::default()).map_err(map_polars_err)?;
     let schema = lf.collect_schema().map_err(map_polars_err)?;
     let cols = schema
         .iter_names_and_dtypes()
@@ -281,8 +284,12 @@ fn any_to_json(v: &polars::prelude::AnyValue) -> Value {
             Value::Object(map)
         }
 
-        AnyValue::Binary(bytes) => Value::String(base64::engine::general_purpose::STANDARD.encode(bytes)),
-        AnyValue::BinaryOwned(bytes) => Value::String(base64::engine::general_purpose::STANDARD.encode(bytes)),
+        AnyValue::Binary(bytes) => {
+            Value::String(base64::engine::general_purpose::STANDARD.encode(bytes))
+        }
+        AnyValue::BinaryOwned(bytes) => {
+            Value::String(base64::engine::general_purpose::STANDARD.encode(bytes))
+        }
 
         // Categorical/Enum/Object 等：前端显示为字符串（不影响数值列/图表）
         other => Value::String(other.to_string()),

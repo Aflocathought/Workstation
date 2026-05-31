@@ -46,27 +46,27 @@ pub struct Book {
     pub directory_id: i32,
     pub is_managed: bool,
     pub is_missing: bool,
-    
+
     // 文件身份
     pub volume_id: u64,
     pub file_index: u64,
     pub file_size: u64,
-    
+
     // 元数据
     pub author: Option<String>,
     pub page_count: i32,
-    
+
     // 封面 (Base64)
     pub cover_image: Option<String>,
-    
+
     // 时间戳
     pub import_date: String,
     pub modified_date: String,
-    
+
     // 分类
     #[serde(skip_serializing_if = "Option::is_none")]
     pub category_id: Option<i32>,
-    
+
     // 标签 (在查询时加载)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tags: Option<Vec<Tag>>,

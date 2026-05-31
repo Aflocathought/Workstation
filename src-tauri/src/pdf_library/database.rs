@@ -1,25 +1,25 @@
 // src-tauri/src/pdf_library/database.rs
 
-use rusqlite::{Connection, Result, params};
-use std::path::Path;
 use chrono::Utc;
+use rusqlite::{params, Connection, Result};
+use std::path::Path;
 
-use super::{Book, Tag, Directory, Category};
+use super::{Book, Category, Directory, Tag};
 
 /// 初始化数据库并返回连接
 pub fn init_db(db_path: &Path) -> Result<Connection> {
     let conn = Connection::open(db_path)?;
-    
+
     // 开启 WAL 模式（使用 execute_batch 避免返回值问题）
     conn.execute_batch(
         "PRAGMA journal_mode=WAL;
          PRAGMA synchronous=NORMAL;
-         PRAGMA foreign_keys=ON;"
+         PRAGMA foreign_keys=ON;",
     )?;
-    
+
     // 创建表
     create_tables(&conn)?;
-    
+
     Ok(conn)
 }
 
@@ -29,7 +29,7 @@ pub fn ensure_schema(db_path: &Path) -> Result<()> {
     conn.execute_batch(
         "PRAGMA journal_mode=WAL;
          PRAGMA synchronous=NORMAL;
-         PRAGMA foreign_keys=ON;"
+         PRAGMA foreign_keys=ON;",
     )?;
     create_tables(&conn)?;
     Ok(())
@@ -48,7 +48,7 @@ fn create_tables(conn: &Connection) -> Result<()> {
         )",
         [],
     )?;
-    
+
     // 书籍表
     conn.execute(
         "CREATE TABLE IF NOT EXISTS books (
@@ -82,18 +82,18 @@ fn create_tables(conn: &Connection) -> Result<()> {
         "ALTER TABLE books ADD COLUMN is_missing INTEGER NOT NULL DEFAULT 0",
         [],
     );
-    
+
     // 索引
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_books_directory ON books(directory_id)",
         [],
     )?;
-    
+
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_books_file_identity ON books(volume_id, file_index)",
         [],
     )?;
-    
+
     // 标签表
     conn.execute(
         "CREATE TABLE IF NOT EXISTS tags (
@@ -106,13 +106,11 @@ fn create_tables(conn: &Connection) -> Result<()> {
         )",
         [],
     )?;
-    
+
     // 添加 aliases 列（如果不存在）
-    conn.execute(
-        "ALTER TABLE tags ADD COLUMN aliases TEXT",
-        [],
-    ).ok(); // 忽略错误（列已存在）
-    
+    conn.execute("ALTER TABLE tags ADD COLUMN aliases TEXT", [])
+        .ok(); // 忽略错误（列已存在）
+
     // 书籍-标签关联表
     conn.execute(
         "CREATE TABLE IF NOT EXISTS book_tags (
@@ -124,7 +122,7 @@ fn create_tables(conn: &Connection) -> Result<()> {
         )",
         [],
     )?;
-    
+
     // 分类表
     conn.execute(
         "CREATE TABLE IF NOT EXISTS categories (
@@ -136,20 +134,18 @@ fn create_tables(conn: &Connection) -> Result<()> {
         )",
         [],
     )?;
-    
+
     // 为 books 表添加 category_id 列（如果不存在）
     let _ = conn.execute(
         "ALTER TABLE books ADD COLUMN category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL",
         [],
     );
-    
+
     // 检查是否需要初始化默认分类
-    let category_count: i32 = conn.query_row(
-        "SELECT COUNT(*) FROM categories",
-        [],
-        |row| row.get(0)
-    ).unwrap_or(0);
-    
+    let category_count: i32 = conn
+        .query_row("SELECT COUNT(*) FROM categories", [], |row| row.get(0))
+        .unwrap_or(0);
+
     if category_count == 0 {
         // 添加默认分类
         conn.execute(
@@ -161,25 +157,25 @@ fn create_tables(conn: &Connection) -> Result<()> {
         )?;
         println!("[PDFLibrary] 已初始化默认分类");
     }
-    
+
     Ok(())
 }
 
 /// 备份数据库
 pub fn backup_db(source: &Path, backup_dir: &Path) -> Result<String, String> {
     use std::fs;
-    
+
     // 创建备份目录
     fs::create_dir_all(backup_dir).map_err(|e| e.to_string())?;
-    
+
     // 生成备份文件名
     let timestamp = Utc::now().format("%Y%m%d_%H%M%S");
     let backup_name = format!("library_backup_{}.db", timestamp);
     let backup_path = backup_dir.join(&backup_name);
-    
+
     // 复制文件
     fs::copy(source, &backup_path).map_err(|e| e.to_string())?;
-    
+
     Ok(backup_path.to_string_lossy().to_string())
 }
 
@@ -199,7 +195,7 @@ pub fn insert_book(
     cover_image: Option<&str>,
 ) -> Result<i32> {
     let now = Utc::now().to_rfc3339();
-    
+
     conn.execute(
         "INSERT INTO books (
             title, filename, filepath, directory_id, is_managed,
@@ -223,7 +219,7 @@ pub fn insert_book(
             now,
         ],
     )?;
-    
+
     Ok(conn.last_insert_rowid() as i32)
 }
 
@@ -235,32 +231,33 @@ pub fn get_all_books(conn: &Connection) -> Result<Vec<Book>> {
             author, page_count, cover_image,
             import_date, modified_date, is_missing, category_id
          FROM books
-         ORDER BY import_date DESC"
+         ORDER BY import_date DESC",
     )?;
-    
-    let books = stmt.query_map([], |row| {
-        Ok(Book {
-            id: row.get(0)?,
-            title: row.get(1)?,
-            filename: row.get(2)?,
-            filepath: row.get(3)?,
-            directory_id: row.get(4)?,
-            is_managed: row.get::<_, i32>(5)? != 0,
-            volume_id: row.get::<_, i64>(6)? as u64,
-            file_index: row.get::<_, i64>(7)? as u64,
-            file_size: row.get::<_, i64>(8)? as u64,
-            author: row.get(9)?,
-            page_count: row.get(10)?,
-            cover_image: row.get(11)?,
-            import_date: row.get(12)?,
-            modified_date: row.get(13)?,
-            is_missing: row.get::<_, i32>(14)? != 0,
-            category_id: row.get(15)?,
-            tags: None,
-        })
-    })?
-    .collect::<Result<Vec<_>>>()?;
-    
+
+    let books = stmt
+        .query_map([], |row| {
+            Ok(Book {
+                id: row.get(0)?,
+                title: row.get(1)?,
+                filename: row.get(2)?,
+                filepath: row.get(3)?,
+                directory_id: row.get(4)?,
+                is_managed: row.get::<_, i32>(5)? != 0,
+                volume_id: row.get::<_, i64>(6)? as u64,
+                file_index: row.get::<_, i64>(7)? as u64,
+                file_size: row.get::<_, i64>(8)? as u64,
+                author: row.get(9)?,
+                page_count: row.get(10)?,
+                cover_image: row.get(11)?,
+                import_date: row.get(12)?,
+                modified_date: row.get(13)?,
+                is_missing: row.get::<_, i32>(14)? != 0,
+                category_id: row.get(15)?,
+                tags: None,
+            })
+        })?
+        .collect::<Result<Vec<_>>>()?;
+
     Ok(books)
 }
 
@@ -330,7 +327,7 @@ pub fn get_book_by_id(conn: &Connection, id: i32) -> Result<Option<Book>> {
                 volume_id, file_index, file_size,
                 author, page_count, cover_image,
                 import_date, modified_date, is_missing, category_id
-         FROM books WHERE id = ?1"
+         FROM books WHERE id = ?1",
     )?;
 
     let mut rows = stmt.query(params![id])?;
@@ -375,11 +372,7 @@ pub fn update_book_metadata(
 }
 
 /// 更新书籍封面
-pub fn update_book_cover(
-    conn: &Connection,
-    id: i32,
-    cover_image: Option<&str>,
-) -> Result<()> {
+pub fn update_book_cover(conn: &Connection, id: i32, cover_image: Option<&str>) -> Result<()> {
     let now = Utc::now().to_rfc3339();
     conn.execute(
         "UPDATE books SET cover_image = ?1, modified_date = ?2 WHERE id = ?3",
@@ -425,21 +418,22 @@ pub fn get_all_tags(conn: &Connection) -> Result<Vec<Tag>> {
         "SELECT t.id, t.name, t.color, t.parent_id, t.aliases,
                 (SELECT COUNT(*) FROM book_tags WHERE tag_id = t.id) as book_count
          FROM tags t
-         ORDER BY t.name"
+         ORDER BY t.name",
     )?;
-    
-    let tags = stmt.query_map([], |row| {
-        Ok(Tag {
-            id: row.get(0)?,
-            name: row.get(1)?,
-            color: row.get(2)?,
-            parent_id: row.get(3)?,
-            aliases: row.get(4)?,
-            book_count: Some(row.get::<_, i64>(5)? as i32),
-        })
-    })?
-    .collect::<Result<Vec<_>>>()?;
-    
+
+    let tags = stmt
+        .query_map([], |row| {
+            Ok(Tag {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                color: row.get(2)?,
+                parent_id: row.get(3)?,
+                aliases: row.get(4)?,
+                book_count: Some(row.get::<_, i64>(5)? as i32),
+            })
+        })?
+        .collect::<Result<Vec<_>>>()?;
+
     Ok(tags)
 }
 
@@ -465,21 +459,22 @@ pub fn get_book_tags(conn: &Connection, book_id: i32) -> Result<Vec<Tag>> {
          FROM tags t
          INNER JOIN book_tags bt ON t.id = bt.tag_id
          WHERE bt.book_id = ?1
-         ORDER BY t.name"
+         ORDER BY t.name",
     )?;
-    
-    let tags = stmt.query_map(params![book_id], |row| {
-        Ok(Tag {
-            id: row.get(0)?,
-            name: row.get(1)?,
-            color: row.get(2)?,
-            parent_id: row.get(3)?,
-            aliases: row.get(4)?,
-            book_count: None,
-        })
-    })?
-    .collect::<Result<Vec<_>>>()?;
-    
+
+    let tags = stmt
+        .query_map(params![book_id], |row| {
+            Ok(Tag {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                color: row.get(2)?,
+                parent_id: row.get(3)?,
+                aliases: row.get(4)?,
+                book_count: None,
+            })
+        })?
+        .collect::<Result<Vec<_>>>()?;
+
     Ok(tags)
 }
 
@@ -511,16 +506,28 @@ pub fn update_tag(
     aliases: Option<Option<&str>>,
 ) -> Result<()> {
     if let Some(n) = name {
-        conn.execute("UPDATE tags SET name = ?1 WHERE id = ?2", params![n, tag_id])?;
+        conn.execute(
+            "UPDATE tags SET name = ?1 WHERE id = ?2",
+            params![n, tag_id],
+        )?;
     }
     if let Some(c) = color {
-        conn.execute("UPDATE tags SET color = ?1 WHERE id = ?2", params![c, tag_id])?;
+        conn.execute(
+            "UPDATE tags SET color = ?1 WHERE id = ?2",
+            params![c, tag_id],
+        )?;
     }
     if let Some(p) = parent_id {
-        conn.execute("UPDATE tags SET parent_id = ?1 WHERE id = ?2", params![p, tag_id])?;
+        conn.execute(
+            "UPDATE tags SET parent_id = ?1 WHERE id = ?2",
+            params![p, tag_id],
+        )?;
     }
     if let Some(a) = aliases {
-        conn.execute("UPDATE tags SET aliases = ?1 WHERE id = ?2", params![a, tag_id])?;
+        conn.execute(
+            "UPDATE tags SET aliases = ?1 WHERE id = ?2",
+            params![a, tag_id],
+        )?;
     }
     Ok(())
 }
@@ -536,41 +543,41 @@ pub fn delete_tag(conn: &Connection, tag_id: i32) -> Result<()> {
 
 /// 获取所有目录
 pub fn get_all_directories(conn: &Connection) -> Result<Vec<Directory>> {
-    let mut stmt = conn.prepare(
-        "SELECT id, path, type, name FROM directories ORDER BY id"
-    )?;
-    
-    let dirs = stmt.query_map([], |row| {
-        Ok(Directory {
-            id: row.get(0)?,
-            path: row.get(1)?,
-            dir_type: row.get(2)?,
-            name: row.get(3)?,
-            is_monitoring: false,
-        })
-    })?
-    .collect::<Result<Vec<_>>>()?;
-    
+    let mut stmt = conn.prepare("SELECT id, path, type, name FROM directories ORDER BY id")?;
+
+    let dirs = stmt
+        .query_map([], |row| {
+            Ok(Directory {
+                id: row.get(0)?,
+                path: row.get(1)?,
+                dir_type: row.get(2)?,
+                name: row.get(3)?,
+                is_monitoring: false,
+            })
+        })?
+        .collect::<Result<Vec<_>>>()?;
+
     Ok(dirs)
 }
 
 /// 获取所有分类
 pub fn get_all_categories(conn: &Connection) -> Result<Vec<Category>> {
     let mut stmt = conn.prepare(
-        "SELECT id, name, icon, color, display_order FROM categories ORDER BY display_order, id"
+        "SELECT id, name, icon, color, display_order FROM categories ORDER BY display_order, id",
     )?;
-    
-    let categories = stmt.query_map([], |row| {
-        Ok(Category {
-            id: row.get(0)?,
-            name: row.get(1)?,
-            icon: row.get(2)?,
-            color: row.get(3)?,
-            display_order: row.get(4)?,
-        })
-    })?
-    .collect::<Result<Vec<_>>>()?;
-    
+
+    let categories = stmt
+        .query_map([], |row| {
+            Ok(Category {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                icon: row.get(2)?,
+                color: row.get(3)?,
+                display_order: row.get(4)?,
+            })
+        })?
+        .collect::<Result<Vec<_>>>()?;
+
     Ok(categories)
 }
 
@@ -582,12 +589,14 @@ pub fn create_category(
     color: Option<&str>,
 ) -> Result<i32> {
     // 获取当前最大排序值
-    let max_order: i32 = conn.query_row(
-        "SELECT COALESCE(MAX(display_order), 0) FROM categories",
-        [],
-        |row| row.get(0)
-    ).unwrap_or(0);
-    
+    let max_order: i32 = conn
+        .query_row(
+            "SELECT COALESCE(MAX(display_order), 0) FROM categories",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+
     conn.execute(
         "INSERT INTO categories (name, icon, color, display_order) VALUES (?1, ?2, ?3, ?4)",
         params![name, icon, color, max_order + 1],
@@ -631,7 +640,11 @@ pub fn delete_category(conn: &Connection, id: i32) -> Result<()> {
 }
 
 /// 更新书籍的分类
-pub fn update_book_category(conn: &Connection, book_id: i32, category_id: Option<i32>) -> Result<()> {
+pub fn update_book_category(
+    conn: &Connection,
+    book_id: i32,
+    category_id: Option<i32>,
+) -> Result<()> {
     conn.execute(
         "UPDATE books SET category_id = ?1 WHERE id = ?2",
         params![category_id, book_id],
@@ -640,12 +653,7 @@ pub fn update_book_category(conn: &Connection, book_id: i32, category_id: Option
 }
 
 /// 添加目录
-pub fn add_directory(
-    conn: &Connection,
-    path: &str,
-    dir_type: &str,
-    name: &str,
-) -> Result<i32> {
+pub fn add_directory(conn: &Connection, path: &str, dir_type: &str, name: &str) -> Result<i32> {
     conn.execute(
         "INSERT INTO directories (path, type, name, is_monitoring) VALUES (?1, ?2, ?3, 1)",
         params![path, dir_type, name],

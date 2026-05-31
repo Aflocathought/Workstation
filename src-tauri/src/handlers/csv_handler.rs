@@ -2,8 +2,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use tauri::{AppHandle, Emitter};
 use tauri::State;
+use tauri::{AppHandle, Emitter};
 
 const ROWS_PER_PAGE: usize = 200_000;
 const THUMBNAIL_SAMPLE_SIZE: usize = 1000;
@@ -157,13 +157,16 @@ impl CsvCacheManager {
 fn detect_delimiter(content: &str) -> char {
     let sample = &content[..content.len().min(2000)];
     let first_line = sample.lines().next().unwrap_or(sample);
-    
-    let candidates = [(',', first_line.matches(',').count()),
-                      ('\t', first_line.matches('\t').count()),
-                      (';', first_line.matches(';').count()),
-                      ('|', first_line.matches('|').count())];
-    
-    candidates.iter()
+
+    let candidates = [
+        (',', first_line.matches(',').count()),
+        ('\t', first_line.matches('\t').count()),
+        (';', first_line.matches(';').count()),
+        ('|', first_line.matches('|').count()),
+    ];
+
+    candidates
+        .iter()
         .max_by_key(|(_, count)| count)
         .map(|(delim, _)| *delim)
         .unwrap_or(',')
@@ -309,12 +312,7 @@ fn generate_thumbnail(
     delimiter: char,
     page_info: &PageInfo,
 ) -> Result<ThumbnailData, String> {
-    let parsed = parse_csv_page(
-        content,
-        delimiter,
-        page_info.start_row,
-        page_info.end_row,
-    )?;
+    let parsed = parse_csv_page(content, delimiter, page_info.start_row, page_info.end_row)?;
 
     if parsed.rows.is_empty() {
         return Ok(ThumbnailData {
@@ -325,7 +323,7 @@ fn generate_thumbnail(
 
     // 找到第一个数值列
     let numeric_col = find_first_numeric_column(&parsed.headers, &parsed.rows);
-    
+
     if numeric_col.is_none() {
         return Ok(ThumbnailData {
             page_index: page_info.page_index,
@@ -464,21 +462,22 @@ pub async fn csv_load_file(
     cache: State<'_, CsvCacheManager>,
 ) -> Result<(String, usize, char), String> {
     println!("[Backend|Datascope] csv_load_file 开始, 文件: {}", path);
-    
+
     let path_clone = path.clone();
-    
+
     // 在独立线程中读取文件
     println!("[Backend|Datascope] 读取文件中...");
-    let content = tokio::task::spawn_blocking(move || {
-        match std::fs::read_to_string(&path_clone) {
-            Ok(content) => {
-                println!("[Backend|Datascope] 文件读取成功, 大小: {} bytes", content.len());
-                Ok(content)
-            }
-            Err(e) => {
-                println!("[Backend|Datascope] 文件读取失败: {}", e);
-                Err(format!("Failed to read file: {}", e))
-            }
+    let content = tokio::task::spawn_blocking(move || match std::fs::read_to_string(&path_clone) {
+        Ok(content) => {
+            println!(
+                "[Backend|Datascope] 文件读取成功, 大小: {} bytes",
+                content.len()
+            );
+            Ok(content)
+        }
+        Err(e) => {
+            println!("[Backend|Datascope] 文件读取失败: {}", e);
+            Err(format!("Failed to read file: {}", e))
         }
     })
     .await
@@ -490,7 +489,7 @@ pub async fn csv_load_file(
     println!("[Backend|Datascope] 检测分隔符...");
     let delimiter = detect_delimiter(&content);
     println!("[Backend|Datascope] 分隔符: '{}'", delimiter);
-    
+
     println!("[Backend|Datascope] 统计行数...");
     let total_rows = quick_count_rows(&content);
     println!("[Backend|Datascope] 总行数: {}", total_rows);
@@ -503,9 +502,7 @@ pub async fn csv_load_file(
 }
 
 #[tauri::command]
-pub async fn csv_get_pagination(
-    total_rows: usize,
-) -> Result<PaginationState, String> {
+pub async fn csv_get_pagination(total_rows: usize) -> Result<PaginationState, String> {
     Ok(calculate_pagination(total_rows))
 }
 
@@ -516,9 +513,11 @@ pub async fn csv_load_page(
     app_handle: AppHandle,
     cache: State<'_, CsvCacheManager>,
 ) -> Result<ParsedPage, String> {
-    println!("[Backend|Datascope] csv_load_page 开始, 页码: {}, 行范围: {}-{}", 
-             page_index, page_info.start_row, page_info.end_row);
-    
+    println!(
+        "[Backend|Datascope] csv_load_page 开始, 页码: {}, 行范围: {}-{}",
+        page_index, page_info.start_row, page_info.end_row
+    );
+
     // 检查缓存
     if let Some(cached) = cache.get_cached_page(page_index) {
         println!("[Backend|Datascope] 使用缓存的页面数据");
@@ -534,14 +533,17 @@ pub async fn csv_load_page(
     }
 
     println!("[Backend|Datascope] 从缓存获取文件内容...");
-    let content = cache.get_file_content()
-        .ok_or_else(|| {
-            println!("[Backend|Datascope] 错误: 没有加载的文件");
-            "No file loaded".to_string()
-        })?;
+    let content = cache.get_file_content().ok_or_else(|| {
+        println!("[Backend|Datascope] 错误: 没有加载的文件");
+        "No file loaded".to_string()
+    })?;
     let delimiter = cache.get_delimiter();
-    
-    println!("[Backend|Datascope] 文件大小: {} bytes, 分隔符: '{}'", content.len(), delimiter);
+
+    println!(
+        "[Backend|Datascope] 文件大小: {} bytes, 分隔符: '{}'",
+        content.len(),
+        delimiter
+    );
 
     // 在独立线程中解析
     println!("[Backend|Datascope] 开始解析页面...");
@@ -575,8 +577,11 @@ pub async fn csv_load_page(
             &progress,
         ) {
             Ok(result) => {
-                println!("[Backend|Datascope] 解析完成: {} 列, {} 行", 
-                         result.headers.len(), result.rows.len());
+                println!(
+                    "[Backend|Datascope] 解析完成: {} 列, {} 行",
+                    result.headers.len(),
+                    result.rows.len()
+                );
                 let _ = app_handle2.emit(
                     "datascope:progress",
                     DatascopeProgress {
@@ -618,16 +623,16 @@ pub async fn csv_generate_thumbnail(
         return Ok(cached);
     }
 
-    let content = cache.get_file_content()
+    let content = cache
+        .get_file_content()
         .ok_or_else(|| "No file loaded".to_string())?;
     let delimiter = cache.get_delimiter();
 
     // 在独立线程中生成缩略图
-    let thumbnail = tokio::task::spawn_blocking(move || {
-        generate_thumbnail(&content, delimiter, &page_info)
-    })
-    .await
-    .map_err(|e| format!("Task join error: {}", e))??;
+    let thumbnail =
+        tokio::task::spawn_blocking(move || generate_thumbnail(&content, delimiter, &page_info))
+            .await
+            .map_err(|e| format!("Task join error: {}", e))??;
 
     // 缓存结果
     cache.cache_thumbnail(page_index, thumbnail.clone());
@@ -640,7 +645,8 @@ pub async fn csv_change_delimiter(
     new_delimiter: char,
     cache: State<'_, CsvCacheManager>,
 ) -> Result<usize, String> {
-    let content = cache.get_file_content()
+    let content = cache
+        .get_file_content()
         .ok_or_else(|| "No file loaded".to_string())?;
 
     // 更新分隔符
@@ -657,11 +663,9 @@ pub async fn csv_change_delimiter(
     }
 
     // 重新统计行数
-    let total_rows = tokio::task::spawn_blocking(move || {
-        quick_count_rows(&content)
-    })
-    .await
-    .map_err(|e| format!("Task join error: {}", e))?;
+    let total_rows = tokio::task::spawn_blocking(move || quick_count_rows(&content))
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?;
 
     Ok(total_rows)
 }

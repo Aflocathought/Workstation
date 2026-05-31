@@ -1,6 +1,6 @@
+use chrono::{DateTime, Duration as ChronoDuration, Local, NaiveDate, TimeZone, Utc};
 use rusqlite::{Connection, Result as SqlResult};
 use std::sync::Mutex;
-use chrono::{DateTime, Local, NaiveDate, TimeZone, Utc, Duration as ChronoDuration};
 
 pub struct DbState {
     pub db: Mutex<Connection>,
@@ -44,18 +44,30 @@ pub fn get_latest_activities(state: tauri::State<DbState>) -> Result<Vec<Activit
 
     let iter = stmt
         .query_map([], |row| {
-            Ok(ActivityLog { id: row.get(0)?, app_name: row.get(1)?, window_title: row.get(2)?, start_time: row.get(3)?, duration_seconds: row.get(4)?, })
+            Ok(ActivityLog {
+                id: row.get(0)?,
+                app_name: row.get(1)?,
+                window_title: row.get(2)?,
+                start_time: row.get(3)?,
+                duration_seconds: row.get(4)?,
+            })
         })
         .map_err(|e| e.to_string())?;
 
     let mut out = Vec::new();
-    for r in iter { out.push(r.map_err(|e| e.to_string())?); }
+    for r in iter {
+        out.push(r.map_err(|e| e.to_string())?);
+    }
     Ok(out)
 }
 
-pub fn get_activities_for_day(state: tauri::State<DbState>, date: String) -> Result<Vec<TimelineActivity>, String> {
+pub fn get_activities_for_day(
+    state: tauri::State<DbState>,
+    date: String,
+) -> Result<Vec<TimelineActivity>, String> {
     let conn = state.db.lock().unwrap();
-    let naive = NaiveDate::parse_from_str(&date, "%Y-%m-%d").map_err(|e| format!("解析日期失败: {}", e))?;
+    let naive =
+        NaiveDate::parse_from_str(&date, "%Y-%m-%d").map_err(|e| format!("解析日期失败: {}", e))?;
     let local_start = Local
         .from_local_datetime(&naive.and_hms_opt(0, 0, 0).ok_or("无效时间")?)
         .single()
@@ -72,11 +84,17 @@ pub fn get_activities_for_day(state: tauri::State<DbState>, date: String) -> Res
 
     let iter = stmt
         .query_map(rusqlite::params![start_s, end_s], |row| {
-            Ok(TimelineActivity { app_name: row.get(0)?, start_time: row.get(1)?, duration_seconds: row.get(2)?, })
+            Ok(TimelineActivity {
+                app_name: row.get(0)?,
+                start_time: row.get(1)?,
+                duration_seconds: row.get(2)?,
+            })
         })
         .map_err(|e| e.to_string())?;
 
     let mut out = Vec::new();
-    for r in iter { out.push(r.map_err(|e| e.to_string())?); }
+    for r in iter {
+        out.push(r.map_err(|e| e.to_string())?);
+    }
     Ok(out)
 }

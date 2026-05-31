@@ -1,7 +1,7 @@
 // src-tauri/src/pdf_library/file_ops.rs
 
-use std::path::Path;
 use std::fs;
+use std::path::Path;
 
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
@@ -12,18 +12,19 @@ use super::{FileIdentity, RenameResult};
 #[cfg(target_os = "windows")]
 pub fn get_file_identity(path: &Path) -> Result<FileIdentity, String> {
     let metadata = fs::metadata(path).map_err(|e| e.to_string())?;
-    
+
     // 注意: volume_serial_number 和 file_index 是 unstable 特性
     // 暂时使用文件大小和修改时间作为简化标识
     use std::time::SystemTime;
-    let modified = metadata.modified()
+    let modified = metadata
+        .modified()
         .unwrap_or(SystemTime::UNIX_EPOCH)
         .duration_since(SystemTime::UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs();
-    
+
     Ok(FileIdentity {
-        volume_id: 0, // 需要 nightly 特性
+        volume_id: 0,         // 需要 nightly 特性
         file_index: modified, // 使用修改时间作为简化标识
         file_size: metadata.len(),
     })
@@ -32,7 +33,7 @@ pub fn get_file_identity(path: &Path) -> Result<FileIdentity, String> {
 #[cfg(not(target_os = "windows"))]
 pub fn get_file_identity(path: &Path) -> Result<FileIdentity, String> {
     let metadata = fs::metadata(path).map_err(|e| e.to_string())?;
-    
+
     // 非 Windows 系统使用文件大小作为简化标识
     Ok(FileIdentity {
         volume_id: 0,
@@ -43,10 +44,7 @@ pub fn get_file_identity(path: &Path) -> Result<FileIdentity, String> {
 
 /// 安全重命名文件
 /// 返回新路径和是否成功
-pub fn safe_rename_file(
-    old_path: &Path,
-    new_title: &str,
-) -> RenameResult {
+pub fn safe_rename_file(old_path: &Path, new_title: &str) -> RenameResult {
     // 获取父目录和扩展名
     let parent = match old_path.parent() {
         Some(p) => p,
@@ -58,17 +56,17 @@ pub fn safe_rename_file(
             };
         }
     };
-    
+
     let extension = old_path
         .extension()
         .and_then(|e| e.to_str())
         .unwrap_or("pdf");
-    
+
     // 清理文件名 (移除非法字符)
     let safe_filename = sanitize_filename(new_title);
     let new_filename = format!("{}.{}", safe_filename, extension);
     let new_path = parent.join(&new_filename);
-    
+
     // 检查是否相同
     if old_path == new_path {
         return RenameResult {
@@ -77,7 +75,7 @@ pub fn safe_rename_file(
             error: None,
         };
     }
-    
+
     // 尝试重命名
     match fs::rename(old_path, &new_path) {
         Ok(_) => RenameResult {
@@ -107,44 +105,43 @@ fn sanitize_filename(name: &str) -> String {
 #[cfg(target_os = "windows")]
 pub fn show_folder(path: &Path) -> Result<(), String> {
     use std::process::Command;
-    
+
     const CREATE_NO_WINDOW: u32 = 0x08000000;
-    
+
     Command::new("explorer")
         .arg(path.to_string_lossy().to_string())
         .creation_flags(CREATE_NO_WINDOW)
         .spawn()
         .map_err(|e| e.to_string())?;
-    
+
     Ok(())
 }
-
 
 /// 在文件管理器中显示文件
 #[cfg(target_os = "windows")]
 pub fn show_in_folder(path: &Path) -> Result<(), String> {
     use std::process::Command;
-    
+
     const CREATE_NO_WINDOW: u32 = 0x08000000;
-    
+
     Command::new("explorer")
         .args(["/select,", &path.to_string_lossy()])
         .creation_flags(CREATE_NO_WINDOW)
         .spawn()
         .map_err(|e| e.to_string())?;
-    
+
     Ok(())
 }
 
 #[cfg(target_os = "macos")]
 pub fn show_in_folder(path: &Path) -> Result<(), String> {
     use std::process::Command;
-    
+
     Command::new("open")
         .args(["-R", &path.to_string_lossy()])
         .spawn()
         .map_err(|e| e.to_string())?;
-    
+
     Ok(())
 }
 
@@ -152,21 +149,21 @@ pub fn show_in_folder(path: &Path) -> Result<(), String> {
 pub fn show_in_folder(path: &Path) -> Result<(), String> {
     // Linux: 尝试使用 xdg-open 打开父目录
     use std::process::Command;
-    
+
     if let Some(parent) = path.parent() {
         Command::new("xdg-open")
             .arg(parent)
             .spawn()
             .map_err(|e| e.to_string())?;
     }
-    
+
     Ok(())
 }
 
 /// 用系统默认程序打开文件
 pub fn open_file(path: &Path) -> Result<(), String> {
     use std::process::Command;
-    
+
     #[cfg(target_os = "windows")]
     {
         Command::new("cmd")
@@ -174,7 +171,7 @@ pub fn open_file(path: &Path) -> Result<(), String> {
             .spawn()
             .map_err(|e| e.to_string())?;
     }
-    
+
     #[cfg(target_os = "macos")]
     {
         Command::new("open")
@@ -182,7 +179,7 @@ pub fn open_file(path: &Path) -> Result<(), String> {
             .spawn()
             .map_err(|e| e.to_string())?;
     }
-    
+
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     {
         Command::new("xdg-open")
@@ -190,7 +187,7 @@ pub fn open_file(path: &Path) -> Result<(), String> {
             .spawn()
             .map_err(|e| e.to_string())?;
     }
-    
+
     Ok(())
 }
 
