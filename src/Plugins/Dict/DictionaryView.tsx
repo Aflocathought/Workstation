@@ -370,7 +370,7 @@ function DictionaryView() {
         </Show>
       </div>
 
-      <div class="min-h-0 flex-1 px-8 pb-4">
+      <div class="min-h-0 flex-1 p-8">
         <div class="relative h-full overflow-hidden rounded-[20px] border border-white/60 bg-white/50 shadow-inner">
           <div
             ref={articleRef}

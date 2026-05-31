@@ -25,7 +25,8 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2.0.17"
 dotenvy = "0.15"
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+futures-util = "0.3"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
 # --- 新增下面的依赖 ---
 # rusqlite 用于操作 SQLite 数据库
 # "bundled" 功能非常重要：它会将 SQLite 数据库引擎本身编译进我们的程序，

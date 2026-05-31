@@ -33,7 +33,7 @@ export const ChatBridgeProvider: ParentComponent = (props) => {
     setPendingAsk({
       id: Date.now(),
       selectedText: normalizedText,
-      prompt: `请详细解释这段外语的用法，并给出例句：${normalizedText}`,
+      prompt: `请详细解释这段外语的含义、用法，并给出例句等：${normalizedText}`,
     });
   };
 
