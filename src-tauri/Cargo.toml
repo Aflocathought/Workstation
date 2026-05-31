@@ -43,7 +43,6 @@ image = "0.25"
 base64 = "0.22.1"
 csv = "1.3"
 tokio = { version = "1", features = ["full"] }
-readmdict = "0.1.0"
 
 # AGPL 3.0
 mdict-rs = { version = "0.1.4", optional = true } 
@@ -69,7 +68,7 @@ polars = { version = "0.53.0", default-features = false, features = [
 parquet2 = "0.17"
 
 [features]
-default = []
+default = ["mdict-rs-backend"]
 mdict-rs-backend = ["dep:mdict-rs"]
 
 [dependencies.windows]

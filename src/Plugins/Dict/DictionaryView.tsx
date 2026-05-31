@@ -2,8 +2,11 @@ import { invoke } from "@tauri-apps/api/core";
 import { Show, createMemo, createSignal, onCleanup, onMount } from "solid-js";
 import { useChatBridge } from "./ChatBridgeContext";
 import {
+  ALL_DICTIONARIES_VALUE,
   DICTIONARY_STORAGE_KEYS,
+  type DictionarySource,
   getDictionaryLabel,
+  readPersistedDictionarySources,
   readPersistedValue,
   subscribeToDictionarySettings,
 } from "./dictionarySettings";
@@ -12,8 +15,8 @@ const LAST_LOOKUP_STORAGE_KEY = "dict:lastLookupWord";
 const DEFAULT_ENTRY_HTML = `
   <article>
     <h1>开始查词</h1>
-    <p>输入一个单词并按回车开始查询。当前演示命令内置了 abandon 和 Einstellung 两个测试词条。</p>
-    <blockquote>提示：在中间词典区域划词后，会在鼠标附近弹出“✨ Ask AI”。</blockquote>
+    <p>输入一个单词并按回车开始查询本地 MDX 词典。</p>
+    <blockquote>提示：在右侧设置中选择词典目录后，会自动导入并列出目录里的词典。</blockquote>
   </article>
 `;
 
@@ -52,15 +55,25 @@ function DictionaryView() {
   const [activeDictionaryFile, setActiveDictionaryFile] = createSignal(
     readPersistedValue(DICTIONARY_STORAGE_KEYS.activeFile, ""),
   );
+  const [dictionarySources, setDictionarySources] = createSignal<DictionarySource[]>(
+    readPersistedDictionarySources(),
+  );
 
   let articleRef: HTMLDivElement | undefined;
 
   const currentSummary = createMemo(() => stripHtml(entryHtml()).slice(0, 180));
   const activeDictionaryLabel = createMemo(() => {
     const filePath = activeDictionaryFile().trim();
+    const sources = dictionarySources();
+
+    if (filePath === ALL_DICTIONARIES_VALUE) {
+      return `查词范围：全部导入词典（${sources.length} 本）`;
+    }
 
     if (!filePath) {
-      return "当前使用内置演示词典";
+      return sources.length > 0
+        ? `查词范围：全部导入词典（${sources.length} 本）`
+        : "尚未导入本地词典";
     }
 
     return `当前词典：${getDictionaryLabel(filePath)}`;
@@ -86,9 +99,14 @@ function DictionaryView() {
 
     try {
       const selectedDictionary = activeDictionaryFile().trim();
+      const dictionaryFiles = dictionarySources().map((source) => source.filePath);
       const html = await invoke<string>("lookup_word", {
         word: nextWord,
-        dictionaryFile: selectedDictionary || null,
+        dictionaryFile:
+          selectedDictionary && selectedDictionary !== ALL_DICTIONARIES_VALUE
+            ? selectedDictionary
+            : null,
+        dictionaryFiles,
       });
       setEntryHtml(html);
       window.localStorage.setItem(LAST_LOOKUP_STORAGE_KEY, nextWord);
@@ -152,6 +170,23 @@ function DictionaryView() {
     });
   };
 
+  const playDictionaryAudio = (event: MouseEvent) => {
+    const target = event.target;
+
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+
+    const audioLink = target.closest<HTMLAnchorElement>("a[href^='data:audio']");
+
+    if (!audioLink?.href) {
+      return;
+    }
+
+    event.preventDefault();
+    void new Audio(audioLink.href).play();
+  };
+
   const exportVocabularyToCsv = () => {
     if (!currentWord()) {
       return;
@@ -186,6 +221,7 @@ function DictionaryView() {
       setActiveDictionaryFile(
         readPersistedValue(DICTIONARY_STORAGE_KEYS.activeFile, ""),
       );
+      setDictionarySources(readPersistedDictionarySources());
     };
 
     if (savedWord) {
@@ -310,6 +346,11 @@ function DictionaryView() {
           </button>
         </form>
 
+        <div class="mt-3 flex items-center gap-2 text-[13px] font-semibold text-slate-500">
+          <span class="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+          {activeDictionaryLabel()}
+        </div>
+
         <Show when={errorMessage()}>
           <div class="mt-4 flex items-center gap-3 rounded-2xl border border-rose-200/60 bg-rose-50/80 px-5 py-4 text-[15px] font-medium text-rose-700 backdrop-blur-sm">
             <svg
@@ -337,6 +378,7 @@ function DictionaryView() {
           <div
             ref={articleRef}
             class="dictionary-scroll relative h-full overflow-auto p-6 md:p-8"
+            onClick={playDictionaryAudio}
             onMouseUp={updateSelectedText}
             onDblClick={updateSelectedText}
           >

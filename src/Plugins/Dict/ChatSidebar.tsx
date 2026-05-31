@@ -12,10 +12,13 @@ import {
 } from "solid-js";
 import { useChatBridge } from "./ChatBridgeContext";
 import {
+  ALL_DICTIONARIES_VALUE,
   DICTIONARY_STORAGE_KEYS,
   type DictionarySource,
   getDictionaryLabel,
+  persistDictionarySources,
   persistDictionarySetting,
+  readPersistedDictionarySources,
   readPersistedValue,
 } from "./dictionarySettings";
 
@@ -138,7 +141,7 @@ function ChatSidebar() {
     readPersistedValue(DICTIONARY_STORAGE_KEYS.activeFile, ""),
   );
   const [dictionarySources, setDictionarySources] = createSignal<DictionarySource[]>(
-    [],
+    readPersistedDictionarySources(),
   );
   const [isScanningDictionaries, setIsScanningDictionaries] = createSignal(false);
   const [dictionaryScanMessage, setDictionaryScanMessage] = createSignal("");
@@ -250,11 +253,21 @@ function ChatSidebar() {
     }
   });
 
+  const isAllDictionariesActive = createMemo(
+    () =>
+      activeDictionaryFile().trim() === ALL_DICTIONARIES_VALUE ||
+      (!activeDictionaryFile().trim() && dictionarySources().length > 0),
+  );
+
   const activeDictionaryLabel = createMemo(() => {
     const activeFile = activeDictionaryFile().trim();
 
+    if (isAllDictionariesActive()) {
+      return `当前查词范围：全部导入词典（${dictionarySources().length} 本）。`;
+    }
+
     if (!activeFile) {
-      return "当前未选中真实词典，左侧仍使用演示词条。";
+      return "当前还没有选中词典。";
     }
 
     return `当前活动词典：${getDictionaryLabel(activeFile)}`;
@@ -265,6 +278,7 @@ function ChatSidebar() {
 
     if (!nextDirectory) {
       setDictionarySources([]);
+      persistDictionarySources([]);
       setDictionaryScanMessage("请先输入词典目录或点击“选择文件夹”。");
       return;
     }
@@ -278,6 +292,7 @@ function ChatSidebar() {
       });
 
       setDictionarySources(sources);
+      persistDictionarySources(sources);
 
       if (sources.length === 0) {
         setActiveDictionaryFile("");
@@ -288,17 +303,18 @@ function ChatSidebar() {
       const currentActiveFile = activeDictionaryFile().trim();
       const hasActiveFile = sources.some(
         (source) => source.filePath === currentActiveFile,
-      );
+      ) || currentActiveFile === ALL_DICTIONARIES_VALUE;
 
       if (!hasActiveFile) {
-        setActiveDictionaryFile(sources[0]?.filePath ?? "");
+        setActiveDictionaryFile(ALL_DICTIONARIES_VALUE);
       }
 
       setDictionaryScanMessage(
-        `已检测到 ${sources.length} 本 MDX 词典，选择其中一本后左侧查词会优先尝试用 Rust 原型读取。`,
+        `已导入 ${sources.length} 本 MDX 词典。左侧查词会使用真实词典内容。`,
       );
     } catch (error) {
       setDictionarySources([]);
+      persistDictionarySources([]);
       setActiveDictionaryFile("");
       const message = error instanceof Error ? error.message : String(error);
       setDictionaryScanMessage(message);
@@ -386,7 +402,12 @@ function ChatSidebar() {
              <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-900 text-white shadow-md">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
             </div>
-            <h2 class="text-[17px] font-bold tracking-tight text-slate-800">AI 助教</h2>
+            <div>
+              <h2 class="text-[17px] font-bold tracking-tight text-slate-800">AI 助教</h2>
+              <p class="mt-0.5 text-[11px] font-semibold text-slate-400">
+                {statusLabel()}
+              </p>
+            </div>
           </div>
 
           <button
@@ -462,8 +483,41 @@ function ChatSidebar() {
                 </p>
               </Show>
 
+              <p class="mt-2 text-[12px] font-semibold text-slate-500">
+                {activeDictionaryLabel()}
+              </p>
+
               <Show when={dictionarySources().length > 0}>
                 <div class="mt-4 space-y-2">
+                  <button
+                    type="button"
+                    class="w-full rounded-xl border p-4 text-left transition"
+                    classList={{
+                      "border-indigo-300 bg-indigo-50/50 ring-1 ring-inset ring-indigo-300 shadow-sm":
+                        isAllDictionariesActive(),
+                      "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50":
+                        !isAllDictionariesActive(),
+                    }}
+                    onClick={() => setActiveDictionaryFile(ALL_DICTIONARIES_VALUE)}
+                  >
+                    <div class="flex items-center justify-between gap-3">
+                      <div class="min-w-0">
+                        <p class="truncate text-[14px] font-semibold text-slate-800">
+                          全部导入词典
+                        </p>
+                        <p class="mt-1 text-[12px] text-slate-500">
+                          {dictionarySources().length} 本 MDX
+                        </p>
+                      </div>
+
+                      <Show when={isAllDictionariesActive()}>
+                        <div class="rounded-md bg-indigo-100 px-2 py-1 text-[10px] font-bold text-indigo-700">
+                          ON
+                        </div>
+                      </Show>
+                    </div>
+                  </button>
+
                   <For each={dictionarySources()}>
                     {(source) => {
                       const isActive = () => source.filePath === activeDictionaryFile();
@@ -593,7 +647,7 @@ function ChatSidebar() {
 
       <div class="border-t border-slate-200/50 bg-white/40 p-4">
         <form
-          class="relative flex flex-col rounded-[24px] border border-slate-200 bg-white p-3 shadow-sm transition focus-within:border-indigo-300 focus-within:ring-4 focus-within:ring-indigo-500/10"
+          class="relative flex flex-col rounded-3xl border border-slate-200 bg-white p-3 shadow-sm transition focus-within:border-indigo-300 focus-within:ring-4 focus-within:ring-indigo-500/10"
           onSubmit={(event) => {
             event.preventDefault();
             void submitCurrentInput();
