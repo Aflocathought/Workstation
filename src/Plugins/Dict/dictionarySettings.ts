@@ -13,8 +13,8 @@ export const DICTIONARY_AI_STORAGE_KEYS = {
 
 export const DICTIONARY_SETTINGS_UPDATED_EVENT = "dict:settings-updated";
 export const ALL_DICTIONARIES_VALUE = "__all_imported_dictionaries__";
-export const DEFAULT_AI_ENDPOINT = "https://api.deepseek.com/v1/chat/completions";
-export const DEFAULT_AI_MODEL = "deepseek-chat";
+export const DEFAULT_AI_ENDPOINT = "https://api.deepseek.com/chat/completions";
+export const DEFAULT_AI_MODEL = "deepseek-v4-pro";
 
 export type DictionarySource = {
   filePath: string;

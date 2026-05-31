@@ -30,6 +30,7 @@ mod app_paths;
 mod csv_handler;
 #[path = "core/db.rs"]
 mod db;
+mod deepseek;
 mod dict;
 #[path = "handlers/parquet_handler.rs"]
 mod parquet_handler;
@@ -162,6 +163,7 @@ fn main() {
             get_latest_activities,
             get_activities_for_day,
             get_database_size,
+            deepseek::deepseek_chat,
             dict::lookup_word,
             dict::scan_dictionary_directory,
             open_spectrum_window,

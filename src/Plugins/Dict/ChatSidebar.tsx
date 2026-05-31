@@ -1,3 +1,4 @@
+import { invoke } from "@tauri-apps/api/core";
 import { SolidMarkdown } from "solid-markdown";
 import { useChat } from "@ai-sdk/solid";
 import {
@@ -18,9 +19,6 @@ import {
   subscribeToDictionarySettings,
 } from "./dictionarySettings";
 
-const DEFAULT_SYSTEM_PROMPT =
-  "你是一名桌面词典中的外语学习助教。请优先解释语义、典型搭配、语法作用，并给出自然例句。";
-
 type ChatMessagePayload = {
   role?: string;
   content?: string;
@@ -32,14 +30,6 @@ type ChatMessagePayload = {
 
 type ChatApiRequestBody = {
   messages?: ChatMessagePayload[];
-};
-
-type DeepSeekResponse = {
-  choices?: Array<{
-    message?: {
-      content?: string;
-    };
-  }>;
 };
 
 function parseRequestBody(body: BodyInit | null | undefined): ChatApiRequestBody {
@@ -91,24 +81,6 @@ function createTextStreamResponse(text: string) {
   );
 }
 
-function buildMockReply(prompt: string) {
-  const quotedPrompt = prompt || "请先从左侧选择一段文本或直接在下方输入问题。";
-
-  return [
-    "### Mock 助教回复",
-    "",
-    `当前没有检测到可用的 API Key，所以这是一段本地 mock 回复。`,
-    "",
-    `你刚才提问的是：${quotedPrompt}`,
-    "",
-    "1. 这段表达通常需要先看语境，尤其是它在句子里承担的是名词、动词还是固定搭配。",
-    "2. 学习时建议同时记录词义、搭配对象、常见语域，以及一个你自己能复述的例句。",
-    "3. 等你填入 DeepSeek API Key 后，这里会直接切换成真实模型回复。",
-    "",
-    "示例句：When you meet a new expression, write down one sentence that belongs to your own context.",
-  ].join("\n");
-}
-
 function ChatSidebar() {
   const { pendingAsk } = useChatBridge();
   const [handledRequestId, setHandledRequestId] = createSignal(0);
@@ -155,47 +127,14 @@ function ChatSidebar() {
           content: extractMessageText(message),
         }))
         .filter((message) => message.content.length > 0);
-      const latestPrompt =
-        [...normalizedMessages].reverse().find((message) => message.role === "user")
-          ?.content ?? "";
-
-      if (!apiKey().trim()) {
-        return createTextStreamResponse(buildMockReply(latestPrompt));
-      }
-
-      const response = await globalThis.fetch(endpoint().trim() || DEFAULT_AI_ENDPOINT, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey().trim()}`,
-        },
-        body: JSON.stringify({
-          model: model().trim() || DEFAULT_AI_MODEL,
-          stream: false,
-          temperature: 0.3,
-          messages: [
-            {
-              role: "system",
-              content: DEFAULT_SYSTEM_PROMPT,
-            },
-            ...normalizedMessages,
-          ],
-        }),
-        signal: init?.signal,
+      const assistantText = await invoke<string>("deepseek_chat", {
+        messages: normalizedMessages,
+        endpoint: endpoint().trim() || DEFAULT_AI_ENDPOINT,
+        model: model().trim() || DEFAULT_AI_MODEL,
+        apiKey: apiKey().trim() || undefined,
       });
 
-      if (!response.ok) {
-        return new Response(await response.text(), {
-          status: response.status,
-          statusText: response.statusText,
-        });
-      }
-
-      const payload = (await response.json()) as DeepSeekResponse;
-      const assistantText =
-        payload.choices?.[0]?.message?.content?.trim() || "模型返回了空内容。";
-
-      return createTextStreamResponse(assistantText);
+      return createTextStreamResponse(assistantText.trim() || "模型返回了空内容。");
     },
   });
 
@@ -208,7 +147,7 @@ function ChatSidebar() {
       case "error":
         return "请求失败";
       default:
-        return apiKey().trim() ? "DeepSeek 已连接" : "当前使用 mock 回复";
+        return apiKey().trim() ? "DeepSeek 设置密钥" : "DeepSeek 后端 .env";
     }
   });
 
@@ -364,8 +303,8 @@ function ChatSidebar() {
 
           <div class="mt-2 flex items-center justify-between px-2 pb-1">
              <div class="flex items-center gap-1.5">
-               <Show when={!apiKey().trim()}>
-                  <span class="flex h-6 items-center rounded-md bg-amber-100 px-2.5 py-1 text-[11px] font-bold text-amber-700">MOCK</span>
+              <Show when={!apiKey().trim()}>
+                <span class="flex h-6 items-center rounded-md bg-sky-100 px-2.5 py-1 text-[11px] font-bold text-sky-700">ENV</span>
                </Show>
             </div>
 
