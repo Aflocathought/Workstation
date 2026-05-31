@@ -9,12 +9,33 @@ export const DICTIONARY_AI_STORAGE_KEYS = {
   apiKey: "dict:ai-api-key",
   endpoint: "dict:ai-endpoint",
   model: "dict:ai-model",
+  prompts: "dict:ai-prompts",
 };
 
 export const DICTIONARY_SETTINGS_UPDATED_EVENT = "dict:settings-updated";
 export const ALL_DICTIONARIES_VALUE = "__all_imported_dictionaries__";
 export const DEFAULT_AI_ENDPOINT = "https://api.deepseek.com/chat/completions";
 export const DEFAULT_AI_MODEL = "deepseek-v4-pro";
+
+export type DictionaryAIPrompt = {
+  id: string;
+  keyword: string;
+  description: string;
+  prompt: string;
+  builtin?: boolean;
+};
+
+export const DICTIONARY_AI_PROMPT_INPUT_TOKEN = "{{input}}";
+
+export const DEFAULT_DICTIONARY_AI_PROMPTS: DictionaryAIPrompt[] = [
+  {
+    id: "builtin-chat",
+    keyword: "chat",
+    description: "默认闲聊或随机提问；没有 @ 时自动使用。",
+    prompt: DICTIONARY_AI_PROMPT_INPUT_TOKEN,
+    builtin: true,
+  },
+];
 
 export type DictionarySource = {
   filePath: string;
@@ -23,6 +44,153 @@ export type DictionarySource = {
   hasMdd: boolean;
   mddPath: string | null;
 };
+
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object";
+}
+
+export function normalizeDictionaryAIPromptKeyword(keyword: string) {
+  return keyword
+    .trim()
+    .replace(/^@+/, "")
+    .replace(/@+/g, "")
+    .replace(/\s+/g, "-")
+    .slice(0, 32)
+    .toLowerCase();
+}
+
+function normalizeDictionaryAIPrompt(
+  value: unknown,
+  index: number,
+): DictionaryAIPrompt | null {
+  if (!isObjectRecord(value)) {
+    return null;
+  }
+
+  const keywordValue = value.keyword;
+  const promptValue = value.prompt;
+
+  if (typeof keywordValue !== "string" || typeof promptValue !== "string") {
+    return null;
+  }
+
+  const keyword = normalizeDictionaryAIPromptKeyword(keywordValue);
+  const prompt = promptValue.trim();
+
+  if (!keyword || !prompt) {
+    return null;
+  }
+
+  const idValue = value.id;
+  const descriptionValue = value.description;
+
+  return {
+    id:
+      typeof idValue === "string" && idValue.trim()
+        ? idValue.trim()
+        : `prompt-${keyword}-${index}`,
+    keyword,
+    description:
+      typeof descriptionValue === "string" ? descriptionValue.trim() : "",
+    prompt,
+    builtin: value.builtin === true,
+  };
+}
+
+export function normalizeDictionaryAIPrompts(
+  prompts: unknown[],
+): DictionaryAIPrompt[] {
+  const requiredPrompts = DEFAULT_DICTIONARY_AI_PROMPTS.map((prompt) => ({
+    ...prompt,
+    builtin: true,
+  }));
+  const requiredKeywords = new Set(requiredPrompts.map((prompt) => prompt.keyword));
+  const customPrompts = new Map<string, DictionaryAIPrompt>();
+
+  prompts.forEach((value, index) => {
+    const prompt = normalizeDictionaryAIPrompt(value, index);
+
+    if (!prompt || requiredKeywords.has(prompt.keyword)) {
+      return;
+    }
+
+    if (!customPrompts.has(prompt.keyword)) {
+      customPrompts.set(prompt.keyword, {
+        ...prompt,
+        builtin: false,
+      });
+    }
+  });
+
+  return [...requiredPrompts, ...customPrompts.values()];
+}
+
+export function readPersistedAIPrompts() {
+  if (typeof window === "undefined") {
+    return normalizeDictionaryAIPrompts([]);
+  }
+
+  const rawValue = window.localStorage.getItem(DICTIONARY_AI_STORAGE_KEYS.prompts);
+
+  if (!rawValue) {
+    return normalizeDictionaryAIPrompts([]);
+  }
+
+  try {
+    const parsedValue = JSON.parse(rawValue) as unknown;
+
+    return Array.isArray(parsedValue)
+      ? normalizeDictionaryAIPrompts(parsedValue)
+      : normalizeDictionaryAIPrompts([]);
+  } catch {
+    return normalizeDictionaryAIPrompts([]);
+  }
+}
+
+export function persistDictionaryAIPrompts(prompts: DictionaryAIPrompt[]) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(
+    DICTIONARY_AI_STORAGE_KEYS.prompts,
+    JSON.stringify(normalizeDictionaryAIPrompts(prompts)),
+  );
+  window.dispatchEvent(new CustomEvent(DICTIONARY_SETTINGS_UPDATED_EVENT));
+}
+
+export function getDictionaryAIPromptByKeyword(
+  keyword: string,
+  prompts: DictionaryAIPrompt[] = readPersistedAIPrompts(),
+) {
+  const normalizedKeyword = normalizeDictionaryAIPromptKeyword(keyword || "chat");
+  const normalizedPrompts = normalizeDictionaryAIPrompts(prompts);
+
+  return (
+    normalizedPrompts.find((prompt) => prompt.keyword === normalizedKeyword) ??
+    DEFAULT_DICTIONARY_AI_PROMPTS[0]
+  );
+}
+
+export function buildDictionaryAIPromptContent(
+  prompt: DictionaryAIPrompt,
+  userInput: string,
+) {
+  const normalizedInput = userInput.trim();
+  const template = prompt.prompt.trim() || DICTIONARY_AI_PROMPT_INPUT_TOKEN;
+
+  if (template === DICTIONARY_AI_PROMPT_INPUT_TOKEN) {
+    return normalizedInput;
+  }
+
+  if (template.includes(DICTIONARY_AI_PROMPT_INPUT_TOKEN)) {
+    return template.split(DICTIONARY_AI_PROMPT_INPUT_TOKEN).join(normalizedInput);
+  }
+
+  return normalizedInput
+    ? `${template}\n\n用户输入：${normalizedInput}`
+    : template;
+}
 
 export function readPersistedValue(key: string, fallbackValue: string) {
   if (typeof window === "undefined") {

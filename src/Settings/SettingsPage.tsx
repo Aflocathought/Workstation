@@ -11,8 +11,12 @@ import {
   DEFAULT_AI_MODEL,
   DICTIONARY_AI_STORAGE_KEYS,
   DICTIONARY_STORAGE_KEYS,
+  type DictionaryAIPrompt,
   type DictionarySource,
+  normalizeDictionaryAIPromptKeyword,
+  persistDictionaryAIPrompts,
   getDictionaryLabel,
+  readPersistedAIPrompts,
   persistDictionarySetting,
   persistDictionarySources,
   readPersistedDictionarySources,
@@ -25,7 +29,7 @@ import {
 } from './Setting';
 import styles from './SettingsPage.module.css';
 
-type Tab = 'appearance' | 'features' | 'data' | 'plugins' | 'notifications' | 'about';
+type Tab = 'appearance' | 'features' | 'data' | 'ai' | 'plugins' | 'notifications' | 'about';
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -36,6 +40,10 @@ function formatBytes(bytes: number): string {
     v /= 1024;
   }
   return `${v.toFixed(2)} PB`;
+}
+
+function createPromptId(keyword: string) {
+  return `prompt-${keyword}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
 const SettingsPage: Component = () => {
@@ -63,6 +71,13 @@ const SettingsPage: Component = () => {
   const [aiApiKey, setAiApiKey] = createSignal(
     readPersistedValue(DICTIONARY_AI_STORAGE_KEYS.apiKey, ''),
   );
+  const [aiPrompts, setAiPrompts] = createSignal<DictionaryAIPrompt[]>(
+    readPersistedAIPrompts(),
+  );
+  const [newPromptKeyword, setNewPromptKeyword] = createSignal('');
+  const [newPromptDescription, setNewPromptDescription] = createSignal('');
+  const [newPromptContent, setNewPromptContent] = createSignal('');
+  const [promptFormMessage, setPromptFormMessage] = createSignal('');
 
   // 获取数据库大小
   async function fetchDatabaseSize() {
@@ -226,6 +241,59 @@ const SettingsPage: Component = () => {
     }
   };
 
+  const addAiPrompt = () => {
+    const keyword = normalizeDictionaryAIPromptKeyword(newPromptKeyword());
+    const description = newPromptDescription().trim();
+    const prompt = newPromptContent().trim();
+
+    if (!keyword) {
+      setPromptFormMessage('请填写关键词，例如 translate。');
+      return;
+    }
+
+    if (aiPrompts().some((item) => item.keyword === keyword)) {
+      setPromptFormMessage(`@${keyword} 已存在。`);
+      return;
+    }
+
+    if (!prompt) {
+      setPromptFormMessage('请填写 prompt 内容。');
+      return;
+    }
+
+    const nextPrompts = [
+      ...aiPrompts(),
+      {
+        id: createPromptId(keyword),
+        keyword,
+        description,
+        prompt,
+      },
+    ];
+
+    setAiPrompts(nextPrompts);
+    persistDictionaryAIPrompts(nextPrompts);
+    setNewPromptKeyword('');
+    setNewPromptDescription('');
+    setNewPromptContent('');
+    setPromptFormMessage(`已添加 @${keyword}。`);
+  };
+
+  const deleteAiPrompt = (id: string) => {
+    const prompt = aiPrompts().find((item) => item.id === id);
+
+    if (!prompt || prompt.builtin || prompt.keyword === 'chat') {
+      setPromptFormMessage('@chat 是默认关键词，不能删除。');
+      return;
+    }
+
+    const nextPrompts = aiPrompts().filter((item) => item.id !== id);
+
+    setAiPrompts(nextPrompts);
+    persistDictionaryAIPrompts(nextPrompts);
+    setPromptFormMessage(`已删除 @${prompt.keyword}。`);
+  };
+
   // 获取主题显示名称
   const getThemeLabel = (theme: Theme): string => {
     switch (theme) {
@@ -262,6 +330,7 @@ const SettingsPage: Component = () => {
     { id: 'appearance', label: '外观' },
     { id: 'features', label: '功能' },
     { id: 'data', label: '数据' },
+    { id: 'ai', label: 'AI 助教' },
     { id: 'plugins', label: '插件' },
     { id: 'notifications', label: '通知' },
     { id: 'about', label: '关于' }
@@ -444,6 +513,163 @@ const SettingsPage: Component = () => {
             </section>
           </Match>
 
+          <Match when={activeTab() === 'ai'}>
+            <section class={styles.section}>
+              <h2 class={styles.sectionTitle}>AI 助教</h2>
+
+              <div class={styles.pluginCard}>
+                <div class={styles.pluginCardHeader}>
+                  <h3 class={styles.pluginCardTitle}>模型连接</h3>
+                  <p class={styles.pluginCardDescription}>
+                    配置词典右侧 AI 助教使用的 DeepSeek 请求地址、模型和密钥。
+                  </p>
+                </div>
+
+                <div class={styles.settingItem}>
+                  <div class={styles.settingLabel}>
+                    <label>DeepSeek Endpoint</label>
+                    <p class={styles.settingDescription}>AI 助教请求地址</p>
+                  </div>
+                  <div class={styles.settingControl}>
+                    <input
+                      class={styles.textInput}
+                      type="text"
+                      value={aiEndpoint()}
+                      onInput={(event) => setAiEndpoint(event.currentTarget.value)}
+                      spellcheck={false}
+                    />
+                  </div>
+                </div>
+
+                <div class={styles.settingItem}>
+                  <div class={styles.settingLabel}>
+                    <label>DeepSeek Model</label>
+                    <p class={styles.settingDescription}>用于 AI 助教的模型名称</p>
+                  </div>
+                  <div class={styles.settingControl}>
+                    <input
+                      class={styles.textInput}
+                      type="text"
+                      value={aiModel()}
+                      onInput={(event) => setAiModel(event.currentTarget.value)}
+                      spellcheck={false}
+                    />
+                  </div>
+                </div>
+
+                <div class={styles.settingItem}>
+                  <div class={styles.settingLabel}>
+                    <label>DeepSeek API Key</label>
+                    <p class={styles.settingDescription}>留空时 AI 面板使用本地 mock 回复</p>
+                  </div>
+                  <div class={styles.settingControl}>
+                    <input
+                      class={styles.textInput}
+                      type="password"
+                      value={aiApiKey()}
+                      onInput={(event) => setAiApiKey(event.currentTarget.value)}
+                      placeholder="未配置"
+                      spellcheck={false}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div class={styles.pluginCard}>
+                <div class={styles.pluginCardHeader}>
+                  <h3 class={styles.pluginCardTitle}>Prompt 关键词</h3>
+                  <p class={styles.pluginCardDescription}>
+                    在 AI 助教输入框输入 @ 可以选择关键词；没有 @ 时默认使用 @chat。
+                  </p>
+                </div>
+
+                <div class={styles.promptList}>
+                  <For each={aiPrompts()}>
+                    {(prompt) => (
+                      <div class={styles.promptItem}>
+                        <div class={styles.promptInfo}>
+                          <div class={styles.promptTitleRow}>
+                            <span class={styles.promptKeyword}>@{prompt.keyword}</span>
+                            <Show when={prompt.keyword === 'chat'}>
+                              <span class={styles.lockedBadge}>默认</span>
+                            </Show>
+                          </div>
+                          <p class={styles.promptDescription}>
+                            {prompt.description || '无说明'}
+                          </p>
+                          <pre class={styles.promptPreview}>{prompt.prompt}</pre>
+                        </div>
+
+                        <button
+                          type="button"
+                          class={styles.dangerButton}
+                          disabled={prompt.keyword === 'chat'}
+                          title={prompt.keyword === 'chat' ? '@chat 不能删除' : '删除 prompt'}
+                          onClick={() => deleteAiPrompt(prompt.id)}
+                        >
+                          删除
+                        </button>
+                      </div>
+                    )}
+                  </For>
+                </div>
+
+                <div class={styles.promptForm}>
+                  <div class={styles.promptFormGrid}>
+                    <label class={styles.promptField}>
+                      <span>关键词</span>
+                      <input
+                        class={styles.textInput}
+                        type="text"
+                        value={newPromptKeyword()}
+                        onInput={(event) => setNewPromptKeyword(event.currentTarget.value)}
+                        placeholder="translate"
+                        spellcheck={false}
+                      />
+                    </label>
+
+                    <label class={styles.promptField}>
+                      <span>说明</span>
+                      <input
+                        class={styles.textInput}
+                        type="text"
+                        value={newPromptDescription()}
+                        onInput={(event) => setNewPromptDescription(event.currentTarget.value)}
+                        placeholder="翻译并解释语气"
+                        spellcheck={false}
+                      />
+                    </label>
+                  </div>
+
+                  <label class={styles.promptField}>
+                    <span>Prompt</span>
+                    <textarea
+                      class={styles.promptTextarea}
+                      rows={5}
+                      value={newPromptContent()}
+                      onInput={(event) => setNewPromptContent(event.currentTarget.value)}
+                      placeholder="把下面内容翻译成中文，并解释关键词用法：{{input}}"
+                      spellcheck={false}
+                    />
+                  </label>
+
+                  <div class={styles.promptFormActions}>
+                    <button
+                      type="button"
+                      class={styles.primaryButton}
+                      onClick={addAiPrompt}
+                    >
+                      添加 Prompt
+                    </button>
+                    <Show when={promptFormMessage()}>
+                      <span class={styles.statusText}>{promptFormMessage()}</span>
+                    </Show>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </Match>
+
           <Match when={activeTab() === 'plugins'}>
             <section class={styles.section}>
               <h2 class={styles.sectionTitle}>插件</h2>
@@ -452,7 +678,7 @@ const SettingsPage: Component = () => {
                 <div class={styles.pluginCardHeader}>
                   <h3 class={styles.pluginCardTitle}>本地词典</h3>
                   <p class={styles.pluginCardDescription}>
-                    配置 MDX 词典目录、默认查词范围以及 AI 助教的 DeepSeek 连接参数。
+                    配置 MDX 词典目录和默认查词范围。
                   </p>
                 </div>
 
@@ -539,54 +765,6 @@ const SettingsPage: Component = () => {
                   </div>
                 </div>
 
-                <div class={styles.settingItem}>
-                  <div class={styles.settingLabel}>
-                    <label>DeepSeek Endpoint</label>
-                    <p class={styles.settingDescription}>AI 助教请求地址</p>
-                  </div>
-                  <div class={styles.settingControl}>
-                    <input
-                      class={styles.textInput}
-                      type="text"
-                      value={aiEndpoint()}
-                      onInput={(event) => setAiEndpoint(event.currentTarget.value)}
-                      spellcheck={false}
-                    />
-                  </div>
-                </div>
-
-                <div class={styles.settingItem}>
-                  <div class={styles.settingLabel}>
-                    <label>DeepSeek Model</label>
-                    <p class={styles.settingDescription}>用于词典 AI 助教的模型名称</p>
-                  </div>
-                  <div class={styles.settingControl}>
-                    <input
-                      class={styles.textInput}
-                      type="text"
-                      value={aiModel()}
-                      onInput={(event) => setAiModel(event.currentTarget.value)}
-                      spellcheck={false}
-                    />
-                  </div>
-                </div>
-
-                <div class={styles.settingItem}>
-                  <div class={styles.settingLabel}>
-                    <label>DeepSeek API Key</label>
-                    <p class={styles.settingDescription}>留空时词典 AI 面板使用本地 mock 回复</p>
-                  </div>
-                  <div class={styles.settingControl}>
-                    <input
-                      class={styles.textInput}
-                      type="password"
-                      value={aiApiKey()}
-                      onInput={(event) => setAiApiKey(event.currentTarget.value)}
-                      placeholder="未配置"
-                      spellcheck={false}
-                    />
-                  </div>
-                </div>
               </div>
 
               <div class={styles.pluginCard}>

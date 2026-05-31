@@ -15,6 +15,11 @@ import {
   DEFAULT_AI_ENDPOINT,
   DEFAULT_AI_MODEL,
   DICTIONARY_AI_STORAGE_KEYS,
+  type DictionaryAIPrompt,
+  buildDictionaryAIPromptContent,
+  getDictionaryAIPromptByKeyword,
+  normalizeDictionaryAIPromptKeyword,
+  readPersistedAIPrompts,
   readPersistedValue,
   subscribeToDictionarySettings,
 } from "./dictionarySettings";
@@ -35,6 +40,9 @@ type ChatMessage = {
   id: string;
   role: ChatRole;
   content: string;
+  apiContent?: string;
+  promptKeyword?: string;
+  promptDescription?: string;
   reasoning: string;
   reasoningExpanded: boolean;
   startedAt?: number;
@@ -100,16 +108,83 @@ function findLastUserMessageIndex(messages: ChatMessage[]) {
   return -1;
 }
 
+type PromptMention = {
+  start: number;
+  end: number;
+  query: string;
+};
+
+function findPromptMention(inputValue: string, cursorPosition: number): PromptMention | null {
+  const cursor = Math.max(0, Math.min(cursorPosition, inputValue.length));
+  const textBeforeCursor = inputValue.slice(0, cursor);
+  const match = textBeforeCursor.match(/(^|\s)@([^\s@]*)$/);
+
+  if (!match) {
+    return null;
+  }
+
+  const query = match[2] ?? "";
+
+  return {
+    start: cursor - query.length - 1,
+    end: cursor,
+    query,
+  };
+}
+
+function removePromptToken(inputValue: string, tokenStart: number, tokenEnd: number) {
+  const before = inputValue.slice(0, tokenStart).trim();
+  const after = inputValue.slice(tokenEnd).trim();
+
+  return [before, after].filter(Boolean).join("\n");
+}
+
+function resolvePromptInvocation(rawPrompt: string, prompts: DictionaryAIPrompt[]) {
+  const trimmedPrompt = rawPrompt.trim();
+  const promptTokenMatch = trimmedPrompt.match(/(^|\s)@([^\s@]+)/);
+
+  if (!promptTokenMatch) {
+    const chatPrompt = getDictionaryAIPromptByKeyword("chat", prompts);
+
+    return {
+      prompt: chatPrompt,
+      apiContent: buildDictionaryAIPromptContent(chatPrompt, trimmedPrompt),
+    };
+  }
+
+  const tokenStart = promptTokenMatch.index ?? 0;
+  const tokenEnd = tokenStart + promptTokenMatch[0].length;
+  const requestedKeyword = normalizeDictionaryAIPromptKeyword(promptTokenMatch[2] ?? "chat");
+  const requestedPrompt = getDictionaryAIPromptByKeyword(requestedKeyword, prompts);
+
+  if (requestedPrompt.keyword === "chat" && requestedKeyword !== "chat") {
+    return {
+      prompt: requestedPrompt,
+      apiContent: buildDictionaryAIPromptContent(requestedPrompt, trimmedPrompt),
+    };
+  }
+
+  return {
+    prompt: requestedPrompt,
+    apiContent: buildDictionaryAIPromptContent(
+      requestedPrompt,
+      removePromptToken(trimmedPrompt, tokenStart, tokenEnd),
+    ),
+  };
+}
+
 function ChatSidebar() {
   const { pendingAsk } = useChatBridge();
   const [handledRequestId, setHandledRequestId] = createSignal(0);
   const [input, setInput] = createSignal("");
+  const [cursorPosition, setCursorPosition] = createSignal(0);
+  const [selectedPromptIndex, setSelectedPromptIndex] = createSignal(0);
   const [messages, setMessages] = createSignal<ChatMessage[]>([
     {
       id: "assistant-welcome",
       role: "assistant",
       content:
-        "欢迎来到 AI 学习侧边栏。你可以直接在下方输入问题，或者在左侧词典正文里划词后点击 ✨ Ask AI。",
+        "欢迎来到 AI 学习侧边栏。你可以直接提问，输入 @ 选择 prompt，或者在左侧词典正文里划词后点击 ✨ Ask AI。",
       reasoning: "",
       reasoningExpanded: false,
       isWelcome: true,
@@ -128,8 +203,12 @@ function ChatSidebar() {
   const [model, setModel] = createSignal(
     readPersistedValue(DICTIONARY_AI_STORAGE_KEYS.model, DEFAULT_AI_MODEL),
   );
+  const [aiPrompts, setAiPrompts] = createSignal<DictionaryAIPrompt[]>(
+    readPersistedAIPrompts(),
+  );
 
   let messageListRef: HTMLDivElement | undefined;
+  let inputRef: HTMLTextAreaElement | undefined;
   let activeStreamCleanup: (() => void) | null = null;
 
   const isLoading = createMemo(() => activeRequest() !== null);
@@ -152,6 +231,32 @@ function ChatSidebar() {
         return apiKey().trim() ? "DeepSeek 设置密钥" : "DeepSeek 后端 .env";
     }
   });
+  const promptMention = createMemo(() => findPromptMention(input(), cursorPosition()));
+  const promptSuggestions = createMemo(() => {
+    const mention = promptMention();
+
+    if (!mention) {
+      return [];
+    }
+
+    const query = mention.query.toLowerCase();
+
+    return aiPrompts()
+      .filter((prompt) => {
+        if (!query) {
+          return true;
+        }
+
+        return (
+          prompt.keyword.toLowerCase().includes(query) ||
+          prompt.description.toLowerCase().includes(query)
+        );
+      })
+      .slice(0, 8);
+  });
+  const activeInputPrompt = createMemo(
+    () => resolvePromptInvocation(input(), aiPrompts()).prompt,
+  );
 
   const updateAssistantMessage = (
     assistantMessageId: string,
@@ -169,8 +274,42 @@ function ChatSidebar() {
       .filter((message) => !message.isWelcome && message.content.trim())
       .map((message) => ({
         role: message.role,
-        content: message.content.trim(),
+        content: (message.apiContent ?? message.content).trim(),
       }));
+
+  const updateInputSelection = (target: HTMLTextAreaElement) => {
+    setCursorPosition(target.selectionStart ?? target.value.length);
+  };
+
+  const choosePromptSuggestion = (prompt: DictionaryAIPrompt) => {
+    const mention = promptMention();
+    const currentInput = input();
+
+    if (!mention) {
+      const nextValue = `@${prompt.keyword} ${currentInput}`;
+      const nextCursor = prompt.keyword.length + 2;
+
+      setInput(nextValue);
+      setCursorPosition(nextCursor);
+      queueMicrotask(() => {
+        inputRef?.focus();
+        inputRef?.setSelectionRange(nextCursor, nextCursor);
+      });
+      return;
+    }
+
+    const nextValue = `${currentInput.slice(0, mention.start)}@${prompt.keyword} ${currentInput
+      .slice(mention.end)
+      .replace(/^\s+/, "")}`;
+    const nextCursor = mention.start + prompt.keyword.length + 2;
+
+    setInput(nextValue);
+    setCursorPosition(nextCursor);
+    queueMicrotask(() => {
+      inputRef?.focus();
+      inputRef?.setSelectionRange(nextCursor, nextCursor);
+    });
+  };
 
   const cleanupActiveStream = () => {
     activeStreamCleanup?.();
@@ -299,10 +438,14 @@ function ChatSidebar() {
       typeof resetFromIndex === "number"
         ? messages().slice(0, resetFromIndex)
         : messages();
+    const promptInvocation = resolvePromptInvocation(prompt, aiPrompts());
     const userMessage: ChatMessage = {
       id: createMessageId("user"),
       role: "user",
       content: prompt,
+      apiContent: promptInvocation.apiContent,
+      promptKeyword: promptInvocation.prompt.keyword,
+      promptDescription: promptInvocation.prompt.description,
       reasoning: "",
       reasoningExpanded: false,
     };
@@ -443,6 +586,12 @@ function ChatSidebar() {
   });
 
   createEffect(() => {
+    promptMention();
+    promptSuggestions();
+    setSelectedPromptIndex(0);
+  });
+
+  createEffect(() => {
     const request = pendingAsk();
 
     if (!request || request.id === handledRequestId()) {
@@ -460,6 +609,7 @@ function ChatSidebar() {
         readPersistedValue(DICTIONARY_AI_STORAGE_KEYS.endpoint, DEFAULT_AI_ENDPOINT),
       );
       setModel(readPersistedValue(DICTIONARY_AI_STORAGE_KEYS.model, DEFAULT_AI_MODEL));
+      setAiPrompts(readPersistedAIPrompts());
     };
     const timerId = window.setInterval(() => setClockTick(Date.now()), 250);
     const unsubscribe = subscribeToDictionarySettings(syncAiSettings);
@@ -516,6 +666,14 @@ function ChatSidebar() {
                     <span class="px-1 text-[12px] font-bold text-slate-400">
                       {message.role === "user" ? "YOU" : "ASSISTANT"}
                     </span>
+                    <Show when={message.role === "user" && message.promptKeyword}>
+                      <span
+                        class="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500"
+                        title={message.promptDescription || undefined}
+                      >
+                        @{message.promptKeyword}
+                      </span>
+                    </Show>
                     <Show when={message.isCancelled}>
                       <span class="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">
                         STOPPED
@@ -599,11 +757,77 @@ function ChatSidebar() {
             void submitCurrentInput();
           }}
         >
+          <Show when={promptMention() && promptSuggestions().length > 0}>
+            <div class="absolute bottom-full left-3 right-3 z-20 mb-2 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-900/10">
+              <div class="flex items-center justify-between border-b border-slate-100 px-4 py-2">
+                <span class="text-[11px] font-bold uppercase text-slate-400">Prompt</span>
+                <span class="text-[11px] font-semibold text-slate-400">{promptSuggestions().length} 个</span>
+              </div>
+              <div class="max-h-64 overflow-y-auto p-1.5">
+                <For each={promptSuggestions()}>
+                  {(prompt, index) => (
+                    <button
+                      type="button"
+                      class="flex w-full items-start justify-between gap-3 rounded-xl px-3 py-2 text-left transition hover:bg-slate-50"
+                      classList={{ "bg-indigo-50 text-indigo-900": index() === selectedPromptIndex() }}
+                      onMouseDown={(event) => {
+                        event.preventDefault();
+                        choosePromptSuggestion(prompt);
+                      }}
+                    >
+                      <span class="min-w-0">
+                        <span class="block truncate text-[13px] font-bold">@{prompt.keyword}</span>
+                        <span class="mt-0.5 block line-clamp-2 text-[12px] leading-snug text-slate-500">
+                          {prompt.description || "无说明"}
+                        </span>
+                      </span>
+                      <Show when={prompt.keyword === "chat"}>
+                        <span class="shrink-0 rounded-full bg-white px-2 py-0.5 text-[10px] font-bold text-slate-400">
+                          默认
+                        </span>
+                      </Show>
+                    </button>
+                  )}
+                </For>
+              </div>
+            </div>
+          </Show>
+
           <textarea
+            ref={inputRef}
             rows={3}
             value={input()}
-            onInput={(event) => setInput(event.currentTarget.value)}
+            onInput={(event) => {
+              setInput(event.currentTarget.value);
+              updateInputSelection(event.currentTarget);
+            }}
+            onClick={(event) => updateInputSelection(event.currentTarget)}
+            onKeyUp={(event) => updateInputSelection(event.currentTarget)}
             onKeyDown={(event) => {
+              const suggestions = promptSuggestions();
+
+              if (promptMention() && suggestions.length > 0) {
+                if (event.key === "ArrowDown") {
+                  event.preventDefault();
+                  setSelectedPromptIndex((current) => (current + 1) % suggestions.length);
+                  return;
+                }
+
+                if (event.key === "ArrowUp") {
+                  event.preventDefault();
+                  setSelectedPromptIndex(
+                    (current) => (current - 1 + suggestions.length) % suggestions.length,
+                  );
+                  return;
+                }
+
+                if (event.key === "Tab" || event.key === "Enter") {
+                  event.preventDefault();
+                  choosePromptSuggestion(suggestions[selectedPromptIndex()] ?? suggestions[0]);
+                  return;
+                }
+              }
+
               if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();
                 void submitCurrentInput();
@@ -615,6 +839,12 @@ function ChatSidebar() {
 
           <div class="mt-2 flex items-center justify-between px-2 pb-1">
             <div class="flex items-center gap-1.5">
+              <span
+                class="flex h-6 items-center rounded-md bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-500"
+                title={activeInputPrompt().description || undefined}
+              >
+                @{activeInputPrompt().keyword}
+              </span>
               <Show when={!apiKey().trim()}>
                 <span class="flex h-6 items-center rounded-md bg-sky-100 px-2.5 py-1 text-[11px] font-bold text-sky-700">
                   ENV
