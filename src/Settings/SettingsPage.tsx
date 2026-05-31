@@ -1,8 +1,23 @@
 // src/Settings/SettingsPage.tsx
-import { Component, createSignal, createEffect, onMount, Switch as SolidSwitch, Match, For } from 'solid-js';
+import { invoke } from '@tauri-apps/api/core';
+import { open } from '@tauri-apps/plugin-dialog';
+import { Component, createSignal, createEffect, onMount, Switch as SolidSwitch, Match, For, Show } from 'solid-js';
 import { useAppFramework } from '../core/AppFramework';
 import { themeManager, type Theme } from '../core/ThemeManager';
 import { Switch, Select } from '../components/core-ui';
+import {
+  ALL_DICTIONARIES_VALUE,
+  DEFAULT_AI_ENDPOINT,
+  DEFAULT_AI_MODEL,
+  DICTIONARY_AI_STORAGE_KEYS,
+  DICTIONARY_STORAGE_KEYS,
+  type DictionarySource,
+  getDictionaryLabel,
+  persistDictionarySetting,
+  persistDictionarySources,
+  readPersistedDictionarySources,
+  readPersistedValue,
+} from '../Plugins/Dict/dictionarySettings';
 import {
   DATASCOPE_MAX_POINTS_MAX,
   DATASCOPE_MAX_POINTS_MIN,
@@ -28,6 +43,26 @@ const SettingsPage: Component = () => {
   const [dbSize, setDbSize] = createSignal<number | null>(null);
   const [currentTheme, setCurrentTheme] = createSignal<Theme>(themeManager.currentTheme);
   const [activeTab, setActiveTab] = createSignal<Tab>('appearance');
+  const [dictionaryDirectory, setDictionaryDirectory] = createSignal(
+    readPersistedValue(DICTIONARY_STORAGE_KEYS.directory, ''),
+  );
+  const [activeDictionaryFile, setActiveDictionaryFile] = createSignal(
+    readPersistedValue(DICTIONARY_STORAGE_KEYS.activeFile, ''),
+  );
+  const [dictionarySources, setDictionarySources] = createSignal<DictionarySource[]>(
+    readPersistedDictionarySources(),
+  );
+  const [isScanningDictionaries, setIsScanningDictionaries] = createSignal(false);
+  const [dictionaryScanMessage, setDictionaryScanMessage] = createSignal('');
+  const [aiEndpoint, setAiEndpoint] = createSignal(
+    readPersistedValue(DICTIONARY_AI_STORAGE_KEYS.endpoint, DEFAULT_AI_ENDPOINT),
+  );
+  const [aiModel, setAiModel] = createSignal(
+    readPersistedValue(DICTIONARY_AI_STORAGE_KEYS.model, DEFAULT_AI_MODEL),
+  );
+  const [aiApiKey, setAiApiKey] = createSignal(
+    readPersistedValue(DICTIONARY_AI_STORAGE_KEYS.apiKey, ''),
+  );
 
   // 获取数据库大小
   async function fetchDatabaseSize() {
@@ -52,6 +87,23 @@ const SettingsPage: Component = () => {
   // 监听主题变化
   createEffect(() => {
     setCurrentTheme(themeManager.currentTheme);
+  });
+
+  createEffect(() => {
+    persistDictionarySetting(
+      DICTIONARY_STORAGE_KEYS.directory,
+      dictionaryDirectory().trim(),
+    );
+    persistDictionarySetting(
+      DICTIONARY_STORAGE_KEYS.activeFile,
+      activeDictionaryFile().trim(),
+    );
+  });
+
+  createEffect(() => {
+    persistDictionarySetting(DICTIONARY_AI_STORAGE_KEYS.endpoint, aiEndpoint().trim());
+    persistDictionarySetting(DICTIONARY_AI_STORAGE_KEYS.model, aiModel().trim());
+    persistDictionarySetting(DICTIONARY_AI_STORAGE_KEYS.apiKey, aiApiKey().trim());
   });
 
   // 同步开机自启状态
@@ -82,6 +134,96 @@ const SettingsPage: Component = () => {
         (event.currentTarget as HTMLInputElement).value
       ),
     });
+  };
+
+  const isAllDictionariesActive = () =>
+    activeDictionaryFile().trim() === ALL_DICTIONARIES_VALUE ||
+    (!activeDictionaryFile().trim() && dictionarySources().length > 0);
+
+  const activeDictionaryLabel = () => {
+    const activeFile = activeDictionaryFile().trim();
+
+    if (isAllDictionariesActive()) {
+      return `全部导入词典（${dictionarySources().length} 本）`;
+    }
+
+    if (!activeFile) {
+      return '未选择词典';
+    }
+
+    return getDictionaryLabel(activeFile);
+  };
+
+  const scanDictionaryDirectory = async (preferredPath?: string) => {
+    const nextDirectory = (preferredPath ?? dictionaryDirectory()).trim();
+
+    if (!nextDirectory) {
+      setDictionarySources([]);
+      persistDictionarySources([]);
+      setDictionaryScanMessage('请先输入词典目录或点击“浏览”。');
+      return;
+    }
+
+    setIsScanningDictionaries(true);
+    setDictionaryScanMessage('');
+
+    try {
+      const sources = await invoke<DictionarySource[]>('scan_dictionary_directory', {
+        directory: nextDirectory,
+      });
+
+      setDictionarySources(sources);
+      persistDictionarySources(sources);
+
+      if (sources.length === 0) {
+        setActiveDictionaryFile('');
+        setDictionaryScanMessage('没有扫描到 .mdx 词典文件。');
+        return;
+      }
+
+      const currentActiveFile = activeDictionaryFile().trim();
+      const hasActiveFile =
+        currentActiveFile === ALL_DICTIONARIES_VALUE ||
+        sources.some((source) => source.filePath === currentActiveFile);
+
+      if (!hasActiveFile) {
+        setActiveDictionaryFile(ALL_DICTIONARIES_VALUE);
+      }
+
+      setDictionaryScanMessage(`已导入 ${sources.length} 本 MDX 词典。`);
+    } catch (error) {
+      setDictionarySources([]);
+      persistDictionarySources([]);
+      setActiveDictionaryFile('');
+      setDictionaryScanMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsScanningDictionaries(false);
+    }
+  };
+
+  const chooseDictionaryDirectory = async () => {
+    try {
+      const selected = await open({
+        directory: true,
+        multiple: false,
+        defaultPath: dictionaryDirectory().trim() || undefined,
+        title: '选择词典目录',
+      });
+
+      if (typeof selected !== 'string') {
+        return;
+      }
+
+      setDictionaryDirectory(selected);
+      await scanDictionaryDirectory(selected);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setDictionaryScanMessage(
+        message.includes('window.__TAURI_INTERNALS__')
+          ? '当前浏览器预览环境不支持系统目录选择，请手动输入路径。'
+          : message,
+      );
+    }
   };
 
   // 获取主题显示名称
@@ -305,6 +447,147 @@ const SettingsPage: Component = () => {
           <Match when={activeTab() === 'plugins'}>
             <section class={styles.section}>
               <h2 class={styles.sectionTitle}>插件</h2>
+
+              <div class={styles.pluginCard}>
+                <div class={styles.pluginCardHeader}>
+                  <h3 class={styles.pluginCardTitle}>本地词典</h3>
+                  <p class={styles.pluginCardDescription}>
+                    配置 MDX 词典目录、默认查词范围以及 AI 助教的 DeepSeek 连接参数。
+                  </p>
+                </div>
+
+                <div class={styles.settingItem}>
+                  <div class={styles.settingLabel}>
+                    <label>词典目录</label>
+                    <p class={styles.settingDescription}>选择包含 .mdx / .mdd 文件的文件夹</p>
+                  </div>
+                  <div class={styles.settingControl}>
+                    <div class={styles.stackedControl}>
+                      <div class={styles.inlineControl}>
+                        <input
+                          class={styles.textInput}
+                          type="text"
+                          value={dictionaryDirectory()}
+                          onInput={(event) => setDictionaryDirectory(event.currentTarget.value)}
+                          placeholder="词典目录路径"
+                          spellcheck={false}
+                        />
+                        <button
+                          type="button"
+                          class={styles.secondaryButton}
+                          onClick={() => void chooseDictionaryDirectory()}
+                        >
+                          浏览
+                        </button>
+                        <button
+                          type="button"
+                          class={styles.primaryButton}
+                          disabled={isScanningDictionaries()}
+                          onClick={() => void scanDictionaryDirectory()}
+                        >
+                          {isScanningDictionaries() ? '扫描中' : '扫描'}
+                        </button>
+                      </div>
+
+                      <Show when={dictionaryScanMessage()}>
+                        <p class={styles.statusText}>{dictionaryScanMessage()}</p>
+                      </Show>
+                    </div>
+                  </div>
+                </div>
+
+                <div class={styles.settingItem}>
+                  <div class={styles.settingLabel}>
+                    <label>默认查词范围</label>
+                    <p class={styles.settingDescription}>当前：{activeDictionaryLabel()}</p>
+                  </div>
+                  <div class={styles.settingControl}>
+                    <div class={styles.dictionaryList}>
+                      <Show
+                        when={dictionarySources().length > 0}
+                        fallback={<span class={styles.emptyText}>尚未导入词典</span>}
+                      >
+                        <button
+                          type="button"
+                          class={styles.dictionaryOption}
+                          classList={{ [styles.dictionaryOptionActive]: isAllDictionariesActive() }}
+                          onClick={() => setActiveDictionaryFile(ALL_DICTIONARIES_VALUE)}
+                        >
+                          <span>全部导入词典</span>
+                          <span class={styles.optionMeta}>{dictionarySources().length} 本</span>
+                        </button>
+
+                        <For each={dictionarySources()}>
+                          {(source) => {
+                            const isActive = () => source.filePath === activeDictionaryFile();
+
+                            return (
+                              <button
+                                type="button"
+                                class={styles.dictionaryOption}
+                                classList={{ [styles.dictionaryOptionActive]: isActive() }}
+                                onClick={() => setActiveDictionaryFile(source.filePath)}
+                              >
+                                <span>{source.displayName}</span>
+                                <span class={styles.optionMeta}>{source.hasMdd ? 'MDD' : 'MDX'}</span>
+                              </button>
+                            );
+                          }}
+                        </For>
+                      </Show>
+                    </div>
+                  </div>
+                </div>
+
+                <div class={styles.settingItem}>
+                  <div class={styles.settingLabel}>
+                    <label>DeepSeek Endpoint</label>
+                    <p class={styles.settingDescription}>AI 助教请求地址</p>
+                  </div>
+                  <div class={styles.settingControl}>
+                    <input
+                      class={styles.textInput}
+                      type="text"
+                      value={aiEndpoint()}
+                      onInput={(event) => setAiEndpoint(event.currentTarget.value)}
+                      spellcheck={false}
+                    />
+                  </div>
+                </div>
+
+                <div class={styles.settingItem}>
+                  <div class={styles.settingLabel}>
+                    <label>DeepSeek Model</label>
+                    <p class={styles.settingDescription}>用于词典 AI 助教的模型名称</p>
+                  </div>
+                  <div class={styles.settingControl}>
+                    <input
+                      class={styles.textInput}
+                      type="text"
+                      value={aiModel()}
+                      onInput={(event) => setAiModel(event.currentTarget.value)}
+                      spellcheck={false}
+                    />
+                  </div>
+                </div>
+
+                <div class={styles.settingItem}>
+                  <div class={styles.settingLabel}>
+                    <label>DeepSeek API Key</label>
+                    <p class={styles.settingDescription}>留空时词典 AI 面板使用本地 mock 回复</p>
+                  </div>
+                  <div class={styles.settingControl}>
+                    <input
+                      class={styles.textInput}
+                      type="password"
+                      value={aiApiKey()}
+                      onInput={(event) => setAiApiKey(event.currentTarget.value)}
+                      placeholder="未配置"
+                      spellcheck={false}
+                    />
+                  </div>
+                </div>
+              </div>
 
               <div class={styles.pluginCard}>
                 <div class={styles.pluginCardHeader}>

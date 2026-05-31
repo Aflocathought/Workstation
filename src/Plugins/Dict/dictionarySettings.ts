@@ -4,8 +4,16 @@ export const DICTIONARY_STORAGE_KEYS = {
   sources: "dict:dictionary-sources",
 };
 
+export const DICTIONARY_AI_STORAGE_KEYS = {
+  apiKey: "dict:ai-api-key",
+  endpoint: "dict:ai-endpoint",
+  model: "dict:ai-model",
+};
+
 export const DICTIONARY_SETTINGS_UPDATED_EVENT = "dict:settings-updated";
 export const ALL_DICTIONARIES_VALUE = "__all_imported_dictionaries__";
+export const DEFAULT_AI_ENDPOINT = "https://api.deepseek.com/v1/chat/completions";
+export const DEFAULT_AI_MODEL = "deepseek-chat";
 
 export type DictionarySource = {
   filePath: string;

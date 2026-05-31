@@ -117,6 +117,7 @@
   border-radius: 8px;
   background: var(--bg-secondary);
   padding: 0 20px;
+  margin-bottom: 20px;
 }
 
 .pluginCardHeader {
@@ -161,6 +162,128 @@
 .numberInput:focus {
   outline: 1px solid var(--focusBorder, var(--primary));
   border-color: var(--focusBorder, var(--primary));
+}
+
+.stackedControl {
+  width: min(480px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.inlineControl {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.textInput {
+  width: min(480px, 100%);
+  min-width: 0;
+  padding: 7px 9px;
+  border: 1px solid var(--border-primary);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.inlineControl .textInput {
+  flex: 1;
+}
+
+.textInput:focus {
+  outline: 1px solid var(--focusBorder, var(--primary));
+  border-color: var(--focusBorder, var(--primary));
+}
+
+.primaryButton,
+.secondaryButton {
+  flex-shrink: 0;
+  padding: 7px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.primaryButton {
+  border: 1px solid var(--primary);
+  background: var(--primary);
+  color: var(--text-inverse);
+}
+
+.secondaryButton {
+  border: 1px solid var(--border-primary);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.primaryButton:hover,
+.secondaryButton:hover {
+  background: var(--interactive-hover);
+  color: var(--text-primary);
+}
+
+.primaryButton:disabled,
+.secondaryButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.statusText {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.dictionaryList {
+  width: min(480px, 100%);
+  max-height: 260px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dictionaryOption {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-primary);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  text-align: left;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.dictionaryOption:hover {
+  background: var(--interactive-hover);
+}
+
+.dictionaryOption.dictionaryOptionActive {
+  border-color: var(--primary);
+  background: var(--interactive-active);
+  font-weight: 500;
+}
+
+.optionMeta {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.emptyText {
+  color: var(--text-tertiary);
+  font-size: 13px;
 }
 
 /* 主题按钮 */

@@ -1,35 +1,23 @@
 import { SolidMarkdown } from "solid-markdown";
 import { useChat } from "@ai-sdk/solid";
-import { invoke } from "@tauri-apps/api/core";
-import { open } from "@tauri-apps/plugin-dialog";
 import {
   For,
   Show,
   createEffect,
   createMemo,
   createSignal,
+  onCleanup,
   onMount,
 } from "solid-js";
 import { useChatBridge } from "./ChatBridgeContext";
 import {
-  ALL_DICTIONARIES_VALUE,
-  DICTIONARY_STORAGE_KEYS,
-  type DictionarySource,
-  getDictionaryLabel,
-  persistDictionarySources,
-  persistDictionarySetting,
-  readPersistedDictionarySources,
+  DEFAULT_AI_ENDPOINT,
+  DEFAULT_AI_MODEL,
+  DICTIONARY_AI_STORAGE_KEYS,
   readPersistedValue,
+  subscribeToDictionarySettings,
 } from "./dictionarySettings";
 
-const STORAGE_KEYS = {
-  apiKey: "dict:ai-api-key",
-  endpoint: "dict:ai-endpoint",
-  model: "dict:ai-model",
-};
-
-const DEFAULT_ENDPOINT = "https://api.deepseek.com/v1/chat/completions";
-const DEFAULT_MODEL = "deepseek-chat";
 const DEFAULT_SYSTEM_PROMPT =
   "你是一名桌面词典中的外语学习助教。请优先解释语义、典型搭配、语法作用，并给出自然例句。";
 
@@ -123,45 +111,16 @@ function buildMockReply(prompt: string) {
 
 function ChatSidebar() {
   const { pendingAsk } = useChatBridge();
-  const [showSettings, setShowSettings] = createSignal(false);
   const [handledRequestId, setHandledRequestId] = createSignal(0);
   const [apiKey, setApiKey] = createSignal(
-    readPersistedValue(STORAGE_KEYS.apiKey, ""),
+    readPersistedValue(DICTIONARY_AI_STORAGE_KEYS.apiKey, ""),
   );
   const [endpoint, setEndpoint] = createSignal(
-    readPersistedValue(STORAGE_KEYS.endpoint, DEFAULT_ENDPOINT),
+    readPersistedValue(DICTIONARY_AI_STORAGE_KEYS.endpoint, DEFAULT_AI_ENDPOINT),
   );
   const [model, setModel] = createSignal(
-    readPersistedValue(STORAGE_KEYS.model, DEFAULT_MODEL),
+    readPersistedValue(DICTIONARY_AI_STORAGE_KEYS.model, DEFAULT_AI_MODEL),
   );
-  const [dictionaryDirectory, setDictionaryDirectory] = createSignal(
-    readPersistedValue(DICTIONARY_STORAGE_KEYS.directory, ""),
-  );
-  const [activeDictionaryFile, setActiveDictionaryFile] = createSignal(
-    readPersistedValue(DICTIONARY_STORAGE_KEYS.activeFile, ""),
-  );
-  const [dictionarySources, setDictionarySources] = createSignal<DictionarySource[]>(
-    readPersistedDictionarySources(),
-  );
-  const [isScanningDictionaries, setIsScanningDictionaries] = createSignal(false);
-  const [dictionaryScanMessage, setDictionaryScanMessage] = createSignal("");
-
-  createEffect(() => {
-    window.localStorage.setItem(STORAGE_KEYS.apiKey, apiKey());
-    window.localStorage.setItem(STORAGE_KEYS.endpoint, endpoint());
-    window.localStorage.setItem(STORAGE_KEYS.model, model());
-  });
-
-  createEffect(() => {
-    persistDictionarySetting(
-      DICTIONARY_STORAGE_KEYS.directory,
-      dictionaryDirectory().trim(),
-    );
-    persistDictionarySetting(
-      DICTIONARY_STORAGE_KEYS.activeFile,
-      activeDictionaryFile().trim(),
-    );
-  });
 
   const {
     append,
@@ -204,14 +163,14 @@ function ChatSidebar() {
         return createTextStreamResponse(buildMockReply(latestPrompt));
       }
 
-      const response = await globalThis.fetch(endpoint().trim() || DEFAULT_ENDPOINT, {
+      const response = await globalThis.fetch(endpoint().trim() || DEFAULT_AI_ENDPOINT, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${apiKey().trim()}`,
         },
         body: JSON.stringify({
-          model: model().trim() || DEFAULT_MODEL,
+          model: model().trim() || DEFAULT_AI_MODEL,
           stream: false,
           temperature: 0.3,
           messages: [
@@ -253,101 +212,6 @@ function ChatSidebar() {
     }
   });
 
-  const isAllDictionariesActive = createMemo(
-    () =>
-      activeDictionaryFile().trim() === ALL_DICTIONARIES_VALUE ||
-      (!activeDictionaryFile().trim() && dictionarySources().length > 0),
-  );
-
-  const activeDictionaryLabel = createMemo(() => {
-    const activeFile = activeDictionaryFile().trim();
-
-    if (isAllDictionariesActive()) {
-      return `当前查词范围：全部导入词典（${dictionarySources().length} 本）。`;
-    }
-
-    if (!activeFile) {
-      return "当前还没有选中词典。";
-    }
-
-    return `当前活动词典：${getDictionaryLabel(activeFile)}`;
-  });
-
-  const scanDictionaryDirectory = async (preferredPath?: string) => {
-    const nextDirectory = (preferredPath ?? dictionaryDirectory()).trim();
-
-    if (!nextDirectory) {
-      setDictionarySources([]);
-      persistDictionarySources([]);
-      setDictionaryScanMessage("请先输入词典目录或点击“选择文件夹”。");
-      return;
-    }
-
-    setIsScanningDictionaries(true);
-    setDictionaryScanMessage("");
-
-    try {
-      const sources = await invoke<DictionarySource[]>("scan_dictionary_directory", {
-        directory: nextDirectory,
-      });
-
-      setDictionarySources(sources);
-      persistDictionarySources(sources);
-
-      if (sources.length === 0) {
-        setActiveDictionaryFile("");
-        setDictionaryScanMessage("没有扫描到 .mdx 词典文件。支持递归扫描子目录。");
-        return;
-      }
-
-      const currentActiveFile = activeDictionaryFile().trim();
-      const hasActiveFile = sources.some(
-        (source) => source.filePath === currentActiveFile,
-      ) || currentActiveFile === ALL_DICTIONARIES_VALUE;
-
-      if (!hasActiveFile) {
-        setActiveDictionaryFile(ALL_DICTIONARIES_VALUE);
-      }
-
-      setDictionaryScanMessage(
-        `已导入 ${sources.length} 本 MDX 词典。左侧查词会使用真实词典内容。`,
-      );
-    } catch (error) {
-      setDictionarySources([]);
-      persistDictionarySources([]);
-      setActiveDictionaryFile("");
-      const message = error instanceof Error ? error.message : String(error);
-      setDictionaryScanMessage(message);
-    } finally {
-      setIsScanningDictionaries(false);
-    }
-  };
-
-  const chooseDictionaryDirectory = async () => {
-    try {
-      const selected = await open({
-        directory: true,
-        multiple: false,
-        defaultPath: dictionaryDirectory().trim() || undefined,
-        title: "选择词典目录",
-      });
-
-      if (typeof selected !== "string") {
-        return;
-      }
-
-      setDictionaryDirectory(selected);
-      await scanDictionaryDirectory(selected);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      setDictionaryScanMessage(
-        message.includes("window.__TAURI_INTERNALS__")
-          ? "当前浏览器预览环境不支持系统目录选择，请手动输入路径。"
-          : message,
-      );
-    }
-  };
-
   const submitCurrentInput = async () => {
     const prompt = input().trim();
 
@@ -387,11 +251,17 @@ function ChatSidebar() {
   });
 
   onMount(() => {
-    const initialDirectory = dictionaryDirectory().trim();
+    const syncAiSettings = () => {
+      setApiKey(readPersistedValue(DICTIONARY_AI_STORAGE_KEYS.apiKey, ""));
+      setEndpoint(
+        readPersistedValue(DICTIONARY_AI_STORAGE_KEYS.endpoint, DEFAULT_AI_ENDPOINT),
+      );
+      setModel(readPersistedValue(DICTIONARY_AI_STORAGE_KEYS.model, DEFAULT_AI_MODEL));
+    };
 
-    if (initialDirectory) {
-      void scanDictionaryDirectory(initialDirectory);
-    }
+    const unsubscribe = subscribeToDictionarySettings(syncAiSettings);
+
+    onCleanup(unsubscribe);
   });
 
   return (
@@ -410,14 +280,9 @@ function ChatSidebar() {
             </div>
           </div>
 
-          <button
-            type="button"
-            class="flex items-center gap-1.5 rounded-full bg-slate-100/80 px-4 py-2 text-[13px] font-semibold text-slate-600 transition hover:bg-slate-200 hover:text-slate-900"
-            onClick={() => setShowSettings((current) => !current)}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
-            {showSettings() ? "收起" : "设置"}
-          </button>
+          <span class="rounded-full bg-slate-100/80 px-4 py-2 text-[13px] font-semibold text-slate-500">
+            由软件设置中心配置
+          </span>
         </div>
 
         <Show when={error()}>
@@ -429,176 +294,6 @@ function ChatSidebar() {
           )}
         </Show>
       </div>
-
-      <Show when={showSettings()}>
-        <div class="border-b border-slate-200/50 bg-slate-50/80 p-5 px-6">
-          <p class="mb-4 text-[13px] font-medium text-slate-500">
-            语言模型与词典参数设置
-          </p>
-
-          <div class="space-y-4">
-            <div class="rounded-2xl border border-slate-200/60 bg-white p-4 shadow-sm">
-              <div class="flex items-start justify-between gap-3">
-                <div>
-                  <p class="text-[11px] font-bold tracking-widest text-slate-400 uppercase">
-                    Local Dictionary
-                  </p>
-                  <p class="mt-1.5 text-xs text-slate-600">
-                    选择包含 .mdx 词典的系统文件夹。
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-[13px] font-semibold text-slate-700 shadow-sm transition hover:bg-slate-100"
-                  onClick={() => void chooseDictionaryDirectory()}
-                >
-                  浏览...
-                </button>
-              </div>
-
-              <div class="mt-3 flex gap-2">
-                <input
-                  type="text"
-                  value={dictionaryDirectory()}
-                  onInput={(event) => setDictionaryDirectory(event.currentTarget.value)}
-                  class="h-10 flex-1 rounded-xl border border-slate-200 bg-slate-50/50 px-4 text-[13px] text-slate-800 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-4 focus:ring-indigo-500/10"
-                  placeholder="词典目录路径"
-                  spellcheck={false}
-                />
-
-                <button
-                  type="button"
-                  class="rounded-xl bg-indigo-50 px-5 py-2 text-[13px] font-semibold text-indigo-700 transition hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-50"
-                  disabled={isScanningDictionaries()}
-                  onClick={() => void scanDictionaryDirectory()}
-                >
-                  {isScanningDictionaries() ? "扫描中" : "扫描"}
-                </button>
-              </div>
-
-              <Show when={dictionaryScanMessage()}>
-                <p class="mt-2.5 text-[13px] font-medium text-indigo-600/80">
-                  {dictionaryScanMessage()}
-                </p>
-              </Show>
-
-              <p class="mt-2 text-[12px] font-semibold text-slate-500">
-                {activeDictionaryLabel()}
-              </p>
-
-              <Show when={dictionarySources().length > 0}>
-                <div class="mt-4 space-y-2">
-                  <button
-                    type="button"
-                    class="w-full rounded-xl border p-4 text-left transition"
-                    classList={{
-                      "border-indigo-300 bg-indigo-50/50 ring-1 ring-inset ring-indigo-300 shadow-sm":
-                        isAllDictionariesActive(),
-                      "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50":
-                        !isAllDictionariesActive(),
-                    }}
-                    onClick={() => setActiveDictionaryFile(ALL_DICTIONARIES_VALUE)}
-                  >
-                    <div class="flex items-center justify-between gap-3">
-                      <div class="min-w-0">
-                        <p class="truncate text-[14px] font-semibold text-slate-800">
-                          全部导入词典
-                        </p>
-                        <p class="mt-1 text-[12px] text-slate-500">
-                          {dictionarySources().length} 本 MDX
-                        </p>
-                      </div>
-
-                      <Show when={isAllDictionariesActive()}>
-                        <div class="rounded-md bg-indigo-100 px-2 py-1 text-[10px] font-bold text-indigo-700">
-                          ON
-                        </div>
-                      </Show>
-                    </div>
-                  </button>
-
-                  <For each={dictionarySources()}>
-                    {(source) => {
-                      const isActive = () => source.filePath === activeDictionaryFile();
-
-                      return (
-                        <button
-                          type="button"
-                          class="w-full rounded-xl border p-4 text-left transition"
-                          classList={{
-                            "border-indigo-300 bg-indigo-50/50 ring-1 ring-inset ring-indigo-300 shadow-sm":
-                              isActive(),
-                            "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50": !isActive(),
-                          }}
-                          onClick={() => setActiveDictionaryFile(source.filePath)}
-                        >
-                          <div class="flex items-center justify-between gap-3">
-                            <div class="min-w-0">
-                              <p class="truncate text-[14px] font-semibold text-slate-800" classList={{ "text-indigo-900": isActive() }}>
-                                {source.displayName}
-                              </p>
-                            </div>
-
-                            <div class="shrink-0 flex items-center gap-2">
-                              <Show when={source.hasMdd}>
-                                <div class="rounded-md bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-500">
-                                  MDD
-                                </div>
-                              </Show>
-                              <Show when={isActive()}>
-                                <div class="rounded-md bg-indigo-100 px-2 py-1 text-[10px] font-bold text-indigo-700">
-                                  ON
-                                </div>
-                              </Show>
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    }}
-                  </For>
-                </div>
-              </Show>
-            </div>
-
-            <div class="flex flex-col gap-3">
-              <label class="block">
-                <span class="text-[11px] font-bold tracking-widest text-slate-400 uppercase">Endpoint</span>
-                <input
-                  type="text"
-                  value={endpoint()}
-                  onInput={(event) => setEndpoint(event.currentTarget.value)}
-                  class="mt-1.5 h-10 w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-[13px] text-slate-800 shadow-sm outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10"
-                  spellcheck={false}
-                />
-              </label>
-
-              <label class="block">
-                <span class="text-[11px] font-bold tracking-widest text-slate-400 uppercase">Model</span>
-                <input
-                  type="text"
-                  value={model()}
-                  onInput={(event) => setModel(event.currentTarget.value)}
-                  class="mt-1.5 h-10 w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-[13px] text-slate-800 shadow-sm outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10"
-                  spellcheck={false}
-                />
-              </label>
-
-              <label class="block">
-                <span class="text-[11px] font-bold tracking-widest text-slate-400 uppercase">API Key</span>
-                <input
-                  type="password"
-                  value={apiKey()}
-                  onInput={(event) => setApiKey(event.currentTarget.value)}
-                  class="mt-1.5 h-10 w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-[13px] text-slate-800 shadow-sm outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10"
-                  placeholder="留空即使用 Mock 数据"
-                  spellcheck={false}
-                />
-              </label>
-            </div>
-          </div>
-        </div>
-      </Show>
 
       <div class="min-h-0 flex-1 overflow-y-auto px-6 py-5">
         <div class="space-y-6">
