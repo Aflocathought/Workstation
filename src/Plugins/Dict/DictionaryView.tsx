@@ -5,7 +5,7 @@ import {
   ALL_DICTIONARIES_VALUE,
   DICTIONARY_STORAGE_KEYS,
   type DictionarySource,
-  getDictionaryLabel,
+  readPersistedDictionaryEnabledFiles,
   readPersistedDictionarySources,
   readPersistedValue,
   subscribeToDictionarySettings,
@@ -16,7 +16,7 @@ const DEFAULT_ENTRY_HTML = `
   <article>
     <h1>开始查词</h1>
     <p>输入一个单词并按回车开始查询本地 MDX 词典。</p>
-    <blockquote>提示：在右侧设置中选择词典目录后，会自动导入并列出目录里的词典。</blockquote>
+    <blockquote>提示：在软件设置中心选择词典目录后，左侧栏会列出可用词典。</blockquote>
   </article>
 `;
 
@@ -58,25 +58,24 @@ function DictionaryView() {
   const [dictionarySources, setDictionarySources] = createSignal<DictionarySource[]>(
     readPersistedDictionarySources(),
   );
+  const [enabledDictionaryFiles, setEnabledDictionaryFiles] = createSignal<
+    string[] | null
+  >(readPersistedDictionaryEnabledFiles());
 
   let articleRef: HTMLDivElement | undefined;
 
   const currentSummary = createMemo(() => stripHtml(entryHtml()).slice(0, 180));
-  const activeDictionaryLabel = createMemo(() => {
-    const filePath = activeDictionaryFile().trim();
-    const sources = dictionarySources();
+  const availableDictionaryFiles = createMemo(() => {
+    const filePaths = dictionarySources().map((source) => source.filePath);
+    const enabledFiles = enabledDictionaryFiles();
 
-    if (filePath === ALL_DICTIONARIES_VALUE) {
-      return `查词范围：全部导入词典（${sources.length} 本）`;
+    if (!enabledFiles) {
+      return filePaths;
     }
 
-    if (!filePath) {
-      return sources.length > 0
-        ? `查词范围：全部导入词典（${sources.length} 本）`
-        : "尚未导入本地词典";
-    }
+    const enabledFileSet = new Set(enabledFiles);
 
-    return `当前词典：${getDictionaryLabel(filePath)}`;
+    return filePaths.filter((filePath) => enabledFileSet.has(filePath));
   });
 
   const hideAskButton = () => {
@@ -99,11 +98,13 @@ function DictionaryView() {
 
     try {
       const selectedDictionary = activeDictionaryFile().trim();
-      const dictionaryFiles = dictionarySources().map((source) => source.filePath);
+      const dictionaryFiles = availableDictionaryFiles();
       const html = await invoke<string>("lookup_word", {
         word: nextWord,
         dictionaryFile:
-          selectedDictionary && selectedDictionary !== ALL_DICTIONARIES_VALUE
+          selectedDictionary &&
+          selectedDictionary !== ALL_DICTIONARIES_VALUE &&
+          dictionaryFiles.includes(selectedDictionary)
             ? selectedDictionary
             : null,
         dictionaryFiles,
@@ -222,6 +223,7 @@ function DictionaryView() {
         readPersistedValue(DICTIONARY_STORAGE_KEYS.activeFile, ""),
       );
       setDictionarySources(readPersistedDictionarySources());
+      setEnabledDictionaryFiles(readPersistedDictionaryEnabledFiles());
     };
 
     if (savedWord) {
@@ -345,11 +347,6 @@ function DictionaryView() {
             </Show>
           </button>
         </form>
-
-        <div class="mt-3 flex items-center gap-2 text-[13px] font-semibold text-slate-500">
-          <span class="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
-          {activeDictionaryLabel()}
-        </div>
 
         <Show when={errorMessage()}>
           <div class="mt-4 flex items-center gap-3 rounded-2xl border border-rose-200/60 bg-rose-50/80 px-5 py-4 text-[15px] font-medium text-rose-700 backdrop-blur-sm">

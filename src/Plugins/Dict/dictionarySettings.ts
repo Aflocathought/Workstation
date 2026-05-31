@@ -1,6 +1,7 @@
 export const DICTIONARY_STORAGE_KEYS = {
   directory: "dict:dictionary-directory",
   activeFile: "dict:active-dictionary-file",
+  enabledFiles: "dict:enabled-dictionary-files",
   sources: "dict:dictionary-sources",
 };
 
@@ -97,6 +98,40 @@ export function persistDictionarySources(sources: DictionarySource[]) {
     window.localStorage.removeItem(DICTIONARY_STORAGE_KEYS.sources);
   }
 
+  window.dispatchEvent(new CustomEvent(DICTIONARY_SETTINGS_UPDATED_EVENT));
+}
+
+export function readPersistedDictionaryEnabledFiles() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const rawValue = window.localStorage.getItem(DICTIONARY_STORAGE_KEYS.enabledFiles);
+
+  if (!rawValue) {
+    return null;
+  }
+
+  try {
+    const parsedValue = JSON.parse(rawValue) as unknown;
+
+    return Array.isArray(parsedValue)
+      ? parsedValue.filter((value): value is string => typeof value === "string")
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+export function persistDictionaryEnabledFiles(filePaths: string[]) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(
+    DICTIONARY_STORAGE_KEYS.enabledFiles,
+    JSON.stringify(filePaths),
+  );
   window.dispatchEvent(new CustomEvent(DICTIONARY_SETTINGS_UPDATED_EVENT));
 }
 
