@@ -45,6 +45,9 @@ csv = "1.3"
 tokio = { version = "1", features = ["full"] }
 readmdict = "0.1.0"
 
+# AGPL 3.0
+mdict-rs = { version = "0.1.4", optional = true } 
+
 # Parquet engine (lazy, zero-copy oriented IO)
 polars = { version = "0.53.0", default-features = false, features = [
     "lazy",
@@ -67,6 +70,7 @@ parquet2 = "0.17"
 
 [features]
 default = []
+mdict-rs-backend = ["dep:mdict-rs"]
 
 [dependencies.windows]
 version = "0.62.2" 
