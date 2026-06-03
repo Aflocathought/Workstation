@@ -623,7 +623,7 @@ function ChatSidebar() {
 
   return (
     <div class="flex h-full flex-col overflow-hidden rounded-xl border border-white/60 bg-white/70 shadow-[0_8px_32px_-12px_rgba(15,23,42,0.08)] backdrop-blur-2xl">
-      <div class="border-b border-slate-200/50 bg-white/40 px-6 py-5">
+      <div class="border-b border-slate-200/50 bg-white/40 p-3">
         <div class="flex items-center justify-between gap-3">
           <div class="flex items-center gap-2.5">
             <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-900 text-white shadow-md">
@@ -637,20 +637,20 @@ function ChatSidebar() {
             </div>
           </div>
 
-          <span class="rounded-full bg-slate-100/80 px-4 py-2 text-[13px] font-semibold text-slate-500">
+          <span class="rounded-full bg-slate-100/80 p-4 text-[13px] font-semibold text-slate-500">
             由软件设置中心配置
           </span>
         </div>
 
         <Show when={chatError()}>
-          <div class="mt-4 flex items-center gap-2 rounded-xl border border-rose-200/60 bg-rose-50/80 px-4 py-3 text-[13px] font-medium text-rose-700">
+          <div class="mt-4 flex items-center gap-2 rounded-xl border border-rose-200/60 bg-rose-50/80 p-4 text-[13px] font-medium text-rose-700">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
             {chatError()}
           </div>
         </Show>
       </div>
 
-      <div ref={messageListRef} class="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+      <div ref={messageListRef} class="min-h-0 flex-1 overflow-y-auto p-3">
         <div class="space-y-6">
           <For each={messages()}>
             {(message) => (
@@ -721,7 +721,7 @@ function ChatSidebar() {
                   </Show>
 
                   <div
-                    class="rounded-[20px] px-5 py-4"
+                    class="rounded-[20px] p-6"
                     classList={{
                       "rounded-tr-sm bg-indigo-600 text-white shadow-md shadow-indigo-600/20": message.role === "user",
                       "rounded-tl-sm border border-slate-200/60 bg-white text-slate-700 shadow-sm": message.role !== "user" && !message.error,

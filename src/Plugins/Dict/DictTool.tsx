@@ -153,7 +153,7 @@ function DictTool() {
   return (
     <ChatBridgeProvider>
       <div class="dict-plugin-root relative h-full overflow-hidden text-slate-800">
-        <div class="dict-layout flex h-full min-h-0 flex-col gap-1 p-5 xl:flex-row xl:p-6">
+        <div class="dict-layout flex h-full min-h-0 flex-col gap-1 p-4 xl:flex-row xl:p-5">
           <aside
             class="dict-sidebar-pane min-h-65 w-full xl:min-h-0 xl:shrink-0"
             style={{ width: `${leftDrawerWidth()}px` }}

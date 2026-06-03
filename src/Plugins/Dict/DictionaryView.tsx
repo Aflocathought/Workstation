@@ -248,7 +248,7 @@ function DictionaryView() {
 
   return (
     <div class="flex h-full flex-col overflow-hidden rounded-xl border border-white/60 bg-white/60 shadow-[0_8px_32px_-12px_rgba(15,23,42,0.08)] backdrop-blur-2xl">
-      <div class="flex-none px-8 pt-8 pb-4">
+      <div class="flex-none px-4 pt-4">
         <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div class="flex items-center gap-3">
             <div class="flex h-10 w-10 items-center justify-center rounded-[14px] bg-indigo-600 text-white shadow-md shadow-indigo-600/20">
@@ -370,11 +370,11 @@ function DictionaryView() {
         </Show>
       </div>
 
-      <div class="min-h-0 flex-1 p-8">
+      <div class="min-h-0 flex-1 p-4">
         <div class="relative h-full overflow-hidden rounded-[20px] border border-white/60 bg-white/50 shadow-inner">
           <div
             ref={articleRef}
-            class="dictionary-scroll relative h-full overflow-auto p-5 md:p-6"
+            class="dictionary-scroll relative h-full overflow-auto p-3 md:p-4"
             onClick={playDictionaryAudio}
             onMouseUp={updateSelectedText}
             onDblClick={updateSelectedText}
