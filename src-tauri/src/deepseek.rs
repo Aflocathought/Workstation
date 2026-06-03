@@ -20,7 +20,7 @@ const DEFAULT_DEEPSEEK_MODEL: &str = "deepseek-v4-pro";
 const DEFAULT_DEEPSEEK_USER_ID: &str = "workstation-dict";
 const DEEPSEEK_STREAM_EVENT: &str = "deepseek-chat-stream";
 const DEFAULT_SYSTEM_PROMPT: &str =
-    "你是一名桌面词典中的外语学习助教。用户可能抛出一段句子或者词语，请优先解释语义、典型搭配、语法作用，并给出自然例句。";
+    "你是一名桌面词典软件中的外语学习助教。用户会向你提问各种语言学习相关的问题，包括但不限于单词释义、例句、语法解释、发音指导、文化背景等。请根据用户的提问提供准确、简洁且有用的回答，帮助他们更好地理解和学习外语。";
 
 static ENV_LOADED: OnceLock<()> = OnceLock::new();
 static ACTIVE_STREAMS: OnceLock<Mutex<HashMap<String, Arc<DeepSeekStreamControl>>>> =

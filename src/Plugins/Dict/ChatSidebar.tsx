@@ -26,6 +26,7 @@ import {
 
 const DEEPSEEK_STREAM_EVENT = "deepseek-chat-stream";
 const DEEPSEEK_USER_ID = "workstation-dict";
+const MESSAGE_LIST_BOTTOM_THRESHOLD = 48;
 
 type ChatRole = "user" | "assistant";
 type ChatStatus =
@@ -194,6 +195,7 @@ function ChatSidebar() {
   const [chatError, setChatError] = createSignal("");
   const [clockTick, setClockTick] = createSignal(Date.now());
   const [activeRequest, setActiveRequest] = createSignal<ActiveRequest | null>(null);
+  const [shouldStickToLatest, setShouldStickToLatest] = createSignal(true);
   const [apiKey, setApiKey] = createSignal(
     readPersistedValue(DICTIONARY_AI_STORAGE_KEYS.apiKey, ""),
   );
@@ -210,6 +212,7 @@ function ChatSidebar() {
   let messageListRef: HTMLDivElement | undefined;
   let inputRef: HTMLTextAreaElement | undefined;
   let activeStreamCleanup: (() => void) | null = null;
+  let latestMessageListSignature = "";
 
   const isLoading = createMemo(() => activeRequest() !== null);
   const hasUserMessages = createMemo(() =>
@@ -279,6 +282,33 @@ function ChatSidebar() {
 
   const updateInputSelection = (target: HTMLTextAreaElement) => {
     setCursorPosition(target.selectionStart ?? target.value.length);
+  };
+
+  const isMessageListNearBottom = () => {
+    if (!messageListRef) {
+      return true;
+    }
+
+    return (
+      messageListRef.scrollHeight -
+        messageListRef.scrollTop -
+        messageListRef.clientHeight <=
+      MESSAGE_LIST_BOTTOM_THRESHOLD
+    );
+  };
+
+  const scrollMessageListToBottom = () => {
+    if (messageListRef) {
+      messageListRef.scrollTop = messageListRef.scrollHeight;
+    }
+  };
+
+  const handleMessageListScroll = () => {
+    setShouldStickToLatest(isMessageListNearBottom());
+  };
+
+  const handleMessageListWheel = () => {
+    setShouldStickToLatest(false);
   };
 
   const choosePromptSuggestion = (prompt: DictionaryAIPrompt) => {
@@ -452,6 +482,7 @@ function ChatSidebar() {
     const assistantMessage = createAssistantMessage(assistantMessageId);
     const nextMessages = [...baseMessages, userMessage, assistantMessage];
 
+    setShouldStickToLatest(true);
     setMessages(nextMessages);
     setInput("");
     setChatError("");
@@ -575,13 +606,32 @@ function ChatSidebar() {
     return message.isStreaming ? "正在思考..." : "模型返回了空内容。";
   };
 
+  const messageListSignature = createMemo(() =>
+    messages()
+      .map(
+        (message) =>
+          `${message.id}:${message.content.length}:${message.reasoning.length}:${
+            message.isStreaming ? "1" : "0"
+          }`,
+      )
+      .join("|"),
+  );
+
   createEffect(() => {
-    messages();
-    clockTick();
+    const nextSignature = messageListSignature();
+
+    if (nextSignature === latestMessageListSignature) {
+      return;
+    }
+
+    latestMessageListSignature = nextSignature;
+
+    if (!shouldStickToLatest()) {
+      return;
+    }
+
     queueMicrotask(() => {
-      if (messageListRef) {
-        messageListRef.scrollTop = messageListRef.scrollHeight;
-      }
+      scrollMessageListToBottom();
     });
   });
 
@@ -650,7 +700,12 @@ function ChatSidebar() {
         </Show>
       </div>
 
-      <div ref={messageListRef} class="min-h-0 flex-1 overflow-y-auto p-3">
+      <div
+        ref={messageListRef}
+        class="min-h-0 flex-1 overflow-y-auto p-3"
+        onScroll={handleMessageListScroll}
+        onWheel={handleMessageListWheel}
+      >
         <div class="space-y-6">
           <For each={messages()}>
             {(message) => (
@@ -721,7 +776,7 @@ function ChatSidebar() {
                   </Show>
 
                   <div
-                    class="rounded-[20px] p-6"
+                    class="rounded-[20px] p-2"
                     classList={{
                       "rounded-tr-sm bg-indigo-600 text-white shadow-md shadow-indigo-600/20": message.role === "user",
                       "rounded-tl-sm border border-slate-200/60 bg-white text-slate-700 shadow-sm": message.role !== "user" && !message.error,
