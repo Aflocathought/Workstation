@@ -223,7 +223,7 @@
 .dict-plugin-root .dictionary-html blockquote {
   margin: 0.75rem 0;
   border-left: 3px solid #6366f1;
-  padding: 0.55rem 0.9rem;
+  padding: 0.25rem 0.6rem;
   color: #4338ca;
   background: rgba(224, 231, 255, 0.5);
   border-radius: 0 8px 8px 0;
@@ -258,6 +258,8 @@
 
 .dict-plugin-root .chat-markdown {
   color: inherit;
+  overflow-wrap: anywhere;
+  text-align: left;
 }
 
 .dict-plugin-root .chat-markdown h1,
@@ -272,12 +274,21 @@
 .dict-plugin-root .chat-markdown p,
 .dict-plugin-root .chat-markdown li {
   margin: 0 0 0.6rem;
+  white-space: pre-wrap;
 }
 
 .dict-plugin-root .chat-markdown ul,
 .dict-plugin-root .chat-markdown ol {
   padding-left: 1.2rem;
   margin-bottom: 0.8rem;
+}
+
+.dict-plugin-root .chat-markdown ul {
+  list-style: disc;
+}
+
+.dict-plugin-root .chat-markdown ol {
+  list-style: decimal;
 }
 
 .dict-plugin-root .chat-markdown code {
