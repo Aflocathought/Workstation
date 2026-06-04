@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import remarkGfm from "remark-gfm";
 import { SolidMarkdown } from "solid-markdown";
 import {
   For,
@@ -27,6 +28,7 @@ import {
 const DEEPSEEK_STREAM_EVENT = "deepseek-chat-stream";
 const DEEPSEEK_USER_ID = "workstation-dict";
 const MESSAGE_LIST_BOTTOM_THRESHOLD = 48;
+const markdownRemarkPlugins = [remarkGfm];
 
 type ChatRole = "user" | "assistant";
 type ChatStatus =
@@ -768,6 +770,7 @@ function ChatSidebar() {
                         <div class="chat-thinking-markdown mt-2 max-h-52 overflow-y-auto border-t border-sky-100 pt-2 text-[13px] leading-relaxed text-sky-800">
                           <SolidMarkdown
                             class="chat-markdown"
+                            remarkPlugins={markdownRemarkPlugins}
                             children={message.reasoning || "等待推理内容..."}
                           />
                         </div>
@@ -793,6 +796,7 @@ function ChatSidebar() {
                     >
                       <SolidMarkdown
                         class="chat-markdown text-[15px] leading-relaxed"
+                        remarkPlugins={markdownRemarkPlugins}
                         children={assistantDisplayContent(message)}
                       />
                     </Show>
