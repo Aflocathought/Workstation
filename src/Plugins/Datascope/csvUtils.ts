@@ -47,8 +47,27 @@ function toNumber(value: unknown): number | null {
   if (typeof value === "boolean") return value ? 1 : 0;
   const text = typeof value === "string" ? value.trim() : toText(value).trim();
   if (!text) return null;
+  if (isMissingNumericToken(text)) return null;
   const numeric = Number(text);
   return Number.isFinite(numeric) ? numeric : null;
+}
+
+function isMissingNumericToken(token: string): boolean {
+  const t = token.trim().toLowerCase();
+  return (
+    t === "nan" ||
+    t === "na" ||
+    t === "n/a" ||
+    t === "null" ||
+    t === "none" ||
+    t === "undefined" ||
+    t === "inf" ||
+    t === "+inf" ||
+    t === "-inf" ||
+    t === "infinity" ||
+    t === "+infinity" ||
+    t === "-infinity"
+  );
 }
 
 function isReasonableTimestampMs(value: number): boolean {
@@ -236,11 +255,16 @@ export function buildColumnMeta(
     let nonEmpty = 0;
     const temporalNameHint = hasTemporalNameHint(name);
 
-    for (let i = 0; i < sampleSize; i += 1) {
+    for (let sampleIndex = 0; sampleIndex < sampleSize; sampleIndex += 1) {
+      const i =
+        sampleSize <= 1
+          ? 0
+          : Math.floor((sampleIndex * (dataRows.length - 1)) / (sampleSize - 1));
       const value = dataRows[i]?.[name];
       if (value == null) continue;
       const trimmed = toText(value).trim();
       if (!trimmed) continue;
+      if (isMissingNumericToken(trimmed)) continue;
       nonEmpty += 1;
 
       const numeric = Number(trimmed);
@@ -474,6 +498,114 @@ function buildLineSampleIndices(
   return evenlySampleIndices(processed.length, threshold);
 }
 
+function hasNullValues(
+  processed: ProcessedChartRow[],
+  yColumns: string[]
+): boolean {
+  return processed.some((item) =>
+    yColumns.some((column) => item.values[column] === null)
+  );
+}
+
+function sampleValidSegment(
+  segment: Array<{ row: ProcessedChartRow; x: number; y: number }>,
+  threshold: number,
+  axisType: AxisType
+): Array<[number | string, number | null]> {
+  if (segment.length <= threshold) {
+    return segment.map((item) => [item.row.axisValue, item.y]);
+  }
+
+  const indices =
+    axisType === "category"
+      ? evenlySampleIndices(segment.length, threshold)
+      : largestTriangleThreeBucketsIndices(
+          segment.map((item) => ({ x: item.x, y: item.y })),
+          threshold
+        );
+
+  return indices.map((index) => [segment[index].row.axisValue, segment[index].y]);
+}
+
+function buildLineSeriesPoints(
+  processed: ProcessedChartRow[],
+  column: string,
+  shouldDownsample: boolean,
+  threshold: number,
+  axisType: AxisType
+): Array<[number | string, number | null]> {
+  if (!shouldDownsample) {
+    return processed.map((item) => [item.axisValue, item.values[column]]);
+  }
+
+  const validSegments: Array<
+    Array<{ row: ProcessedChartRow; x: number; y: number }>
+  > = [];
+  const orderedRuns: Array<
+    | { type: "valid"; segmentIndex: number }
+    | { type: "null"; point: [number | string, number | null] }
+  > = [];
+  let currentSegment: Array<{ row: ProcessedChartRow; x: number; y: number }> = [];
+  let inNullRun = false;
+
+  const flushSegment = () => {
+    if (!currentSegment.length) return;
+    const segmentIndex = validSegments.length;
+    validSegments.push(currentSegment);
+    orderedRuns.push({ type: "valid", segmentIndex });
+    currentSegment = [];
+  };
+
+  processed.forEach((item, index) => {
+    const value = item.values[column];
+    if (typeof value === "number" && Number.isFinite(value)) {
+      inNullRun = false;
+      currentSegment.push({
+        row: item,
+        x: resolveAxisNumber(item, index),
+        y: value,
+      });
+      return;
+    }
+
+    flushSegment();
+    if (!inNullRun) {
+      orderedRuns.push({ type: "null", point: [item.axisValue, null] });
+      inNullRun = true;
+    }
+  });
+
+  flushSegment();
+
+  const totalValid = validSegments.reduce(
+    (sum, segment) => sum + segment.length,
+    0
+  );
+  if (totalValid === 0) {
+    return orderedRuns
+      .filter((run): run is { type: "null"; point: [number | string, number | null] } => run.type === "null")
+      .map((run) => run.point);
+  }
+
+  const nullRunCount = orderedRuns.filter((run) => run.type === "null").length;
+  const validBudget = Math.max(
+    validSegments.length,
+    threshold - nullRunCount
+  );
+  const sampledSegments = validSegments.map((segment) => {
+    const proportional = Math.round((validBudget * segment.length) / totalValid);
+    const segmentThreshold = Math.min(
+      segment.length,
+      Math.max(segment.length > 1 ? 2 : 1, proportional)
+    );
+    return sampleValidSegment(segment, segmentThreshold, axisType);
+  });
+
+  return orderedRuns.flatMap((run) =>
+    run.type === "null" ? [run.point] : sampledSegments[run.segmentIndex]
+  );
+}
+
 function buildScatterBucketSeries(
   processed: ProcessedChartRow[],
   column: string,
@@ -605,13 +737,6 @@ export function buildChartData(params: {
       valueMap[col] = parseNumeric(row[col]);
     });
 
-    // 仅当所有 Y 列均为 null 时跳过，避免无意义数据点
-    const hasAnyValue = yColumns.some((col) => valueMap[col] !== null);
-    if (!hasAnyValue) {
-      droppedRows += 1;
-      return;
-    }
-
     processed.push({
       axisValue: axis.value,
       axisNumeric: axis.numeric,
@@ -646,18 +771,30 @@ export function buildChartData(params: {
       0
     );
   } else {
-    const indices = shouldDownsample
-      ? buildLineSampleIndices(processed, yColumns, threshold)
-      : processed.map((_, idx) => idx);
+    const indices =
+      shouldDownsample && !hasNullValues(processed, yColumns)
+        ? buildLineSampleIndices(processed, yColumns, threshold)
+        : null;
 
-    sampledCount = indices.length;
     series = yColumns.map((col) => ({
       name: col,
-      points: indices.map((idx) => [
-        processed[idx].axisValue,
-        processed[idx].values[col],
-      ]),
+      points: indices
+        ? indices.map((idx) => [
+            processed[idx].axisValue,
+            processed[idx].values[col],
+          ])
+        : buildLineSeriesPoints(
+            processed,
+            col,
+            shouldDownsample,
+            threshold,
+            axisType
+          ),
     }));
+    sampledCount = series.reduce(
+      (max, current) => Math.max(max, current.points.length),
+      0
+    );
   }
 
   return {
