@@ -56,11 +56,16 @@ const MAX_RECENT_FILES = 10;
 
 type DataFormat = "csv" | "parquet";
 
+type ColumnChartConfig = Record<
+  string,
+  { enabled: boolean; mode: ChartMode }
+>;
+
 const Datascope: Component = () => {
   const framework = useAppFramework();
   const [headers, setHeaders] = createSignal<string[]>([]);
   const [rows, setRows] = createSignal<CSVRecord[]>([]);
-  const [xColumn, setXColumn] = createSignal<string>("");
+  const [xColumn, setXColumn] = createSignal<string>(ROW_INDEX_KEY);
   const [valueColumns, setValueColumns] = createSignal<string[]>([]);
   const [fileName, setFileName] = createSignal<string>("");
   const [totalRowCount, setTotalRowCount] = createSignal<number>(0);
@@ -71,7 +76,10 @@ const Datascope: Component = () => {
   const [skippedRows, setSkippedRows] = createSignal<number>(0);
   const csvExists = createMemo(() => rows().length > 0);
   const [isSmooth] = createSignal<boolean>(false);
-  const [chartMode, setChartMode] = createSignal<ChartMode>("line");
+  const [columnChartConfig, setColumnChartConfig] =
+    createSignal<ColumnChartConfig>({});
+  const [isLayerPanelOpen, setIsLayerPanelOpen] =
+    createSignal<boolean>(true);
   const autoDownsample = () => framework.store.settings.datascopeAutoDownsample;
   const maxPoints = () => framework.store.settings.datascopeMaxPoints;
 
@@ -181,7 +189,8 @@ const Datascope: Component = () => {
       setThumbnails([]);
       setLastLoadedPageInfo(null);
       setValueColumns([]);
-      setXColumn("");
+      setColumnChartConfig({});
+      setXColumn(ROW_INDEX_KEY);
       setSkippedRows(0);
       setDelimiter(",");
       setDataFormat("csv");
@@ -348,6 +357,31 @@ const Datascope: Component = () => {
       .map((meta) => meta.name);
   });
 
+  createEffect(() => {
+    const numeric = numericColumns();
+    setColumnChartConfig((prev) => {
+      const next: ColumnChartConfig = {};
+      const hasExisting = numeric.some((col) => Boolean(prev[col]));
+
+      numeric.forEach((col, index) => {
+        next[col] =
+          prev[col] ??
+          {
+            enabled: !hasExisting && index === 0,
+            mode: "line",
+          };
+      });
+
+      return next;
+    });
+  });
+
+  createEffect(() => {
+    const config = columnChartConfig();
+    const active = numericColumns().filter((col) => config[col]?.enabled);
+    setValueColumns(active);
+  });
+
   const axisType = createMemo<AxisType>(() => {
     if (xColumn() === ROW_INDEX_KEY) return "value";
 
@@ -363,10 +397,16 @@ const Datascope: Component = () => {
   });
 
   createEffect(() => {
-    if (valueColumns().length > 0) return;
-    const numeric = numericColumns();
-    if (numeric.length) {
-      setValueColumns([numeric[0]]);
+    const availableHeaders = headers();
+    const currentX = xColumn();
+
+    if (!availableHeaders.length) {
+      setXColumn(ROW_INDEX_KEY);
+    } else if (
+      currentX !== ROW_INDEX_KEY &&
+      !availableHeaders.includes(currentX)
+    ) {
+      setXColumn(ROW_INDEX_KEY);
     }
   });
 
@@ -377,9 +417,8 @@ const Datascope: Component = () => {
     if (!currentFilePath()) return;
     if (isLoading() || isPageLoading()) return;
 
-    const x = xColumn() || ROW_INDEX_KEY;
     const ys = valueColumns().slice().sort();
-    const key = `${x}::${ys.join("|")}`;
+    const key = ys.join("|");
     if (key === lastSelectionKey()) return;
     setLastSelectionKey(key);
 
@@ -423,20 +462,6 @@ const Datascope: Component = () => {
 
   // 进度条改为后端真实进度上报（datascope:progress 事件）
 
-  createEffect(() => {
-    const availableHeaders = headers();
-    const currentX = xColumn();
-
-    if (!availableHeaders.length) {
-      setXColumn("");
-    } else if (
-      currentX !== ROW_INDEX_KEY &&
-      !availableHeaders.includes(currentX)
-    ) {
-      setXColumn(availableHeaders[0]);
-    }
-  });
-
   const chartData = createMemo<ChartComputationResult | null>(() => {
     const dataRows = rows();
     const xCol = xColumn();
@@ -450,7 +475,9 @@ const Datascope: Component = () => {
       xColumn: xCol,
       yColumns: selected,
       axisType: axisType(),
-      chartMode: chartMode(),
+      seriesModes: Object.fromEntries(
+        selected.map((col) => [col, columnChartConfig()[col]?.mode ?? "line"])
+      ),
       enableDownsampling: autoDownsample(),
       maxPoints: maxPoints(),
     });
@@ -484,6 +511,9 @@ const Datascope: Component = () => {
     setStatus("正在加载文件...");
     setCurrentFilePath(filePath);
     setTotalRowCount(0);
+    setValueColumns([]);
+    setColumnChartConfig({});
+    setXColumn(ROW_INDEX_KEY);
 
     // 简单按扩展名判定格式
     const ext = (filePath.split(".").pop() || "").toLowerCase();
@@ -587,6 +617,9 @@ const Datascope: Component = () => {
       setHeaders([]);
       setFileName("");
       setTotalRowCount(0);
+      setValueColumns([]);
+      setColumnChartConfig({});
+      setXColumn(ROW_INDEX_KEY);
       setPagination(null);
       setThumbnails([]);
       setParquetInferredNumericColumns([]);
@@ -834,20 +867,37 @@ const Datascope: Component = () => {
     }
   };
 
-  const handleValueColumnToggle = (name: string) => {
-    setValueColumns((prev) => {
-      if (prev.includes(name)) {
-        const updated = prev.filter((col) => col !== name);
-        return updated.length ? updated : prev;
-      }
-      return [...prev, name];
-    });
+  const handleColumnEnabledChange = (name: string, enabled: boolean) => {
+    setColumnChartConfig((prev) => ({
+      ...prev,
+      [name]: {
+        enabled,
+        mode: prev[name]?.mode ?? "line",
+      },
+    }));
   };
 
-  const handleChartModeChange = (event: Event) => {
-    setChartMode(
-      (event.currentTarget as HTMLSelectElement).value as ChartMode
-    );
+  const handleColumnModeChange = (name: string, mode: ChartMode) => {
+    setColumnChartConfig((prev) => ({
+      ...prev,
+      [name]: {
+        enabled: prev[name]?.enabled ?? true,
+        mode,
+      },
+    }));
+  };
+
+  const setAllColumnsEnabled = (enabled: boolean) => {
+    setColumnChartConfig((prev) => {
+      const next: ColumnChartConfig = {};
+      numericColumns().forEach((col) => {
+        next[col] = {
+          enabled,
+          mode: prev[col]?.mode ?? "line",
+        };
+      });
+      return next;
+    });
   };
 
   const renderStats = () => {
@@ -855,7 +905,7 @@ const Datascope: Component = () => {
     if (!data) return null;
     if (data.rawCount === 0) {
       return (
-        <div class={styles.message}>加载成功, 请选择至少一个数值列以绘图。</div>
+        <div class={styles.message}>加载成功, 请选择至少一个图层以绘图。</div>
       );
     }
     // return (
@@ -902,10 +952,9 @@ const Datascope: Component = () => {
         <ChartRender
           axisType={data.axisType}
           series={data.series}
-          chartMode={chartMode()}
           downsampled={data.downsampled}
           isSmooth={isSmooth()}
-          isIndexAxis={xColumn() === ROW_INDEX_KEY}
+          isIndexAxis={true}
         />
       </div>
     );
@@ -1000,6 +1049,100 @@ const Datascope: Component = () => {
               </button>
             </Show>
 
+            <div class={styles.layerControlAnchor}>
+              <button
+                class={styles.layerFloatingToggle}
+                onClick={() => setIsLayerPanelOpen((open) => !open)}
+                title={isLayerPanelOpen() ? "收起图层" : "展开图层"}
+              >
+                图层 {valueColumns().length}/{numericColumns().length}
+              </button>
+
+              <Show when={isLayerPanelOpen()}>
+                <div class={styles.layerFloatingPanel}>
+                  <div class={styles.layerPanelHeader}>
+                    <h3 class={styles.layerPanelTitle}>图层</h3>
+                    <button
+                      class={styles.panelHeaderButton}
+                      onClick={() => setIsLayerPanelOpen(false)}
+                      title="收起图层"
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  <Show
+                    when={numericColumns().length > 0}
+                    fallback={<div class={styles.layerEmpty}>未检测到数值列</div>}
+                  >
+                    <div class={styles.layerActions}>
+                      <button
+                        class={styles.layerActionButton}
+                        onClick={() => setAllColumnsEnabled(true)}
+                      >
+                        全部打开
+                      </button>
+                      <button
+                        class={styles.layerActionButton}
+                        onClick={() => setAllColumnsEnabled(false)}
+                      >
+                        全部关闭
+                      </button>
+                    </div>
+
+                    <div class={styles.layerList}>
+                      <For each={numericColumns()}>
+                        {(col) => {
+                          const config = () =>
+                            columnChartConfig()[col] ?? {
+                              enabled: false,
+                              mode: "line" as ChartMode,
+                            };
+                          return (
+                            <div
+                              class={styles.layerRow}
+                              classList={{ [styles.layerRowDisabled]: !config().enabled }}
+                            >
+                              <label class={styles.layerSwitch}>
+                                <input
+                                  type="checkbox"
+                                  checked={config().enabled}
+                                  onChange={(event) =>
+                                    handleColumnEnabledChange(
+                                      col,
+                                      (event.currentTarget as HTMLInputElement).checked
+                                    )
+                                  }
+                                />
+                                <span class={styles.layerName} title={col}>
+                                  {col}
+                                </span>
+                              </label>
+                              <select
+                                class={styles.layerModeSelect}
+                                value={config().mode}
+                                disabled={!config().enabled}
+                                onChange={(event) =>
+                                  handleColumnModeChange(
+                                    col,
+                                    (event.currentTarget as HTMLSelectElement)
+                                      .value as ChartMode
+                                  )
+                                }
+                              >
+                                <option value="line">连线</option>
+                                <option value="scatter">散点</option>
+                              </select>
+                            </div>
+                          );
+                        }}
+                      </For>
+                    </div>
+                  </Show>
+                </div>
+              </Show>
+            </div>
+
             <section class={styles.chartPanel}>
               <Show when={status()}>
                 <div class={styles.message}>{status()}</div>
@@ -1087,37 +1230,6 @@ const Datascope: Component = () => {
                     </For>
                   </select>
                 </label>
-
-                <label class={styles.inlineControls}>
-                  <span>图表类型</span>
-                  <select value={chartMode()} onChange={handleChartModeChange}>
-                    <option value="line">连线图</option>
-                    <option value="scatter">散点图</option>
-                  </select>
-                </label>
-
-                <div>
-                  <div>数值列</div>
-                  <Show
-                    when={numericColumns().length > 0}
-                    fallback={<div>未检测到数值列</div>}
-                  >
-                    <div class={styles.checkboxGrid}>
-                      <For each={numericColumns()}>
-                        {(col) => (
-                          <label class={styles.checkboxItem}>
-                            <input
-                              type="checkbox"
-                              checked={valueColumns().includes(col)}
-                              onChange={() => handleValueColumnToggle(col)}
-                            />
-                            {col}
-                          </label>
-                        )}
-                      </For>
-                    </div>
-                  </Show>
-                </div>
 
                 <label class={styles.inlineControls}>
                   <span>分隔符</span>

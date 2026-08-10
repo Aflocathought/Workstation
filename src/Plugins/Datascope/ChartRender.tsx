@@ -7,13 +7,14 @@ export type ChartMode = "line" | "scatter";
 
 interface ChartSeries {
   name: string;
+  mode?: ChartMode;
   points: Array<[number | string, number | null]>;
 }
 
 interface ChartRenderProps {
   axisType: AxisType;
   series: ChartSeries[];
-  chartMode: ChartMode;
+  chartMode?: ChartMode;
   downsampled: boolean;
   isSmooth: boolean;
   xRange?: [number, number] | null;
@@ -54,7 +55,6 @@ const ChartRender: Component<ChartRenderProps> = (props) => {
   const getOption = () => {
     // ✅ 必须在这里计算，才能在每次重绘时获取最新的 props
     // 同时加上 enableXRange 的判断
-    const isScatterMode = props.chartMode === "scatter";
     const rangeL =
       props.enableXRange && props.xRange ? props.xRange[0] : undefined;
     const rangeR =
@@ -146,11 +146,12 @@ const ChartRender: Component<ChartRenderProps> = (props) => {
         },
       },
       series: props.series.map((series) => {
+        const mode = series.mode ?? props.chartMode ?? "line";
         // ECharts 内置 LTTB 采样不能正确处理 null 间隙，会跳过 null 点
         // 导致相隔很远的非 null 数据点被直接连线
         const hasNulls = series.points.some((p) => p[1] === null);
 
-        if (isScatterMode) {
+        if (mode === "scatter") {
           const useLargeScatter = series.points.length >= 2000;
           return {
             name: series.name,
