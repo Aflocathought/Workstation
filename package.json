@@ -8,9 +8,7 @@
     "dev": "vite",
     "build": "vite build",
     "serve": "vite preview",
-    "tauri": "tauri",
-    "pdfium:sync": "pwsh -ExecutionPolicy Bypass -File ./scripts/update-pdfium.ps1",
-    "pdfium:sync:latest": "pwsh -ExecutionPolicy Bypass -File ./scripts/update-pdfium.ps1 -Latest"
+    "tauri": "tauri"
   },
   "license": "MIT",
   "dependencies": {
@@ -28,7 +26,6 @@
     "@types/gapi.auth2": "^0.0.61",
     "@types/gapi.client.calendar": "^3.0.12",
     "ai": "^6.0.184",
-    "echarts": "^6.0.0",
     "gapi-script": "^1.2.0",
     "html2canvas": "^1.4.1",
     "remark-gfm": "^4.0.1",

@@ -7,8 +7,6 @@ import Build from '@suid/icons-material/Build';
 import { spectrumToolConfig } from './Spectrum';
 import { pythonToolConfig } from './Python';
 import { calendarToolConfig } from './Calendar';
-import { datascopeToolConfig } from './Datascope';
-import pdfLibraryToolConfig from './PDFLibrary';
 import { dictToolConfig } from './Dict';
 
 /**
@@ -19,9 +17,7 @@ export const allToolConfigs: ToolConfig[] = [
   spectrumToolConfig,
   pythonToolConfig,
   calendarToolConfig,
-  datascopeToolConfig,
   dictToolConfig,
-  pdfLibraryToolConfig,
   // 未来新增工具配置添加在这里...
 ];
 

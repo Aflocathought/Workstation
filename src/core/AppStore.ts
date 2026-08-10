@@ -1,10 +1,6 @@
 // src/core/AppStore.ts
 import { createSignal } from "solid-js";
 import type { ColorMode, TimelineLayout } from "../Timetrack/Category/CategoryUtils";
-import {
-  DATASCOPE_MAX_POINTS_DEFAULT,
-  clampDatascopeMaxPoints,
-} from "../Settings/Setting";
 
 export interface AppState {
   // 应用基本状态
@@ -38,8 +34,6 @@ export interface UserSettings {
   // 数据设置
   dataRetentionDays: number;
   backupEnabled: boolean;
-  datascopeAutoDownsample: boolean;
-  datascopeMaxPoints: number;
   
   // 通知设置
   notificationsEnabled: boolean;
@@ -70,8 +64,6 @@ const defaultUserSettings: UserSettings = {
   minimizeToTray: true,
   dataRetentionDays: 365,
   backupEnabled: false,
-  datascopeAutoDownsample: true,
-  datascopeMaxPoints: DATASCOPE_MAX_POINTS_DEFAULT,
   notificationsEnabled: true,
   soundEnabled: false,
 };
@@ -98,15 +90,7 @@ class AppStore {
   }
 
   updateSettings(updates: Partial<UserSettings>) {
-    const normalizedUpdates = { ...updates };
-
-    if (typeof normalizedUpdates.datascopeMaxPoints === 'number') {
-      normalizedUpdates.datascopeMaxPoints = clampDatascopeMaxPoints(
-        normalizedUpdates.datascopeMaxPoints
-      );
-    }
-
-    this.setUserSettings(prev => ({ ...prev, ...normalizedUpdates }));
+    this.setUserSettings(prev => ({ ...prev, ...updates }));
     this.saveSettingsToStorage();
   }
 
@@ -200,10 +184,6 @@ class AppStore {
           ...defaultUserSettings,
           ...settings,
         };
-
-        mergedSettings.datascopeMaxPoints = clampDatascopeMaxPoints(
-          mergedSettings.datascopeMaxPoints
-        );
 
         this.setUserSettings(mergedSettings);
       }

@@ -28,17 +28,12 @@ pub use python::{PythonInfo, PythonResult, ScriptInfo};
 mod app_paths;
 #[path = "core/db.rs"]
 mod db;
-mod pdf_library;
 #[path = "services/python.rs"]
 mod python;
 #[path = "features/spectrum.rs"]
 mod spectrum;
 #[path = "features/tracker.rs"]
 mod tracker;
-#[path = "handlers/csv_handler.rs"]
-mod csv_handler;
-#[path = "handlers/parquet_handler.rs"]
-mod parquet_handler;
 
 // 全局 Python 服务实例
 static PYTHON_SERVICE: OnceCell<Mutex<PythonService>> = OnceCell::new();
@@ -46,9 +41,6 @@ static PYTHON_SERVICE: OnceCell<Mutex<PythonService>> = OnceCell::new();
 // 我们将把数据库连接句柄放在一个全局、线程安全的状态中
 // Mutex 确保了在任何时候只有一个线程可以访问数据库连接，防止数据损坏
 pub use db::DbState;
-
-// PDF Library 状态
-use pdf_library::PdfLibraryState;
 
 // 全局追踪器停止标志
 pub struct TrackerStop {
@@ -59,15 +51,6 @@ pub struct TrackerStop {
 pub use spectrum::{SpectrumConfig, SpectrumRuntime, SpectrumStop};
 
 use db::{ActivityLog, TimelineActivity};
-use csv_handler::{
-    CsvCacheManager,
-    csv_load_file,
-    csv_get_pagination,
-    csv_load_page,
-    csv_generate_thumbnail,
-    csv_change_delimiter,
-    csv_clear_cache,
-};
 
 // 这个结构体用于前端请求时返回当前活动窗口信息
 pub use tracker::ActiveWindowInfo;
@@ -99,11 +82,6 @@ fn main() {
                 db: Mutex::new(conn),
             });
 
-            // 初始化 PDF Library 数据库路径
-            let pdf_db_path = app_data_dir.join("pdf_library.db");
-            let pdf_state = Mutex::new(PdfLibraryState::new(pdf_db_path));
-            app.manage(pdf_state);
-
             // 管理追踪器停止标志
             let tracker_stop = Arc::new(AtomicBool::new(false));
             app.manage(TrackerStop {
@@ -124,12 +102,6 @@ fn main() {
             app.manage(SpectrumRuntime {
                 running: Arc::new(AtomicBool::new(false)),
             });
-
-            // 管理 CSV 缓存状态（供 CSV Viewer 后端使用）
-            app.manage(CsvCacheManager::default());
-
-            // 管理 Parquet 缓存状态（供 Datascope Parquet 后端使用）
-            app.manage(parquet_handler::ParquetCacheManager::default());
 
             // 在一个新的线程中启动我们的后台追踪器
             let app_handle = app.handle().clone();
@@ -180,56 +152,6 @@ fn main() {
             read_python_script,
             delete_python_script,
             get_python_info,
-            // CSV Viewer 后端命令
-            csv_load_file,
-            csv_get_pagination,
-            csv_load_page,
-            csv_generate_thumbnail,
-            csv_change_delimiter,
-            csv_clear_cache,
-            // Parquet Viewer 后端命令
-            parquet_handler::parquet_open_file,
-            parquet_handler::parquet_load_page,
-            parquet_handler::parquet_generate_thumbnail,
-            parquet_handler::parquet_clear_cache,
-            parquet_handler::convert_csv_to_parquet,
-            // PDF Library 命令
-            pdf_library::commands::pdflibrary_init_db,
-            pdf_library::commands::pdflibrary_backup_db,
-            pdf_library::commands::pdflibrary_get_books,
-            pdf_library::commands::pdflibrary_get_book,
-            pdf_library::commands::pdflibrary_add_book,
-            pdf_library::commands::pdflibrary_update_title,
-            pdf_library::commands::pdflibrary_rename_book,
-            pdf_library::commands::pdflibrary_delete_book,
-            pdf_library::commands::pdflibrary_get_tags,
-            pdf_library::commands::pdflibrary_create_tag,
-            pdf_library::commands::pdflibrary_get_book_tags,
-            pdf_library::commands::pdflibrary_add_book_tag,
-            pdf_library::commands::pdflibrary_remove_book_tag,
-            pdf_library::commands::pdflibrary_update_tag,
-            pdf_library::commands::pdflibrary_delete_tag,
-            pdf_library::commands::pdflibrary_get_directories,
-            pdf_library::commands::pdflibrary_add_directory,
-            pdf_library::commands::pdflibrary_get_categories,
-            pdf_library::commands::pdflibrary_create_category,
-            pdf_library::commands::pdflibrary_update_category,
-            pdf_library::commands::pdflibrary_delete_category,
-            pdf_library::commands::pdflibrary_update_book_category,
-            pdf_library::commands::pdflibrary_extract_metadata,
-            pdf_library::commands::pdflibrary_extract_cover,
-            pdf_library::commands::pdflibrary_update_book_cover,
-            pdf_library::commands::pdflibrary_get_file_identity,
-            pdf_library::commands::pdflibrary_show_in_folder,
-            pdf_library::commands::pdflibrary_open_file,
-            pdf_library::commands::pdflibrary_open_workspace_folder,
-            pdf_library::commands::pdflibrary_copy_file_to_clipboard,
-            pdf_library::commands::pdflibrary_remove_missing_files,
-            pdf_library::commands::pdflibrary_rescan_files,
-            pdf_library::commands::pdflibrary_relink_book,
-            pdf_library::commands::pdflibrary_move_book_to_workspace,
-            pdf_library::commands::pdflibrary_set_workspace_path,
-            pdf_library::commands::pdflibrary_refresh_all_metadata,
         ])
         .run(tauri::generate_context!())
         .expect("运行Tauri应用程序时出错");

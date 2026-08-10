@@ -22,11 +22,6 @@ import {
   readPersistedDictionarySources,
   readPersistedValue,
 } from '../Plugins/Dict/dictionarySettings';
-import {
-  DATASCOPE_MAX_POINTS_MAX,
-  DATASCOPE_MAX_POINTS_MIN,
-  DATASCOPE_MAX_POINTS_STEP,
-} from './Setting';
 import styles from './SettingsPage.module.css';
 
 type Tab = 'appearance' | 'features' | 'data' | 'ai' | 'plugins' | 'notifications' | 'about';
@@ -141,14 +136,6 @@ const SettingsPage: Component = () => {
     themeManager.setCurrentTheme(theme);
     setCurrentTheme(theme);
     framework.store.updateSettings({ theme });
-  };
-
-  const handleDatascopeMaxPointsChange = (event: Event) => {
-    framework.store.updateSettings({
-      datascopeMaxPoints: Number(
-        (event.currentTarget as HTMLInputElement).value
-      ),
-    });
   };
 
   const isAllDictionariesActive = () =>
@@ -767,57 +754,6 @@ const SettingsPage: Component = () => {
 
               </div>
 
-              <div class={styles.pluginCard}>
-                <div class={styles.pluginCardHeader}>
-                  <h3 class={styles.pluginCardTitle}>Datascope</h3>
-                  <p class={styles.pluginCardDescription}>
-                    配置大数据量图表的默认渲染策略，控制缩放和切换视图时的性能表现。
-                  </p>
-                </div>
-
-                <div class={styles.settingItem}>
-                  <div class={styles.settingLabel}>
-                    <label>自动下采样</label>
-                    <p class={styles.settingDescription}>在大数据量图表中自动压缩点数，降低缩放和渲染卡顿</p>
-                  </div>
-                  <div class={styles.settingControl}>
-                    <Switch
-                      checked={framework.store.settings.datascopeAutoDownsample}
-                      onChange={(checked) => framework.store.updateSettings({ datascopeAutoDownsample: checked })}
-                    />
-                  </div>
-                </div>
-
-                <div class={styles.settingItem}>
-                  <div class={styles.settingLabel}>
-                    <label>最大显示点数</label>
-                    <p class={styles.settingDescription}>
-                      控制 Datascope 自动下采样后的点数上限，范围 {DATASCOPE_MAX_POINTS_MIN} - {DATASCOPE_MAX_POINTS_MAX}
-                    </p>
-                  </div>
-                  <div class={styles.settingControl}>
-                    <div class={styles.rangeControl}>
-                      <input
-                        type="range"
-                        min={DATASCOPE_MAX_POINTS_MIN}
-                        max={DATASCOPE_MAX_POINTS_MAX}
-                        step={DATASCOPE_MAX_POINTS_STEP}
-                        value={framework.store.settings.datascopeMaxPoints}
-                        onInput={handleDatascopeMaxPointsChange}
-                      />
-                      <input
-                        class={styles.numberInput}
-                        type="number"
-                        min={DATASCOPE_MAX_POINTS_MIN}
-                        max={DATASCOPE_MAX_POINTS_MAX}
-                        step={DATASCOPE_MAX_POINTS_STEP}
-                        value={framework.store.settings.datascopeMaxPoints}
-                        onChange={handleDatascopeMaxPointsChange}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
             </section>
           </Match>
 
