@@ -14,26 +14,20 @@ use std::thread;
 use tauri::Manager;
 
 use once_cell::sync::OnceCell;
+use tauri_plugin_autostart::Builder as AutostartBuilder;
 #[cfg(target_os = "windows")]
 // use window_vibrancy::apply_mica;
 
 // Python 服务
 use python::PythonService;
 pub use python::{PythonInfo, PythonResult, ScriptInfo};
-use tauri_plugin_autostart::Builder as AutostartBuilder;
 
 // WASAPI 相关已迁入 spectrum 模块
 
 #[path = "core/app_paths.rs"]
 mod app_paths;
-#[path = "handlers/csv_handler.rs"]
-mod csv_handler;
 #[path = "core/db.rs"]
 mod db;
-mod deepseek;
-mod dict;
-#[path = "handlers/parquet_handler.rs"]
-mod parquet_handler;
 mod pdf_library;
 #[path = "services/python.rs"]
 mod python;
@@ -41,6 +35,10 @@ mod python;
 mod spectrum;
 #[path = "features/tracker.rs"]
 mod tracker;
+#[path = "handlers/csv_handler.rs"]
+mod csv_handler;
+#[path = "handlers/parquet_handler.rs"]
+mod parquet_handler;
 
 // 全局 Python 服务实例
 static PYTHON_SERVICE: OnceCell<Mutex<PythonService>> = OnceCell::new();
@@ -60,11 +58,16 @@ pub struct TrackerStop {
 // 全局频谱采集停止标志
 pub use spectrum::{SpectrumConfig, SpectrumRuntime, SpectrumStop};
 
-use csv_handler::{
-    csv_change_delimiter, csv_clear_cache, csv_generate_thumbnail, csv_get_pagination,
-    csv_load_file, csv_load_page, CsvCacheManager,
-};
 use db::{ActivityLog, TimelineActivity};
+use csv_handler::{
+    CsvCacheManager,
+    csv_load_file,
+    csv_get_pagination,
+    csv_load_page,
+    csv_generate_thumbnail,
+    csv_change_delimiter,
+    csv_clear_cache,
+};
 
 // 这个结构体用于前端请求时返回当前活动窗口信息
 pub use tracker::ActiveWindowInfo;
@@ -163,11 +166,6 @@ fn main() {
             get_latest_activities,
             get_activities_for_day,
             get_database_size,
-            deepseek::deepseek_cancel_chat,
-            deepseek::deepseek_chat,
-            deepseek::deepseek_chat_stream,
-            dict::lookup_word,
-            dict::scan_dictionary_directory,
             open_spectrum_window,
             open_spectrum_floating_window,
             open_test_window,
